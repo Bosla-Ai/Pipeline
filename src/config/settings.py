@@ -1,6 +1,6 @@
 ################## Platforms ###############
 # Youtube
-YOUTUBE_API_KEY="your_youtube_api_key"
+YOUTUBE_API_KEY="AIzaSyDBSgYSTXCqhNjc3AAHC70jq-AdK2KB_XQ"
 
 #Udemy
 UDEMY_CLIENT_ID="your_client_id"

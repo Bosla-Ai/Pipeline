@@ -5,4 +5,8 @@ result = classifier_result(
     parameters=['.net','laravel','node']
 )
 
-print(max(result['scores']))
+print(result)
+
+from fetchers.youtube_fetcher import fetch
+
+# print(fetch(['C#']))
