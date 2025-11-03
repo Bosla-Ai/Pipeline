@@ -5,8 +5,13 @@ result = classifier_result(
     parameters=['.net','laravel','node']
 )
 
-print(result)
+# print(result['scores'])
 
-from fetchers.youtube_fetcher import fetch
+from fetchers.videos.youtube_fetcher import fetch,classify_video_level
+import json
 
-# print(fetch(['C#']))
+results = fetch(['pytorch'], 'beginner')
+# 2. Convert the list to a formatted JSON string
+formatted_json = json.dumps(results, indent=4) 
+# 3. Print the formatted string
+print(formatted_json)
