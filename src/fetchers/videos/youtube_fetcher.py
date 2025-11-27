@@ -1,210 +1,195 @@
-def fetch(tags, user_level, max_results=10):
+import requests
+import math
+from datetime import datetime, timezone
+from config.settings import YOUTUBE_API_KEY
+from utils.helpers import classify_via_frontend
+
+async def fetch(sio, socket_id, tags, user_level, max_results=3):
     """
-    Fetches both videos AND playlists for a list of tags.
-    Scores them separately and returns a combined, scored list.
+    Fetches content (Playlists preferred, Long Video fallback),
+    Scores them, and uses Frontend AI to classify/filter by user level.
     """
-    import requests
-    from config.settings import YOUTUBE_API_KEY
-    
     if not tags:
         print("No tags provided, skipping fetch.")
-        return []
+        return {}
 
     search_url = "https://www.googleapis.com/youtube/v3/search"
     video_details_url = "https://www.googleapis.com/youtube/v3/videos"
     playlist_details_url = "https://www.googleapis.com/youtube/v3/playlists"
     
-    all_content = []
-    video_ids = []
-    playlist_ids = []
+    all_content = {}
     
+    # Prepare level string for better search query relevance
     level_query_string = ""
     if user_level and user_level in ['beginner', 'intermediate', 'advanced']:
         level_query_string = user_level
 
-    # --- Step 1: Search for BOTH videos and playlists ---
-    search_query = f'{" ".join(tags)} {level_query_string} tutorial course'
-    print(f"Searching for: {search_query}")
+    for tag in tags:
+        print(f"\n--- Processing tag: {tag} ---")
+        candidates = [] 
+        
+        # =========================================================
+        # STRATEGY 1: Try to find PLAYLISTS
+        # =========================================================
+        search_query = f'{tag} {level_query_string} full course tutorial'
+        print(f"  [Strategy 1] Searching Playlists for: {search_query}")
 
-    search_params = {
-        "part": "snippet",
-        "q": search_query,
-        "type": "video,playlist",
-        "maxResults": max_results,
-        "key": YOUTUBE_API_KEY,
-    }
-
-    search_response = requests.get(search_url, params=search_params).json()
-    
-    for item in search_response.get("items", []):
-        item_id = item.get("id", {})
-        if item_id.get("kind") == "youtube#video":
-            video_ids.append(item_id.get("videoId"))
-        elif item_id.get("kind") == "youtube#playlist":
-            playlist_ids.append(item_id.get("playlistId"))
-
-    # --- Step 2: Process Videos ---
-    if video_ids:
-        stats_params = {
-            "part": "snippet,statistics", # Snippet contains the language
-            "id": ",".join(video_ids),
+        search_params_playlist = {
+            "part": "snippet",
+            "q": search_query,
+            "type": "playlist",
+            "maxResults": max_results,
             "key": YOUTUBE_API_KEY,
         }
-        stats_response = requests.get(video_details_url, params=stats_params).json()
 
-        for item in stats_response.get("items", []):
-            snippet = item["snippet"]
-            stats = item.get("statistics", {})
-            video_id = item["id"]
+        playlist_ids = []
+        try:
+            pl_search_resp = requests.get(search_url, params=search_params_playlist).json()
+            if "items" in pl_search_resp:
+                playlist_ids = [item["id"]["playlistId"] for item in pl_search_resp["items"]]
+        except requests.exceptions.RequestException as e:
+            print(f"    Request failed: {e}")
+
+        # --- Process Playlists if found ---
+        if playlist_ids:
+            try:
+                pl_details_resp = requests.get(playlist_details_url, params={
+                    "part": "snippet,contentDetails",
+                    "id": ",".join(playlist_ids),
+                    "key": YOUTUBE_API_KEY,
+                }).json()
+                
+                for item in pl_details_resp.get("items", []):
+                    snippet = item["snippet"]
+                    details = item["contentDetails"]
+                    
+                    data = {
+                        "contentType": "Playlist",
+                        "contentId": item["id"],
+                        "url": f"https://www.youtube.com/playlist?list={item['id']}",
+                        "title": snippet["title"],
+                        "description": snippet.get("description", ""),
+                        "channelTitle": snippet["channelTitle"],
+                        "publishedAt": snippet["publishedAt"],
+                        "videoCount": int(details.get("itemCount", 0)),
+                        "language": snippet.get("defaultLanguage", "en").split('-')[0]
+                    }
+                    data["score"] = calculate_playlist_score(data)
+                    candidates.append(data)
+            except Exception as e:
+                print(f"    Error details playlists: {e}")
+
+        # =========================================================
+        # STRATEGY 2: Fallback to LONG VIDEOS (only if no playlists)
+        # =========================================================
+        if not candidates:
+            print(f"  [Strategy 2] Fallback: Searching Long Videos for '{tag}'...")
+            video_query = f'{tag} {level_query_string} full tutorial' 
             
-            language_code = snippet.get("defaultAudioLanguage", snippet.get("defaultLanguage"))
+            try:
+                vid_search_resp = requests.get(search_url, params={
+                    "part": "snippet",
+                    "q": video_query,
+                    "type": "video",
+                    "videoDuration": "long", # > 20 mins
+                    "maxResults": max_results,
+                    "key": YOUTUBE_API_KEY,
+                }).json()
+                
+                video_ids = [item["id"]["videoId"] for item in vid_search_resp.get("items", [])]
+                
+                if video_ids:
+                    vid_details_resp = requests.get(video_details_url, params={
+                        "part": "snippet,statistics",
+                        "id": ",".join(video_ids),
+                        "key": YOUTUBE_API_KEY,
+                    }).json()
+                    
+                    for item in vid_details_resp.get("items", []):
+                        snippet = item["snippet"]
+                        stats = item.get("statistics", {})
+                        
+                        data = {
+                            "contentType": "Video",
+                            "contentId": item["id"],
+                            "url": f"https://www.youtube.com/watch?v={item['id']}",
+                            "title": snippet["title"],
+                            "description": snippet.get("description", ""),
+                            "channelTitle": snippet["channelTitle"],
+                            "publishedAt": snippet["publishedAt"],
+                            "viewCount": int(stats.get("viewCount", 0)),
+                            "likeCount": int(stats.get("likeCount", 0)),
+                            "commentCount": int(stats.get("commentCount", 0)),
+                            "language": snippet.get("defaultAudioLanguage", "en").split('-')[0]
+                        }
+                        data["score"] = calculate_video_score(data)
+                        candidates.append(data)
+
+            except Exception as e:
+                print(f"    Error processing video details: {e}")
+
+        # =========================================================
+        # STEP 3: CLASSIFY via FRONTEND (Socket)
+        # =========================================================
+        if candidates:
+            print(f"  Asking Frontend to classify {len(candidates)} candidates...")
+            # This calls the helper function to run inference on the client
+            classified_results = await classify_via_frontend(sio, socket_id, candidates, user_level)
             
-            # video langauge detection
-            if language_code:
-                language = language_code.split('-')[0]
-            else:
-                language = "unknown" 
-
-            video_data = {
-                "contentType": "Video",
-                "contentId": video_id,
-                "url": f"https://www.youtube.com/watch?v={video_id}",
-                "title": snippet["title"],
-                "description": snippet.get("description", ""),
-                "channelTitle": snippet["channelTitle"],
-                "publishedAt": snippet["publishedAt"],
-                "language": language, 
-                "viewCount": int(stats.get("viewCount", 0)),
-                "likeCount": int(stats.get("likeCount", 0)),
-                "commentCount": int(stats.get("commentCount", 0)),
-            }
-            video_data["score"] = calculate_video_score(video_data)
-            all_content.append(video_data)
-
-    # --- Step 3: Process Playlists ---
-    if playlist_ids:
-        playlist_params = {
-            "part": "snippet,contentDetails",
-            "id": ",".join(playlist_ids),
-            "key": YOUTUBE_API_KEY,
-        }
-        playlist_response = requests.get(playlist_details_url, params=playlist_params).json()
-
-        for item in playlist_response.get("items", []):
-            snippet = item["snippet"]
-            details = item["contentDetails"]
-            playlist_id = item["id"]
+            # Sort by score
+            classified_results.sort(key=lambda x: x["score"], reverse=True)
             
-            # Playlists language detection
-            language_code = snippet.get("defaultLanguage")
-            if language_code:
-                language = language_code.split('-')[0]
-            else:
-                language = "unknown" 
+            # Store filterd list
+            all_content[tag] = classified_results
+            print(f"  Approved {len(classified_results)} items for '{tag}'.")
+        else:
+            all_content[tag] = []
 
-            playlist_data = {
-                "contentType": "Playlist",
-                "contentId": playlist_id,
-                "url": f"https://www.youtube.com/playlist?list={playlist_id}",
-                "title": snippet["title"],
-                "description": snippet.get("description", ""),
-                "channelTitle": snippet["channelTitle"],
-                "publishedAt": snippet["publishedAt"],
-                "language": language, # <-- ADDED
-                "videoCount": int(details.get("itemCount", 0)),
-            }
-            playlist_data["score"] = calculate_playlist_score(playlist_data)
-            all_content.append(playlist_data)
-            
-    # --- Step 4: Return combined, sorted list (best content first) ---
-    all_content.sort(key=lambda x: x["score"], reverse=True)
-    
     return all_content
-
-def classify_video_level(title, description):
-    """
-    Classifying videos level 
-    """
-    from processors.classifier import classifier_result
-    text = f"{title} {description}".lower()
-
-    levels = ['beginner','intermediate','advanced']
-    
-    result = classifier_result(text,levels)
-    
-    # checking existence 
-    if not result or 'scores' not in result or 'labels' not in result:
-        return None    
-    
-    idx = max(range(len(result['scores'])), key=lambda i: result['scores'][i])
-            
-    return levels[idx]
 
 
 def calculate_video_score(video):
     """
-    Calculates a "learning quality" score for a video.
-    Score is primarily based on engagement, with a small modifier for freshness.
+    Calculates score based on engagement (likes/views ratio) and freshness.
     """
-    from datetime import datetime, timezone
-    import math
-    
     views = video.get("viewCount", 0)
     likes = video.get("likeCount", 0)
     
-    # 1. Reliability Threshold: Filter out noise
-    MIN_VIEW_THRESHOLD = 1000
-    if views < MIN_VIEW_THRESHOLD or likes == 0:
+    if views < 1000 or likes == 0:
         return 0
 
-    # 2. Engagement Score (0-10): This is now the most important part.
-    # log10(likes) / log10(views) * 10 
+    # Engagement Score (0-10)
     engagement_score = (math.log10(likes) / math.log10(views)) * 10
     
-    # 3. Freshness Score (0.0 - 1.0): Now has low importance.
+    # Freshness Score
     published_date = datetime.fromisoformat(video["publishedAt"].replace('Z', '+00:00'))
-    
     if published_date.tzinfo is None:
          published_date = published_date.replace(tzinfo=timezone.utc)
          
     days_old = (datetime.now(timezone.utc) - published_date).days
-    
-    if days_old < 0: 
-        days_old = 0
+    if days_old < 0: days_old = 0
             
-    # We set a "half-life" to 5 years (approx. 1825 days).
-    # A 5-year-old video's score is only cut by 50%.
+    # Half-life of 5 years
     T_HALF_DAYS = 365 * 5 
-    
     freshness_score = math.exp(-math.log(2) * (days_old / T_HALF_DAYS))
     
-    # 5. Final Score
-    final_score = engagement_score * freshness_score
-    
-    return final_score
+    return engagement_score * freshness_score
 
 def calculate_playlist_score(playlist):
     """
-    Calculates a "learning quality" score for a playlist.
-    Score is based on video count (a proxy for a "full course") and freshness.
+    Calculates score based on completeness (video count) and freshness.
     """
-    from datetime import datetime, timezone
-    import math
-        
     video_count = playlist.get("videoCount", 0)
     published_at_str = playlist.get("publishedAt", "")
     
     if not published_at_str or video_count == 0:
         return 0
         
-    # 1. Video Count Score (0-10)
-    # We'll say a "perfect" course has 50 videos. 
-    # This gives a 0-10 score based on how complete the course is.
+    # Completeness Score (0-10) - Ideal is 50 videos
     MAX_VIDEOS_FOR_SCORE = 50.0
     video_count_score = (min(video_count, MAX_VIDEOS_FOR_SCORE) / MAX_VIDEOS_FOR_SCORE) * 10
 
-    # 2. Freshness Score (0.0 - 1.0)
-    # We use the same 5-year half-life as videos
+    # Freshness Score
     published_date = datetime.fromisoformat(published_at_str.replace('Z', '+00:00'))
     if published_date.tzinfo is None:
          published_date = published_date.replace(tzinfo=timezone.utc)
@@ -215,8 +200,5 @@ def calculate_playlist_score(playlist):
     T_HALF_DAYS = 365 * 5 
     freshness_score = math.exp(-math.log(2) * (days_old / T_HALF_DAYS))
 
-    # 3. Final Score
-    # We weigh the "completeness" (video count) more than freshness.
-    final_score = (video_count_score * 0.7) + (freshness_score * 3.0) # Weighted to 0-10
-    
-    return final_score
+    # Weighted Score: 70% Completeness, 30% Freshness
+    return (video_count_score * 0.7) + (freshness_score * 3.0)
