@@ -4,3 +4,5 @@ sqlalchemy
 pyodbc          # for sql-server connection
 python-dotenv   # for .env
 beautifulsoup4  # for scraping
+python-socketio
+uvicorn
