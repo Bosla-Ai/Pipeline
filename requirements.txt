@@ -37,3 +37,4 @@ webdriver-manager
 websockets 
 wheel         
 pyqt5
+undetected_chromedriver

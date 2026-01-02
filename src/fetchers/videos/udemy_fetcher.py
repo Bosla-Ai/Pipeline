@@ -1,7 +1,6 @@
 import time
 import json
 import random
-import argparse
 import subprocess
 import os
 import signal
