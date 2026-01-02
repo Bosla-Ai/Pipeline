@@ -9,6 +9,10 @@ from src.fetchers.videos.youtube_fetcher import fetch as fetch_youtube
 from src.fetchers.videos.coursera_fetcher import fetch_coursera
 from src.fetchers.videos.udemy_fetcher import UdemyFetcher
 
+from src.fetchers.videos.youtube_fetcher import fetch as fetch_youtube
+from src.fetchers.videos.coursera_fetcher import fetch_coursera
+from src.fetchers.videos.udemy_fetcher import UdemyFetcher
+
 app = FastAPI(title="Bosla Pipeline API")
 
 
@@ -19,14 +23,19 @@ class RoadmapRequest(BaseModel):
     content_type: str = "video"
     language: str = "en"
 
+<<<<<<< HEAD
 
 async def generate_roadmap_logic(
     tags: List[str], level: str, prefer_paid: bool, content_type: str, language: str
 ):
+=======
+async def generate_roadmap_logic(tags: List[str], level: str, prefer_paid: bool, content_type: str, language: str):
+>>>>>>> d68d208 (coursera fetcher was Added)
     current_sid = socket_server.active_socket_id
     print(f"🔵 [API] Logic Triggered. Current Socket ID: {current_sid}")
 
     # 1. Initialize result container
+<<<<<<< HEAD
     roadmap_result = {"youtube": {}, "coursera": {}, "udemy": []}
 
     if not prefer_paid:
@@ -42,6 +51,23 @@ async def generate_roadmap_logic(
             youtube_data = await fetch_youtube(sio, current_sid, tags, level, language)
             roadmap_result["youtube"] = youtube_data
 
+=======
+    roadmap_result = {
+        "youtube": {},
+        "coursera": {},
+        "udemy": []
+    }
+
+    if not prefer_paid:
+        if not current_sid:
+            print("⚠️ Warning: No React Client connected. AI Classification will be skipped.")
+
+        try:
+            print(f"⏳ Fetching Free Content (YouTube)... Level: {level}, Lang: {language}")
+            youtube_data = await fetch_youtube(sio, current_sid, tags, level, language)
+            roadmap_result["youtube"] = youtube_data
+            
+>>>>>>> d68d208 (coursera fetcher was Added)
         except Exception as e:
             print(f"❌ Error inside YouTube fetcher: {e}")
 
@@ -65,8 +91,15 @@ async def generate_roadmap_logic(
         except Exception as e:
             print(f"❌ Error inside Coursera fetcher: {e}")
 
+<<<<<<< HEAD
     return {"status": "success", "data": roadmap_result}
 
+=======
+    return {
+        "status": "success",
+        "data": roadmap_result
+    }
+>>>>>>> d68d208 (coursera fetcher was Added)
 
 @app.post("/generate-roadmap")
 async def generate_roadmap(request: RoadmapRequest):
@@ -75,5 +108,10 @@ async def generate_roadmap(request: RoadmapRequest):
         level=request.level,
         prefer_paid=request.prefer_paid,
         content_type=request.content_type,
+<<<<<<< HEAD
         language=request.language,
     )
+=======
+        language=request.language 
+    )
+>>>>>>> d68d208 (coursera fetcher was Added)
