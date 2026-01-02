@@ -19,14 +19,15 @@ async def generate_roadmap_logic(tags: List[str], level: str, prefer_paid: bool
     
     print(f"🔵 [API] Logic Triggered. Current Socket ID: {current_sid}")
 
-    if not current_sid:
-        print("❌ Error: No Active Socket ID found.")
-        return {"error": "No React Client Connected! Please open http://localhost:5173"}
-
+    # For paid (Udemy) content, socket connection is not required
+    if not prefer_paid:
+        if not current_sid:
+            print("❌ Error: No Active Socket ID found.")
+            return {"error": "No React Client Connected! Please open http://localhost:5173"}
+    
     if not prefer_paid:
         try:
             from src.fetchers.videos.youtube_fetcher import fetch
-        
             print("⏳ Calling Fetcher...")
             result = await fetch(
                 tags=tags,
@@ -42,8 +43,17 @@ async def generate_roadmap_logic(tags: List[str], level: str, prefer_paid: bool
             import traceback
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
-            
-    return {"result": "Paid content logic not implemented yet"}
+    else:
+        from src.fetchers.videos.udemy_fetcher import UdemyFetcher
+        fetcher = UdemyFetcher(query=" ".join(tags), limit=5, headless=True)
+        fetcher.scrape()
+        
+        return {
+            "status": "success",
+            "query": " ".join(tags),
+            "total_courses": len(fetcher.results),
+            "courses": fetcher.results
+        }
 
 @app.post("/generate-roadmap")
 async def generate_roadmap(request: RoadmapRequest):
