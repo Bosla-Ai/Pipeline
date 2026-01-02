@@ -1,8 +1,13 @@
+import asyncio
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
 import src.socket_server as socket_server 
 from src.socket_server import sio 
+
+from src.fetchers.videos.youtube_fetcher import fetch as fetch_youtube
+from src.fetchers.videos.coursera_fetcher import fetch_coursera
+from src.fetchers.videos.udemy_fetcher import UdemyFetcher
 
 app = FastAPI(title="Bosla Pipeline API")
 
@@ -13,47 +18,53 @@ class RoadmapRequest(BaseModel):
     content_type: str = "video"
     language: str = 'en'
 
-async def generate_roadmap_logic(tags: List[str], level: str, prefer_paid: bool
-                                 , content_type: str, langauge: str):
+async def generate_roadmap_logic(tags: List[str], level: str, prefer_paid: bool, content_type: str, language: str):
     current_sid = socket_server.active_socket_id
-    
     print(f"🔵 [API] Logic Triggered. Current Socket ID: {current_sid}")
 
-    # For paid (Udemy) content, socket connection is not required
+    # 1. Initialize result container
+    roadmap_result = {
+        "youtube": {},
+        "coursera": {},
+        "udemy": []
+    }
+
     if not prefer_paid:
         if not current_sid:
-            print("❌ Error: No Active Socket ID found.")
-            return {"error": "No React Client Connected! Please open http://localhost:5173"}
-    
-    if not prefer_paid:
+            print("⚠️ Warning: No React Client connected. AI Classification will be skipped.")
+
         try:
-            from src.fetchers.videos.youtube_fetcher import fetch
-            print("⏳ Calling Fetcher...")
-            result = await fetch(
-                tags=tags,
-                user_level=level,
-                sio=sio,
-                socket_id=current_sid,
-                language=langauge
-            )
-            return {"result": result}
+            print(f"⏳ Fetching Free Content (YouTube)... Level: {level}, Lang: {language}")
+            youtube_data = await fetch_youtube(sio, current_sid, tags, level, language)
+            roadmap_result["youtube"] = youtube_data
             
         except Exception as e:
-            print(f"❌ Error inside fetcher: {e}")
-            import traceback
-            traceback.print_exc()
-            raise HTTPException(status_code=500, detail=str(e))
+            print(f"❌ Error inside YouTube fetcher: {e}")
+
     else:
-        from src.fetchers.videos.udemy_fetcher import UdemyFetcher
-        fetcher = UdemyFetcher(query=" ".join(tags), limit=5, headless=True)
-        fetcher.scrape()
-        
-        return {
-            "status": "success",
-            "query": " ".join(tags),
-            "total_courses": len(fetcher.results),
-            "courses": fetcher.results
-        }
+        print("⏳ Fetching Paid Content (Coursera API + Udemy Scraper)...")
+
+        coursera_task = asyncio.create_task(
+            fetch_coursera(sio, current_sid, tags, level, language)
+        )
+
+        try:
+            udemy_fetcher = UdemyFetcher(query=" ".join(tags), limit=5, headless=True)
+            udemy_fetcher.scrape()
+            roadmap_result["udemy"] = udemy_fetcher.results
+        except Exception as e:
+            print(f"❌ Error inside Udemy scraper: {e}")
+
+        try:
+            coursera_data = await coursera_task
+            roadmap_result["coursera"] = coursera_data
+        except Exception as e:
+            print(f"❌ Error inside Coursera fetcher: {e}")
+
+    return {
+        "status": "success",
+        "data": roadmap_result
+    }
 
 @app.post("/generate-roadmap")
 async def generate_roadmap(request: RoadmapRequest):
@@ -62,5 +73,5 @@ async def generate_roadmap(request: RoadmapRequest):
         level=request.level,
         prefer_paid=request.prefer_paid,
         content_type=request.content_type,
-        langauge=request.language
+        language=request.language 
     )
