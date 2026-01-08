@@ -1,86 +1,128 @@
-import socketio
+from langdetect import detect, LangDetectException
+import re
+from src.utils.constants import NEGATIVE_KEYWORDS, BEGINNER_KEYWORDS, UNWANTED_KEYWORDS
 
-async def classify_via_frontend(sio: socketio.AsyncServer, socket_id: str, candidates: list, user_level: str):
-    """
-    Sends a list of candidates to the Frontend for AI classification.
-    Waits for the Frontend to return ONLY the items matching 'user_level'.
-    """
-    
+
+async def classify_via_frontend(sio, socket_id, candidates, user_level):
     if not candidates:
         return []
 
-    print(f"📡 Sending {len(candidates)} items to Frontend ({socket_id}) for classification...")
+    if user_level in ["intermediate", "advanced"]:
+        labels = [
+            "a specific feature tutorial or short clip",
+            "a comprehensive course or deep technical series",
+        ]
+    else:
+        labels = ["short overview", "complete step-by-step course"]
+
+    formatted_candidates = []
+    for c in candidates:
+        content_type_str = (
+            "Playlist" if c["contentType"] == "Playlist" else "Single Video"
+        )
+
+        input_text = (
+            f"Type: {content_type_str}. "
+            f"Title: {c['title']}. "
+            f"Channel: {c.get('channelTitle', '')}. "
+            f"Duration: {c.get('duration_mins', 0)} mins. "
+            f"Description: {c.get('description', '')[:200]}"
+        )
+        c["ai_input_text"] = input_text
+        formatted_candidates.append(c)
+
+    print(f"📡 Sending {len(formatted_candidates)} items to Frontend for NLI...")
 
     try:
-        # This is the magic line. 
-        # It sends the event and PAUSES here until the Frontend responds.
-        filtered_results = await sio.call(
-            event='request_inference',  # The event name the React hook listens for
+        response = await sio.call(
+            event="request_inference",
             data={
-                'candidates': candidates, 
-                'user_level': user_level
+                "candidates": formatted_candidates,
+                "labels": labels,
+                "hypothesis_template": "This content is {}.",
             },
-            to=socket_id,    # Target the specific user
-            timeout=130       # Wait max 30 seconds
+            to=socket_id,
+            timeout=30,
         )
-        
-        print(f"✅ Frontend returned {len(filtered_results)} valid items.")
-        return filtered_results
 
-    except TimeoutError:
-        print("❌ Error: Frontend timed out (User might have closed the tab).")
-        return []
+        valid_items = []
+        for item in response:
+            scores = item.get("scores", [])
+            if not scores:
+                continue
+
+            specific_score = scores[0]
+            comprehensive_score = scores[1]
+
+            if specific_score > comprehensive_score:
+                continue
+
+            valid_items.append(item)
+
+        return valid_items
+
     except Exception as e:
         print(f"❌ Error during classification: {e}")
         return []
 
 
-async def is_relevant(tag: str, title: str, description: str) -> bool:
-    """
-    Determines if a video/course is relevant to the requested tag.
-    Handles Case-Insensitivity and English-to-Arabic translation.
-    """
-    tag_clean = tag.lower().strip()
-    title_clean = title.lower()
-    desc_clean = description.lower() if description else ""
+def is_relevant(tag, title, description):
+    tag_clean = tag.lower().replace("-", " ").strip()
+    title_clean = title.lower().replace("-", " ")
 
-    # TODO: add any tags for programming search 
-    translations = {
-        "python": "بايثون",
-        "java": "جافا",
-        "javascript": "جافا سكريبت",
-        "js": "جافا سكريبت",
-        "c++": "سي بلس بلس",
-        "c#": "سي شارب",
-        "html": "تش تي ام ال",
-        "css": "سي اس اس",
-        "sql": "اس كيو ال",
-        "database": "قواعد بيانات",
-        "docker": "دوكر",
-        "kubernetes": "كوبرنيتس",
-        "git": "جيت",
-        "github": "جيت هاب",
-        "machine learning": "تعلم الالة",
-        "artificial intelligence": "ذكاء اصطناعي",
-        "deep learning": "تعلم عميق",
-        "algorithm": "خوارزميات",
-        "data structure": "هياكل بيانات",
-        "network": "شبكات",
-        "security": "امن سيبراني",
-        "web": "ويب",
-        "android": "اندرويد",
-        "ios": "ايفون"
-    }
+    if any(nk in title_clean for nk in NEGATIVE_KEYWORDS):
+        return False
 
     if tag_clean in title_clean:
         return True
-
-    if tag_clean in translations:
-        arabic_term = translations[tag_clean]
-        if arabic_term in title_clean:
-            return True
-
-    if desc_clean.count(tag_clean) >= 2:
+    required_words = tag_clean.split()
+    if all(word in title_clean for word in required_words):
         return True
+
+    return False
+
+
+def is_too_basic(title, description, user_level):
+    if user_level == "beginner":
+        return False
+
+    text = (title + " " + description).lower()
+    if any(k in text for k in BEGINNER_KEYWORDS):
+        return True
+    return False
+
+
+def is_garbage_content(title, description):
+    text = (title + " " + description).lower()
+    if any(word in text for word in UNWANTED_KEYWORDS):
+        return True
+
+    # Regex Checks for specific scripts (Hindi, Cyrillic, etc.)
+    if re.search(r"[\u0900-\u097F]", text):
+        return True
+    if re.search(r"[\u0400-\u04FF]", text):
+        return True
+
+    return False
+
+
+def is_arabic_content(item_snippet):
+    if "ar" in item_snippet.get("defaultAudioLanguage", "").lower():
+        return True
+    if "ar" in item_snippet.get("defaultLanguage", "").lower():
+        return True
+
+    title = item_snippet.get("title", "")
+    description = item_snippet.get("description", "")
+    full_text = f"{title} {description}"
+
+    if re.search(r"[\u0600-\u06FF]", full_text):
+        return True
+
+    try:
+        if len(full_text) > 50 and detect(full_text) == "ar":
+            return True
+    except LangDetectException:
+        pass
 
     return False
