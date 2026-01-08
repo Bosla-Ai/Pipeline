@@ -38,3 +38,8 @@ websockets
 wheel         
 pyqt5
 undetected_chromedriver
+isodate
+aiohttp
+
+# Fromatter 
+black
