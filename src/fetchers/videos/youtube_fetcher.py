@@ -1,7 +1,11 @@
 import aiohttp
 import asyncio
 import isodate
+<<<<<<< HEAD
 from src.utils.key_manager import key_manager
+=======
+from src.config.settings import YOUTUBE_API_KEY
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
 from src.utils.helpers import (
     classify_via_frontend,
     is_relevant,
@@ -16,6 +20,7 @@ SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 PLAYLIST_URL = "https://www.googleapis.com/youtube/v3/playlists"
 
+<<<<<<< HEAD
 
 async def fetch_youtube_data(session, url, params):
     """
@@ -59,6 +64,23 @@ async def fetch_youtube_data(session, url, params):
     print("    💀 Fatal: All API Keys exhausted.")
     return {}
 
+=======
+
+async def fetch_youtube_data(session, url, params):
+    try:
+        async with session.get(url, params=params) as response:
+            if response.status == 200:
+                return await response.json()
+
+            error_msg = await response.text()
+            print(f"    ❌ YouTube API Error {response.status}: {error_msg[:200]}")
+            return {}
+
+    except Exception as e:
+        print(f"    ❌ Network Error: {e}")
+        return {}
+
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
 
 async def process_single_tag(
     session, sio, socket_id, tag, user_level, language, max_results
@@ -101,6 +123,10 @@ async def process_single_tag(
                     "q": q_playlist,
                     "type": "playlist",
                     "maxResults": fetch_limit,
+<<<<<<< HEAD
+=======
+                    "key": YOUTUBE_API_KEY,
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
                     "relevanceLanguage": api_lang,
                 },
             )
@@ -114,6 +140,10 @@ async def process_single_tag(
                     {
                         "part": "snippet,contentDetails",
                         "id": ",".join(pl_ids),
+<<<<<<< HEAD
+=======
+                        "key": YOUTUBE_API_KEY,
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
                     },
                 )
 
@@ -162,6 +192,10 @@ async def process_single_tag(
                         "type": "video",
                         "videoDuration": "long",
                         "maxResults": fetch_limit,
+<<<<<<< HEAD
+=======
+                        "key": YOUTUBE_API_KEY,
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
                         "relevanceLanguage": api_lang,
                     },
                 )
@@ -174,6 +208,10 @@ async def process_single_tag(
                         {
                             "part": "snippet,statistics,contentDetails",
                             "id": ",".join(vid_ids),
+<<<<<<< HEAD
+=======
+                            "key": YOUTUBE_API_KEY,
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
                         },
                     )
 
@@ -229,6 +267,7 @@ async def process_single_tag(
         else:
             break
 
+<<<<<<< HEAD
     # Final Selection
     if not candidates:
         return tag, None
@@ -244,6 +283,18 @@ async def process_single_tag(
 
     if is_advanced_mode:
         print(f"    🤖 AI Analyzing Top {len(top_candidates)} Richest Candidates...")
+=======
+    if not candidates:
+        return tag, None
+
+    candidates.sort(
+        key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
+    )
+    math_winner = candidates[0]
+
+    if is_advanced_mode:
+        top_candidates = candidates[:8]
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
         valid_items = await classify_via_frontend(
             sio, socket_id, top_candidates, user_level
         )
@@ -252,6 +303,7 @@ async def process_single_tag(
             valid_items.sort(
                 key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
             )
+<<<<<<< HEAD
             result = valid_items[0]
             print(
                 f"    🏆 AI Selected: {result['title'][:40]}... (Score: {result['score']:.1f})"
@@ -262,6 +314,12 @@ async def process_single_tag(
             return tag, math_winner
     else:
         print(f"    📊 Beginner: Selected Richest Candidate.")
+=======
+            return tag, valid_items[0]
+        else:
+            return tag, math_winner
+    else:
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
         return tag, math_winner
 
 

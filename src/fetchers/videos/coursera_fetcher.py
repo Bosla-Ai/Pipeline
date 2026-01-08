@@ -6,6 +6,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
 
 async def fetch_coursera(
     sio, socket_id, tags, user_level, language="en", max_results=5
@@ -13,15 +16,19 @@ async def fetch_coursera(
     if not tags:
         return {}
 
+<<<<<<< HEAD
 =======
 async def fetch_coursera(sio, socket_id, tags, user_level, language='en', max_results=5):
     if not tags: return {}
     
 >>>>>>> d68d208 (coursera fetcher was Added)
+=======
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
     print(f"⏳ Starting Coursera Scraper for tags: {tags}...")
     final_roadmap = await asyncio.to_thread(
         scrape_coursera_sync, sio, socket_id, tags, user_level, language, max_results
     )
+<<<<<<< HEAD
 <<<<<<< HEAD
 
     return final_roadmap
@@ -42,15 +49,20 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
 
 =======
     
+=======
+
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
     return final_roadmap
+
 
 def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results):
     final_roadmap = {}
     driver = None
-    lang_param = "Arabic" if language == 'ar' else "English"
+    lang_param = "Arabic" if language == "ar" else "English"
 
     try:
         options = uc.ChromeOptions()
+<<<<<<< HEAD
         options.add_argument('--headless=new')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
@@ -58,6 +70,14 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
         options.add_argument('--blink-settings=imagesEnabled=false')
         
 >>>>>>> d68d208 (coursera fetcher was Added)
+=======
+        options.add_argument("--headless=new")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--blink-settings=imagesEnabled=false")
+
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
         driver = uc.Chrome(options=options)
 
         for tag in tags:
@@ -75,15 +95,20 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
                     EC.presence_of_all_elements_located((By.TAG_NAME, "a"))
                 )
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
                 
 >>>>>>> d68d208 (coursera fetcher was Added)
+=======
+
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
                 all_links = driver.find_elements(By.TAG_NAME, "a")
                 print(f"    🔎 Scanning {len(all_links)} total links on page...")
 
                 count = 0
                 for link in all_links:
+<<<<<<< HEAD
 <<<<<<< HEAD
                     if count >= max_results + 5:
                         break
@@ -117,26 +142,43 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
 =======
                     if count >= max_results + 5: break
                     
+=======
+                    if count >= max_results + 5:
+                        break
+
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
                     try:
-                        href = link.get_attribute('href')
-                        if not href: continue
+                        href = link.get_attribute("href")
+                        if not href:
+                            continue
 
                         if "/learn/" not in href and "/projects/" not in href:
                             continue
-                        
-                        if href in seen_urls: continue
+
+                        if href in seen_urls:
+                            continue
 
                         title = ""
                         try:
-                            title = link.find_element(By.XPATH, ".//h2 | .//h3").text.strip()
+                            title = link.find_element(
+                                By.XPATH, ".//h2 | .//h3"
+                            ).text.strip()
                         except:
-                            title = link.get_attribute("aria-label") or link.text.split('\n')[0].strip()
+                            title = (
+                                link.get_attribute("aria-label")
+                                or link.text.split("\n")[0].strip()
+                            )
 
                         if not title:
                             continue
+<<<<<<< HEAD
                             
                         has_arabic_char = bool(re.search(r'[\u0600-\u06FF]', title))
 >>>>>>> d68d208 (coursera fetcher was Added)
+=======
+
+                        has_arabic_char = bool(re.search(r"[\u0600-\u06FF]", title))
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
 
                         data = {
                             "contentType": "Course",
@@ -147,6 +189,7 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
                             "imageUrl": "",
                             "score": 50,
 <<<<<<< HEAD
+<<<<<<< HEAD
                             "is_native_arabic": has_arabic_char,
                         }
 
@@ -156,13 +199,20 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
 
 =======
                             "is_native_arabic": has_arabic_char
+=======
+                            "is_native_arabic": has_arabic_char,
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
                         }
-                        
+
                         candidates.append(data)
                         seen_urls.add(href)
                         count += 1
+<<<<<<< HEAD
                         
 >>>>>>> d68d208 (coursera fetcher was Added)
+=======
+
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
                     except Exception as inner_e:
                         continue
 
@@ -170,6 +220,7 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
                 print(f"    ❌ Scraper Error: {e}")
 
             if candidates:
+<<<<<<< HEAD
 <<<<<<< HEAD
                 if language == "ar":
                     candidates.sort(key=lambda x: x["is_native_arabic"], reverse=True)
@@ -179,6 +230,11 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
                     candidates.sort(key=lambda x: x['is_native_arabic'], reverse=True)
                 
 >>>>>>> d68d208 (coursera fetcher was Added)
+=======
+                if language == "ar":
+                    candidates.sort(key=lambda x: x["is_native_arabic"], reverse=True)
+
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
                 winner = candidates[0]
                 print(f"    🏆 Selected: {winner['title']}")
                 final_roadmap[tag] = winner
@@ -188,6 +244,7 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
 
     except Exception as e:
         print(f"    ❌ Critical Scraper Error: {e}")
+<<<<<<< HEAD
 <<<<<<< HEAD
 
     finally:
@@ -207,3 +264,14 @@ def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results
             
     return final_roadmap
 >>>>>>> d68d208 (coursera fetcher was Added)
+=======
+
+    finally:
+        if driver:
+            try:
+                driver.quit()
+            except:
+                pass
+
+    return final_roadmap
+>>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
