@@ -1,7 +1,7 @@
 import aiohttp
 import asyncio
 import isodate
-from src.config.settings import YOUTUBE_API_KEY
+from src.utils.key_manager import key_manager
 from src.utils.helpers import (
     classify_via_frontend,
     is_relevant,
@@ -18,18 +18,46 @@ PLAYLIST_URL = "https://www.googleapis.com/youtube/v3/playlists"
 
 
 async def fetch_youtube_data(session, url, params):
-    try:
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
-                return await response.json()
+    """
+    Fetches data with automatic API Key Rotation on 403 errors.
+    """
+    max_retries = len(key_manager.keys)
+    attempts = 0
 
-            error_msg = await response.text()
-            print(f"    ❌ YouTube API Error {response.status}: {error_msg[:200]}")
+    while attempts < max_retries:
+        # 1. Inject the CURRENT key dynamically
+        params["key"] = key_manager.get_current_key()
+
+        try:
+            async with session.get(url, params=params) as response:
+
+                # Success
+                if response.status == 200:
+                    return await response.json()
+
+                # Quota Exceeded (403) -> ROTATE & RETRY
+                if response.status == 403:
+                    error_msg = await response.text()
+                    if "quota" in error_msg.lower():
+                        print(
+                            f"    ❌ Quota Exceeded for Key #{key_manager.current_index + 1}. Rotating..."
+                        )
+                        key_manager.rotate()
+                        attempts += 1
+                        continue  # Try again with new key
+                    else:
+                        print(f"    ❌ API Error 403 (Not Quota): {error_msg[:100]}")
+                        return {}
+
+                # Other Errors
+                return {}
+
+        except Exception as e:
+            print(f"    ❌ Network Error: {e}")
             return {}
 
-    except Exception as e:
-        print(f"    ❌ Network Error: {e}")
-        return {}
+    print("    💀 Fatal: All API Keys exhausted.")
+    return {}
 
 
 async def process_single_tag(
@@ -73,7 +101,6 @@ async def process_single_tag(
                     "q": q_playlist,
                     "type": "playlist",
                     "maxResults": fetch_limit,
-                    "key": YOUTUBE_API_KEY,
                     "relevanceLanguage": api_lang,
                 },
             )
@@ -87,7 +114,6 @@ async def process_single_tag(
                     {
                         "part": "snippet,contentDetails",
                         "id": ",".join(pl_ids),
-                        "key": YOUTUBE_API_KEY,
                     },
                 )
 
@@ -136,7 +162,6 @@ async def process_single_tag(
                         "type": "video",
                         "videoDuration": "long",
                         "maxResults": fetch_limit,
-                        "key": YOUTUBE_API_KEY,
                         "relevanceLanguage": api_lang,
                     },
                 )
@@ -149,7 +174,6 @@ async def process_single_tag(
                         {
                             "part": "snippet,statistics,contentDetails",
                             "id": ",".join(vid_ids),
-                            "key": YOUTUBE_API_KEY,
                         },
                     )
 
@@ -205,16 +229,21 @@ async def process_single_tag(
         else:
             break
 
+    # Final Selection
     if not candidates:
         return tag, None
 
+    # Sort candidates by (IsPlaylist, Score)
     candidates.sort(
         key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
     )
-    math_winner = candidates[0]
+
+    # Filter Top 3 for AI
+    top_candidates = candidates[:3]
+    math_winner = top_candidates[0]
 
     if is_advanced_mode:
-        top_candidates = candidates[:8]
+        print(f"    🤖 AI Analyzing Top {len(top_candidates)} Richest Candidates...")
         valid_items = await classify_via_frontend(
             sio, socket_id, top_candidates, user_level
         )
@@ -223,10 +252,16 @@ async def process_single_tag(
             valid_items.sort(
                 key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
             )
-            return tag, valid_items[0]
+            result = valid_items[0]
+            print(
+                f"    🏆 AI Selected: {result['title'][:40]}... (Score: {result['score']:.1f})"
+            )
+            return tag, result
         else:
+            print(f"    ⚠️ AI rejected all. Using Richest Candidate (Safety Net).")
             return tag, math_winner
     else:
+        print(f"    📊 Beginner: Selected Richest Candidate.")
         return tag, math_winner
 
 
