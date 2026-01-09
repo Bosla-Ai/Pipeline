@@ -2,10 +2,14 @@ import aiohttp
 import asyncio
 import isodate
 <<<<<<< HEAD
+<<<<<<< HEAD
 from src.utils.key_manager import key_manager
 =======
 from src.config.settings import YOUTUBE_API_KEY
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
+=======
+from src.utils.key_manager import key_manager
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
 from src.utils.helpers import (
     classify_via_frontend,
     is_relevant,
@@ -67,18 +71,46 @@ async def fetch_youtube_data(session, url, params):
 =======
 
 async def fetch_youtube_data(session, url, params):
-    try:
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
-                return await response.json()
+    """
+    Fetches data with automatic API Key Rotation on 403 errors.
+    """
+    max_retries = len(key_manager.keys)
+    attempts = 0
 
-            error_msg = await response.text()
-            print(f"    ❌ YouTube API Error {response.status}: {error_msg[:200]}")
+    while attempts < max_retries:
+        # 1. Inject the CURRENT key dynamically
+        params["key"] = key_manager.get_current_key()
+
+        try:
+            async with session.get(url, params=params) as response:
+
+                # Success
+                if response.status == 200:
+                    return await response.json()
+
+                # Quota Exceeded (403) -> ROTATE & RETRY
+                if response.status == 403:
+                    error_msg = await response.text()
+                    if "quota" in error_msg.lower():
+                        print(
+                            f"    ❌ Quota Exceeded for Key #{key_manager.current_index + 1}. Rotating..."
+                        )
+                        key_manager.rotate()
+                        attempts += 1
+                        continue  # Try again with new key
+                    else:
+                        print(f"    ❌ API Error 403 (Not Quota): {error_msg[:100]}")
+                        return {}
+
+                # Other Errors
+                return {}
+
+        except Exception as e:
+            print(f"    ❌ Network Error: {e}")
             return {}
 
-    except Exception as e:
-        print(f"    ❌ Network Error: {e}")
-        return {}
+    print("    💀 Fatal: All API Keys exhausted.")
+    return {}
 
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
 
@@ -124,9 +156,12 @@ async def process_single_tag(
                     "type": "playlist",
                     "maxResults": fetch_limit,
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
                     "key": YOUTUBE_API_KEY,
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
+=======
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
                     "relevanceLanguage": api_lang,
                 },
             )
@@ -141,9 +176,12 @@ async def process_single_tag(
                         "part": "snippet,contentDetails",
                         "id": ",".join(pl_ids),
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
                         "key": YOUTUBE_API_KEY,
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
+=======
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
                     },
                 )
 
@@ -193,9 +231,12 @@ async def process_single_tag(
                         "videoDuration": "long",
                         "maxResults": fetch_limit,
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
                         "key": YOUTUBE_API_KEY,
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
+=======
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
                         "relevanceLanguage": api_lang,
                     },
                 )
@@ -209,9 +250,12 @@ async def process_single_tag(
                             "part": "snippet,statistics,contentDetails",
                             "id": ",".join(vid_ids),
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
                             "key": YOUTUBE_API_KEY,
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
+=======
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
                         },
                     )
 
@@ -261,12 +305,14 @@ async def process_single_tag(
 
         if candidates:
             break
+
         if current_lang == "ar":
             print(f"    ⚠️ No Arabic content for '{tag}'. Switching to English...")
             current_lang = "en"
         else:
             break
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     # Final Selection
     if not candidates:
@@ -284,17 +330,28 @@ async def process_single_tag(
     if is_advanced_mode:
         print(f"    🤖 AI Analyzing Top {len(top_candidates)} Richest Candidates...")
 =======
+=======
+    # Final Selection
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
     if not candidates:
         return tag, None
 
+    # Sort candidates by (IsPlaylist, Score)
     candidates.sort(
         key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
     )
-    math_winner = candidates[0]
+
+    # Filter Top 3 for AI
+    top_candidates = candidates[:3]
+    math_winner = top_candidates[0]
 
     if is_advanced_mode:
+<<<<<<< HEAD
         top_candidates = candidates[:8]
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
+=======
+        print(f"    🤖 AI Analyzing Top {len(top_candidates)} Richest Candidates...")
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
         valid_items = await classify_via_frontend(
             sio, socket_id, top_candidates, user_level
         )
@@ -304,11 +361,15 @@ async def process_single_tag(
                 key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
             )
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
             result = valid_items[0]
             print(
                 f"    🏆 AI Selected: {result['title'][:40]}... (Score: {result['score']:.1f})"
             )
             return tag, result
+<<<<<<< HEAD
         else:
             print(f"    ⚠️ AI rejected all. Using Richest Candidate (Safety Net).")
             return tag, math_winner
@@ -316,10 +377,17 @@ async def process_single_tag(
         print(f"    📊 Beginner: Selected Richest Candidate.")
 =======
             return tag, valid_items[0]
+=======
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
         else:
+            print(f"    ⚠️ AI rejected all. Using Richest Candidate (Safety Net).")
             return tag, math_winner
     else:
+<<<<<<< HEAD
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
+=======
+        print(f"    📊 Beginner: Selected Richest Candidate.")
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
         return tag, math_winner
 
 

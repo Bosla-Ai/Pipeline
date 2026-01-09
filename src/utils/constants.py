@@ -5,10 +5,14 @@ TAG_MAP = {
     "c#": "c#",  # was "c# programming" (Too strict)
     "net core": "asp.net core",
 <<<<<<< HEAD
+<<<<<<< HEAD
     "asp.net api": "asp.net core api",  # was "asp.net core web api" (Too strict)
 =======
     "asp.net api": "asp.net core",  # was "asp.net core web api" (Too strict)
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
+=======
+    "asp.net api": "asp.net core api",  # was "asp.net core web api" (Too strict)
+>>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
     "sql-server": "sql server",
     "ef core": "entity framework core",
     "linq": "linq",  # was "c# linq" (Too strict)
