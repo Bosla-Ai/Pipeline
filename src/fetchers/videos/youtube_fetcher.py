@@ -223,7 +223,6 @@ async def process_single_tag(
 
         if candidates:
             break
-
         if current_lang == "ar":
             print(f"    ⚠️ No Arabic content for '{tag}'. Switching to English...")
             current_lang = "en"
