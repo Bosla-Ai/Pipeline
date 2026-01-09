@@ -1,5 +1,11 @@
+import os
+
 ################## Platforms ###############
 # Youtube
+YOUTUBE_API_KEYS = [
+    os.getenv("YOUTUBE_API_KEY_1", "AIzaSyDBSgYSTXCqhNjc3AAHC70jq-AdK2KB_XQ"),
+    os.getenv("YOUTUBE_API_KEY_2", "AIzaSyAwiZYfJN6jrVOTu68JV8MnarL5k2NAGFQ"),
+]
 YOUTUBE_API_KEY = "AIzaSyDBSgYSTXCqhNjc3AAHC70jq-AdK2KB_XQ"
 
 # Udemy
