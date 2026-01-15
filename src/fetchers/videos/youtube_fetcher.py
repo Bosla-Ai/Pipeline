@@ -14,7 +14,6 @@ from src.utils.helpers import (
     classify_via_frontend,
     is_relevant,
     is_arabic_content,
-    is_too_basic,
     is_garbage_content,
 )
 from src.utils.constants import TAG_MAP
@@ -114,31 +113,21 @@ async def fetch_youtube_data(session, url, params):
 
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
 
-async def process_single_tag(
-    session, sio, socket_id, tag, user_level, language, max_results
-):
+async def process_single_tag(session, sio, socket_id, tag, language, max_results):
     current_lang = language
     candidates = []
 
     attempts = 0
     max_attempts = 2 if language == "ar" else 1
 
-    is_advanced_mode = user_level in ["intermediate", "advanced"]
     fetch_limit = 20
 
     while attempts < max_attempts:
         attempts += 1
         print(f"\n--- Processing: {tag} (Attempt {attempts}: {current_lang}) ---")
 
-        queries_to_try = []
-        if is_advanced_mode:
-            queries_to_try = [
-                (f"{tag} advanced architecture course", f"{tag} advanced deep dive"),
-                (f"{tag} advanced course", f"{tag} internal architecture"),
-                (f"{tag} full course", f"{tag} tutorial"),
-            ]
-        else:
-            queries_to_try = [(f"{tag} full course", f"{tag} tutorial")]
+        # Simple quality-focused queries for all users
+        queries_to_try = [(f"{tag} full course", f"{tag} tutorial")]
 
         api_lang = "ar" if current_lang == "ar" else "en"
 
@@ -191,8 +180,6 @@ async def process_single_tag(
                     desc = snippet.get("description", "")
 
                     if not is_relevant(tag, title, desc):
-                        continue
-                    if is_advanced_mode and is_too_basic(title, desc, user_level):
                         continue
 
                     if current_lang == "ar":
@@ -266,8 +253,6 @@ async def process_single_tag(
 
                         if not is_relevant(tag, title, desc):
                             continue
-                        if is_advanced_mode and is_too_basic(title, desc, user_level):
-                            continue
 
                         if current_lang == "ar":
                             if not is_arabic_content(snippet):
@@ -284,9 +269,6 @@ async def process_single_tag(
                             )
                         except:
                             duration_mins = 0
-
-                        if is_advanced_mode and duration_mins < 15:
-                            continue
 
                         data = {
                             "contentType": "Video",
@@ -327,6 +309,7 @@ async def process_single_tag(
     top_candidates = candidates[:3]
     math_winner = top_candidates[0]
 
+<<<<<<< HEAD
     if is_advanced_mode:
         print(f"    🤖 AI Analyzing Top {len(top_candidates)} Richest Candidates...")
 =======
@@ -388,10 +371,27 @@ async def process_single_tag(
 =======
         print(f"    📊 Beginner: Selected Richest Candidate.")
 >>>>>>> 7b328ee (Improved Scoring Functions and Editing logic to use Scoring first)
+=======
+    # Always use AI classification to select the best comprehensive course
+    print(f"    🤖 AI Analyzing Top {len(top_candidates)} Candidates...")
+    valid_items = await classify_via_frontend(sio, socket_id, top_candidates)
+
+    if valid_items:
+        valid_items.sort(
+            key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
+        )
+        result = valid_items[0]
+        print(
+            f"    🏆 AI Selected: {result['title'][:40]}... (Score: {result['score']:.1f})"
+        )
+        return tag, result
+    else:
+        print(f"    ⚠️ AI rejected all. Using Richest Candidate (Safety Net).")
+>>>>>>> ea41932 (Remove user level-based classification logic)
         return tag, math_winner
 
 
-async def fetch(sio, socket_id, tags, user_level, language="en", max_results=5):
+async def fetch(sio, socket_id, tags, language="en", max_results=5):
     if not tags:
         return {}
 
@@ -403,12 +403,11 @@ async def fetch(sio, socket_id, tags, user_level, language="en", max_results=5):
 
     async with aiohttp.ClientSession() as session:
         tasks = [
-            process_single_tag(
-                session, sio, socket_id, tag, user_level, language, max_results
-            )
+            process_single_tag(session, sio, socket_id, tag, language, max_results)
             for tag in normalized_tags
         ]
         results = await asyncio.gather(*tasks)
         final_roadmap = {tag: res for tag, res in results}
 
     return final_roadmap
+

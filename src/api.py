@@ -21,7 +21,6 @@ app = FastAPI(title="Bosla Pipeline API")
 
 class RoadmapRequest(BaseModel):
     tags: List[str]
-    level: str
     prefer_paid: bool = False
     content_type: str = "video"
     language: str = "en"
@@ -32,7 +31,7 @@ class RoadmapRequest(BaseModel):
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
 
 async def generate_roadmap_logic(
-    tags: List[str], level: str, prefer_paid: bool, content_type: str, language: str
+    tags: List[str], prefer_paid: bool, content_type: str, language: str
 ):
 <<<<<<< HEAD
 =======
@@ -55,10 +54,8 @@ async def generate_roadmap_logic(tags: List[str], level: str, prefer_paid: bool,
             )
 
         try:
-            print(
-                f"⏳ Fetching Free Content (YouTube)... Level: {level}, Lang: {language}"
-            )
-            youtube_data = await fetch_youtube(sio, current_sid, tags, level, language)
+            print(f"⏳ Fetching Free Content (YouTube)... Lang: {language}")
+            youtube_data = await fetch_youtube(sio, current_sid, tags, language)
             roadmap_result["youtube"] = youtube_data
 
 =======
@@ -96,7 +93,7 @@ async def generate_roadmap_logic(tags: List[str], level: str, prefer_paid: bool,
         print("⏳ Fetching Paid Content (Coursera API + Udemy Scraper)...")
 
         coursera_task = asyncio.create_task(
-            fetch_coursera(sio, current_sid, tags, level, language)
+            fetch_coursera(sio, current_sid, tags, language)
         )
 
         try:
@@ -131,7 +128,6 @@ async def generate_roadmap_logic(tags: List[str], level: str, prefer_paid: bool,
 async def generate_roadmap(request: RoadmapRequest):
     return await generate_roadmap_logic(
         tags=request.tags,
-        level=request.level,
         prefer_paid=request.prefer_paid,
         content_type=request.content_type,
 <<<<<<< HEAD
