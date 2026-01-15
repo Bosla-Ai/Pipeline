@@ -3,17 +3,15 @@ import re
 from src.utils.constants import NEGATIVE_KEYWORDS, BEGINNER_KEYWORDS, UNWANTED_KEYWORDS
 
 
-async def classify_via_frontend(sio, socket_id, candidates, user_level):
+async def classify_via_frontend(sio, socket_id, candidates):
     if not candidates:
         return []
 
-    if user_level in ["intermediate", "advanced"]:
-        labels = [
-            "a specific feature tutorial or short clip",
-            "a comprehensive course or deep technical series",
-        ]
-    else:
-        labels = ["short overview", "complete step-by-step course"]
+    # Labels focused on finding comprehensive courses for all users
+    labels = [
+        "a short overview or specific feature tutorial",
+        "a comprehensive full course or complete series",
+    ]
 
     formatted_candidates = []
     for c in candidates:
