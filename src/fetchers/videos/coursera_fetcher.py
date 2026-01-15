@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
 
 async def fetch_coursera(
-    sio, socket_id, tags, user_level, language="en", max_results=5
+    sio, socket_id, tags, language="en", max_results=5
 ):
     if not tags:
         return {}
@@ -26,7 +26,7 @@ async def fetch_coursera(sio, socket_id, tags, user_level, language='en', max_re
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
     print(f"⏳ Starting Coursera Scraper for tags: {tags}...")
     final_roadmap = await asyncio.to_thread(
-        scrape_coursera_sync, sio, socket_id, tags, user_level, language, max_results
+        scrape_coursera_sync, sio, socket_id, tags, language, max_results
     )
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -34,7 +34,7 @@ async def fetch_coursera(sio, socket_id, tags, user_level, language='en', max_re
     return final_roadmap
 
 
-def scrape_coursera_sync(sio, socket_id, tags, user_level, language, max_results):
+def scrape_coursera_sync(sio, socket_id, tags, language, max_results):
     final_roadmap = {}
     driver = None
     lang_param = "Arabic" if language == "ar" else "English"
