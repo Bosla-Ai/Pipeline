@@ -10,9 +10,7 @@ from selenium.webdriver.support import expected_conditions as EC
 =======
 >>>>>>> 51d358c (Improved Youtube Result and Format project using black formatter)
 
-async def fetch_coursera(
-    sio, socket_id, tags, language="en", max_results=5
-):
+async def fetch_coursera(sio, socket_id, tags, language="en", max_results=5):
     if not tags:
         return {}
 

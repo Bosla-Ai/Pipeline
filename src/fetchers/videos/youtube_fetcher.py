@@ -410,4 +410,3 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5):
         final_roadmap = {tag: res for tag, res in results}
 
     return final_roadmap
-
