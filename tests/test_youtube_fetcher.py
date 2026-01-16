@@ -7,10 +7,19 @@ from src.utils.key_manager import key_manager
 
 @pytest.fixture
 def mock_session():
-    session = AsyncMock()
-    # Mock context manager behavior: async with session.get(...) as response:
+    # session object itself can be MagicMock because we don't await session itself
+    session = MagicMock()
+    
+    # session.get(...) returns a context manager, NOT a coroutine
+    # So we use MagicMock for .get()
+    context_manager = MagicMock()
     response = AsyncMock()
-    session.get.return_value.__aenter__.return_value = response
+    
+    # Configure context manager to return our response on enter
+    context_manager.__aenter__.return_value = response
+    context_manager.__aexit__.return_value = None
+    
+    session.get.return_value = context_manager
     return session, response
 
 
