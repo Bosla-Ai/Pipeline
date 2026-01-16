@@ -41,5 +41,11 @@ undetected_chromedriver
 isodate
 aiohttp
 
-# Fromatter 
+# Formatter 
 black
+
+# Testing
+pytest
+pytest-asyncio
+pytest-mock
+httpx
