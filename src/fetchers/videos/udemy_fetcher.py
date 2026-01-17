@@ -9,6 +9,7 @@ import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from src.utils.scoring import calculate_playlist_score
 
 
 class UdemyFetcher:
@@ -19,7 +20,7 @@ class UdemyFetcher:
         self.headless = headless
         self.results = []
 
-    def _random_sleep(self, min_time=2, max_time=5):
+    def _random_sleep(self, min_time=0.5, max_time=1.5):
         time.sleep(random.uniform(min_time, max_time))
 
     def scrape(self):
@@ -84,7 +85,7 @@ class UdemyFetcher:
             print(f"🔍 Searching for: '{self.query}'")
             browser.get(search_url)
 
-            self._random_sleep(3, 5)
+            self._random_sleep(1.5, 3)
             WebDriverWait(browser, 20).until(
                 EC.presence_of_element_located(
                     (
@@ -116,7 +117,7 @@ class UdemyFetcher:
                     WebDriverWait(browser, 15).until(
                         EC.presence_of_element_located((By.TAG_NAME, "h1"))
                     )
-                    self._random_sleep(2, 4)
+                    self._random_sleep(0.5, 1.0)
 
                     page_soup = BeautifulSoup(browser.page_source, "lxml")
                     course_data = self._extract_course_details(page_soup, link)
@@ -156,14 +157,23 @@ class UdemyFetcher:
         )
         description = desc_tag.text.strip()[:500] + "..." if desc_tag else "N/A"
 
-        return {
+        course_data = {
+            "contentType": "Course",
             "title": title,
             "instructor": instructor_text,
             "rating": rating_text,
             "price": price_text,
             "description": description,
             "url": link,
+            # Defaults for Scoring
+            "videoCount": 50,  # Assume full course
+            "subscriberCount": 100000,  # Udemy instructors usually have high reach
+            "publishedAt": "2024-01-01T00:00:00Z",  # Assume fresh
         }
+
+        course_data["score"] = calculate_playlist_score(course_data)
+
+        return course_data
 
     def save_to_json(self, filename):
         with open(filename, "w", encoding="utf-8") as f:

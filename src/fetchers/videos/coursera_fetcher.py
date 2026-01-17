@@ -6,20 +6,23 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
-async def fetch_coursera(sio, socket_id, tags, language="en", max_results=5):
+import src.socket_server as socket_server
+
+
+async def fetch_coursera(sio, tags, language="en", max_results=5):
     if not tags:
         return {}
 
     print(f"⏳ Starting Coursera Scraper for tags: {tags}...")
     final_roadmap = await asyncio.to_thread(
-        scrape_coursera_sync, sio, socket_id, tags, language, max_results
+        scrape_coursera_sync, sio, tags, language, max_results
     )
 
     return final_roadmap
 
 
-def scrape_coursera_sync(sio, socket_id, tags, language, max_results):
-    final_roadmap = {}
+def scrape_coursera_sync(sio, tags, language, max_results):
+    candidates_map = {}
     driver = None
     lang_param = "Arabic" if language == "ar" else "English"
 
@@ -83,6 +86,8 @@ def scrape_coursera_sync(sio, socket_id, tags, language, max_results):
 
                         has_arabic_char = bool(re.search(r"[\u0600-\u06FF]", title))
 
+                        # Default metadata for scoring
+                        # Coursera doesn't give video count easily on search page, assuming "Full Course" ~ 40 videos
                         data = {
                             "contentType": "Course",
                             "contentId": href,
@@ -90,9 +95,15 @@ def scrape_coursera_sync(sio, socket_id, tags, language, max_results):
                             "title": title,
                             "description": "Coursera Content",
                             "imageUrl": "",
-                            "score": 50,
+                            "videoCount": 40,
+                            "subscriberCount": 500000,  # Coursera is authoritative
+                            "publishedAt": "2024-01-01T00:00:00Z",  # Assume relatively fresh
                             "is_native_arabic": has_arabic_char,
                         }
+
+                        from src.utils.scoring import calculate_playlist_score
+
+                        data["score"] = calculate_playlist_score(data)
 
                         candidates.append(data)
                         seen_urls.add(href)
@@ -108,12 +119,11 @@ def scrape_coursera_sync(sio, socket_id, tags, language, max_results):
                 if language == "ar":
                     candidates.sort(key=lambda x: x["is_native_arabic"], reverse=True)
 
-                winner = candidates[0]
-                print(f"    🏆 Selected: {winner['title']}")
-                final_roadmap[tag] = winner
-            else:
-                print(f"    ❌ No valid courses found for {tag}")
-                final_roadmap[tag] = None
+                if candidates:
+                    candidates_map[tag] = candidates
+                else:
+                    print(f"    ❌ No valid courses found for {tag}")
+                    candidates_map[tag] = []
 
     except Exception as e:
         print(f"    ❌ Critical Scraper Error: {e}")
@@ -124,5 +134,56 @@ def scrape_coursera_sync(sio, socket_id, tags, language, max_results):
                 driver.quit()
             except:
                 pass
+
+    return candidates_map
+
+
+async def fetch_coursera(sio, tags, language="en", max_results=5):
+    if not tags:
+        return {}
+
+    from src.utils.helpers import classify_via_frontend
+
+    print(f"⏳ Starting Coursera Scraper for tags: {tags}...")
+
+    # Run sync scraper in thread to get raw candidates
+    candidates_map = await asyncio.to_thread(
+        scrape_coursera_sync, sio, tags, language, max_results
+    )
+
+    final_roadmap = {}
+
+    for tag, candidates in candidates_map.items():
+        if not candidates:
+            final_roadmap[tag] = None
+            continue
+
+        print(
+            f"    🤖 AI Analyzing {len(candidates)} Coursera Candidates for '{tag}'..."
+        )
+
+        # Apply AI Classification
+        socket_id = socket_server.active_socket_id
+        valid_items = await classify_via_frontend(sio, socket_id, tag, candidates)
+
+        if valid_items:
+            # Sort by Native Arabic first if needed
+            if language == "ar":
+                valid_items.sort(key=lambda x: x["is_native_arabic"], reverse=True)
+
+            winner = valid_items[0]
+            print(f"    🏆 Selected: {winner['title']}")
+            final_roadmap[tag] = winner
+        else:
+            print(
+                f"    ⚠️ AI rejected all Coursera items (or frontend error). Using Safety Net."
+            )
+            # Fallback to the first candidate (which is usually the most relevant from search)
+            winner = candidates[0]
+            final_roadmap[tag] = winner
+            # Ensure native arabic sort applies to fallback too if needed
+            if language == "ar":
+                candidates.sort(key=lambda x: x["is_native_arabic"], reverse=True)
+                final_roadmap[tag] = candidates[0]
 
     return final_roadmap

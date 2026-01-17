@@ -15,20 +15,21 @@ app = FastAPI(title="Bosla Pipeline API")
 class RoadmapRequest(BaseModel):
     tags: List[str]
     prefer_paid: bool = False
-    content_type: str = "video"
+    content_type: str = "playlist"
     language: str = "en"
 
 
 async def generate_roadmap_logic(
     tags: List[str], prefer_paid: bool, content_type: str, language: str
 ):
-    current_sid = socket_server.active_socket_id
-    print(f"🔵 [API] Logic Triggered. Current Socket ID: {current_sid}")
+    print(f"🔵 [API] Logic Triggered. Waiting for active connection...")
 
     # 1. Initialize result container
     roadmap_result = {"youtube": {}, "coursera": {}, "udemy": []}
 
     if not prefer_paid:
+        # YouTube is fast, so we get the ID now
+        current_sid = socket_server.active_socket_id
         if not current_sid:
             print(
                 "⚠️ Warning: No React Client connected. AI Classification will be skipped."
@@ -45,14 +46,45 @@ async def generate_roadmap_logic(
     else:
         print("⏳ Fetching Paid Content (Coursera API + Udemy Scraper)...")
 
-        coursera_task = asyncio.create_task(
-            fetch_coursera(sio, current_sid, tags, language)
-        )
+        coursera_task = asyncio.create_task(fetch_coursera(sio, tags, language))
 
         try:
             udemy_fetcher = UdemyFetcher(query=" ".join(tags), limit=5, headless=True)
-            udemy_fetcher.scrape()
-            roadmap_result["udemy"] = udemy_fetcher.results
+            await asyncio.to_thread(udemy_fetcher.scrape)
+            # AI Classification for Udemy
+            udemy_candidates = udemy_fetcher.results
+            valid_udemy = []
+
+            if udemy_candidates:
+                from src.utils.helpers import classify_via_frontend
+
+                print(
+                    f"    🤖 AI Analyzing {len(udemy_candidates)} Udemy Candidates..."
+                )
+                # Refresh Socket ID just-in-time
+                current_sid = socket_server.active_socket_id
+                valid_udemy = await classify_via_frontend(
+                    sio, current_sid, " ".join(tags), udemy_candidates
+                )
+
+                # If AI returns nothing (or headless), valid_udemy is empty or original list
+                if not valid_udemy:
+                    print(
+                        "    ⚠️ AI rejected all Udemy items (or headless). Using raw candidates."
+                    )
+                    valid_udemy = udemy_candidates
+
+            # Standardize Output: Map query tag to the Best Answer
+            # Since Udemy search is for "tag1 tag2...", we assign the best result to the first tag
+            if valid_udemy:
+                # Sort by score
+                valid_udemy.sort(key=lambda x: x.get("score", 0), reverse=True)
+                winner = valid_udemy[0]
+                primary_tag = tags[0]  # Assign to the main topic
+                roadmap_result["udemy"] = {primary_tag: winner}
+            else:
+                roadmap_result["udemy"] = {}
+
         except Exception as e:
             print(f"❌ Error inside Udemy scraper: {e}")
 
