@@ -78,7 +78,7 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
         api_lang = "ar" if current_lang == "ar" else "en"
 
         for q_playlist, q_video in queries_to_try:
-            if len(candidates) >= 3:
+            if len(candidates) >= 10:
                 break
 
             # 1. Search Playlists
@@ -106,6 +106,9 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
                     },
                 )
 
+                # Pre-filter candidates locally for relevance & garbage (fast checks)
+                batch_candidates = []
+
                 for item in details_data.get("items", []):
                     snippet = item["snippet"]
                     title = snippet["title"]
@@ -114,10 +117,7 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
                     if not is_relevant(tag, title, desc):
                         continue
 
-                    if current_lang == "ar":
-                        if not is_arabic_content(snippet):
-                            continue
-                    else:
+                    if current_lang != "ar":
                         if is_garbage_content(title, desc):
                             continue
 
@@ -134,11 +134,48 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
                         "videoCount": count,
                         "publishedAt": snippet["publishedAt"],
                         "metadata_info": f"Playlist with {count} videos",
+                        "defaultAudioLanguage": snippet.get("defaultAudioLanguage", ""),
+                        "defaultLanguage": snippet.get("defaultLanguage", ""),
+                        "channelId": snippet.get("channelId", ""),
+                        "channelTitle": snippet.get("channelTitle", ""),
                     }
-                    data["score"] = calculate_playlist_score(data)
-                    candidates.append(data)
+                    batch_candidates.append(data)
 
-            # 2. Search Videos (Fallback)
+                if batch_candidates:
+                    channel_ids = list(
+                        set(
+                            [c["channelId"] for c in batch_candidates if c["channelId"]]
+                        )
+                    )
+                    for i in range(0, len(channel_ids), 50):
+                        chunk_ids = channel_ids[i : i + 50]
+                        chan_data = await fetch_youtube_data(
+                            session,
+                            "https://www.googleapis.com/youtube/v3/channels",
+                            {"part": "statistics", "id": ",".join(chunk_ids)},
+                        )
+                        subs_map = {}
+                        for item in chan_data.get("items", []):
+                            s_count = item["statistics"].get("subscriberCount", "0")
+                            subs_map[item["id"]] = (
+                                int(s_count) if s_count.isdigit() else 0
+                            )
+
+                        for c in batch_candidates:
+                            if c["channelId"] in subs_map:
+                                c["subscriberCount"] = subs_map[c["channelId"]]
+                                subs_k = (
+                                    f"{c['subscriberCount']/1000:.1f}K"
+                                    if c["subscriberCount"] > 1000
+                                    else str(c["subscriberCount"])
+                                )
+                                c["metadata_info"] += f" | {subs_k} Subs"
+
+                for c in batch_candidates:
+                    c["score"] = calculate_playlist_score(c)
+
+                candidates.extend(batch_candidates)
+
             if len(candidates) < 3:
                 vid_data = await fetch_youtube_data(
                     session,
@@ -164,6 +201,7 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
                         },
                     )
 
+                    batch_videos = []
                     for item in stats_data.get("items", []):
                         snippet = item["snippet"]
                         title = snippet["title"]
@@ -172,10 +210,7 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
                         if not is_relevant(tag, title, desc):
                             continue
 
-                        if current_lang == "ar":
-                            if not is_arabic_content(snippet):
-                                continue
-                        else:
+                        if current_lang != "ar":
                             if is_garbage_content(title, desc):
                                 continue
 
@@ -199,11 +234,17 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
                             "publishedAt": snippet["publishedAt"],
                             "duration_mins": duration_mins,
                             "metadata_info": f"Video Duration: {duration_mins} mins",
+                            "defaultAudioLanguage": snippet.get(
+                                "defaultAudioLanguage", ""
+                            ),
+                            "defaultLanguage": snippet.get("defaultLanguage", ""),
                         }
                         data["score"] = calculate_video_score(data)
-                        candidates.append(data)
+                        batch_videos.append(data)
 
-        if candidates:
+                    candidates.extend(batch_videos)
+
+        if len(candidates) >= 2:
             break
 
         if current_lang == "ar":
@@ -216,18 +257,15 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
     if not candidates:
         return tag, None
 
-    # Sort candidates by (IsPlaylist, Score)
     candidates.sort(
         key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
     )
 
-    # Filter Top 3 for AI
-    top_candidates = candidates[:3]
+    top_candidates = candidates[:2]
     math_winner = top_candidates[0]
 
-    # Always use AI classification to select the best comprehensive course
     print(f"    🤖 AI Analyzing Top {len(top_candidates)} Candidates...")
-    valid_items = await classify_via_frontend(sio, socket_id, top_candidates)
+    valid_items = await classify_via_frontend(sio, socket_id, tag, top_candidates)
 
     if valid_items:
         valid_items.sort(

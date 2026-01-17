@@ -1,16 +1,20 @@
-from langdetect import detect, LangDetectException
 import re
 from src.utils.constants import NEGATIVE_KEYWORDS, BEGINNER_KEYWORDS, UNWANTED_KEYWORDS
 
 
-async def classify_via_frontend(sio, socket_id, candidates):
+async def classify_via_frontend(sio, socket_id, tag, candidates):
     if not candidates:
         return []
 
-    # Labels focused on finding comprehensive courses for all users
+    if not socket_id:
+        print(f"⚠️ No React Client connected. Skipping AI Classification for tag: {tag}")
+        return candidates
+
+    # New Labels focused on Topic Centrality vs Distractors
     labels = [
-        "a short overview or specific feature tutorial",
-        "a comprehensive full course or complete series",
+        f"a comprehensive course primarily about {tag}",  # Target
+        f"a specific tutorial using {tag} for another topic",  # Distractor
+        "unrelated content",  # Garbage
     ]
 
     formatted_candidates = []
@@ -29,7 +33,9 @@ async def classify_via_frontend(sio, socket_id, candidates):
         c["ai_input_text"] = input_text
         formatted_candidates.append(c)
 
-    print(f"📡 Sending {len(formatted_candidates)} items to Frontend for NLI...")
+    print(
+        f"📡 Sending {len(formatted_candidates)} items to Frontend for NLI (Tag: {tag})..."
+    )
 
     try:
         response = await sio.call(
@@ -49,13 +55,21 @@ async def classify_via_frontend(sio, socket_id, candidates):
             if not scores:
                 continue
 
-            specific_score = scores[0]
-            comprehensive_score = scores[1]
+            # Label 0: Primary Topic (Target)
+            # Label 1: Distractor
+            # Label 2: Unrelated
 
-            if specific_score > comprehensive_score:
-                continue
+            primary_score = scores[0]
+            distractor_score = scores[1]
+            unrelated_score = scores[2]
 
-            valid_items.append(item)
+            # Logic: Must be primarily about the tag relative to other options
+            if primary_score > distractor_score and primary_score > unrelated_score:
+                valid_items.append(item)
+            else:
+                print(
+                    f"    ❌ Rejected '{item['title'][:30]}...' (Primary: {primary_score:.2f}, Distractor: {distractor_score:.2f})"
+                )
 
         return valid_items
 
@@ -116,11 +130,5 @@ def is_arabic_content(item_snippet):
 
     if re.search(r"[\u0600-\u06FF]", full_text):
         return True
-
-    try:
-        if len(full_text) > 50 and detect(full_text) == "ar":
-            return True
-    except LangDetectException:
-        pass
 
     return False
