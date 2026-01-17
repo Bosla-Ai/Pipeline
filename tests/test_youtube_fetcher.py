@@ -1,8 +1,18 @@
 import pytest
-import asyncio
 from unittest.mock import MagicMock, AsyncMock
 from src.fetchers.videos.youtube_fetcher import fetch_youtube_data, process_single_tag
 from src.utils.key_manager import key_manager
+
+
+@pytest.fixture(autouse=True)
+def setup_dummy_keys():
+    """Injects dummy keys for ALL tests in this module to pass CI."""
+    original_keys = key_manager.keys
+    key_manager.keys = ["TEST_KEY_1", "TEST_KEY_2"]
+    key_manager.current_index = 0
+    yield
+    # Teardown: restore (though not strictly necessary for short-lived CI)
+    key_manager.keys = original_keys
 
 
 @pytest.fixture
