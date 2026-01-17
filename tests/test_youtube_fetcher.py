@@ -9,16 +9,16 @@ from src.utils.key_manager import key_manager
 def mock_session():
     # session object itself can be MagicMock because we don't await session itself
     session = MagicMock()
-    
+
     # session.get(...) returns a context manager, NOT a coroutine
     # So we use MagicMock for .get()
     context_manager = MagicMock()
     response = AsyncMock()
-    
+
     # Configure context manager to return our response on enter
     context_manager.__aenter__.return_value = response
     context_manager.__aexit__.return_value = None
-    
+
     session.get.return_value = context_manager
     return session, response
 
