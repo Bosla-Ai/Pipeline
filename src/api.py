@@ -25,7 +25,7 @@ async def generate_roadmap_logic(
     print(f"🔵 [API] Logic Triggered. Waiting for active connection...")
 
     # 1. Initialize result container
-    roadmap_result = {"youtube": {}, "coursera": {}, "udemy": []}
+    roadmap_result = {"youtube": {}, "coursera": {}, "udemy": {}}
 
     if not prefer_paid:
         # YouTube is fast, so we get the ID now
@@ -49,41 +49,41 @@ async def generate_roadmap_logic(
         coursera_task = asyncio.create_task(fetch_coursera(sio, tags, language))
 
         try:
-            udemy_fetcher = UdemyFetcher(query=" ".join(tags), limit=5, headless=True)
+            udemy_fetcher = UdemyFetcher(tags=tags, limit=5, headless=True)
             await asyncio.to_thread(udemy_fetcher.scrape)
-            # AI Classification for Udemy
-            udemy_candidates = udemy_fetcher.results
-            valid_udemy = []
 
-            if udemy_candidates:
-                from src.utils.helpers import classify_via_frontend
+            # AI Classification for Udemy
+            udemy_results_map = udemy_fetcher.results
+            roadmap_result["udemy"] = {}
+
+            from src.utils.helpers import classify_via_frontend
+
+            for tag, candidates in udemy_results_map.items():
+                if not candidates:
+                    continue
 
                 print(
-                    f"    🤖 AI Analyzing {len(udemy_candidates)} Udemy Candidates..."
+                    f"    🤖 AI Analyzing {len(candidates)} Udemy Candidates for '{tag}'..."
                 )
+
                 # Refresh Socket ID just-in-time
                 current_sid = socket_server.active_socket_id
+
                 valid_udemy = await classify_via_frontend(
-                    sio, current_sid, " ".join(tags), udemy_candidates
+                    sio, current_sid, tag, candidates
                 )
 
                 # If AI returns nothing (or headless), valid_udemy is empty or original list
                 if not valid_udemy:
                     print(
-                        "    ⚠️ AI rejected all Udemy items (or headless). Using raw candidates."
+                        f"    ⚠️ AI rejected all Udemy items for '{tag}' (or headless/no-connection). Using raw candidates."
                     )
-                    valid_udemy = udemy_candidates
+                    valid_udemy = candidates
 
-            # Standardize Output: Map query tag to the Best Answer
-            # Since Udemy search is for "tag1 tag2...", we assign the best result to the first tag
-            if valid_udemy:
-                # Sort by score
-                valid_udemy.sort(key=lambda x: x.get("score", 0), reverse=True)
-                winner = valid_udemy[0]
-                primary_tag = tags[0]  # Assign to the main topic
-                roadmap_result["udemy"] = {primary_tag: winner}
-            else:
-                roadmap_result["udemy"] = {}
+                if valid_udemy:
+                    valid_udemy.sort(key=lambda x: x.get("score", 0), reverse=True)
+                    winner = valid_udemy[0]
+                    roadmap_result["udemy"][tag] = winner
 
         except Exception as e:
             print(f"❌ Error inside Udemy scraper: {e}")
