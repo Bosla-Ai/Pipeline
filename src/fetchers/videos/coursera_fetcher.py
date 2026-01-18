@@ -38,7 +38,10 @@ def scrape_coursera_sync(sio, tags, language, max_results):
 
         for tag in tags:
             print(f"\n--- Scraping Coursera: {tag} ({lang_param}) ---")
-            url = f"https://www.coursera.org/search?query={tag}&language={lang_param}"
+            import urllib.parse
+
+            encoded_tag = urllib.parse.quote_plus(tag)
+            url = f"https://www.coursera.org/search?query={encoded_tag}&language={lang_param}"
             print(f"    🌍 Visiting: {url}")
             driver.get(url)
 
