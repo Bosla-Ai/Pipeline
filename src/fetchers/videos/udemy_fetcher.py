@@ -14,11 +14,11 @@ from src.utils.scoring import calculate_playlist_score
 
 class UdemyFetcher:
 
-    def __init__(self, query, limit=5, headless=False):
-        self.query = query
+    def __init__(self, tags, limit=5, headless=False):
+        self.tags = tags
         self.limit = limit
         self.headless = headless
-        self.results = []
+        self.results = {}
 
     def _random_sleep(self, min_time=0.5, max_time=1.5):
         time.sleep(random.uniform(min_time, max_time))
@@ -81,52 +81,69 @@ class UdemyFetcher:
         browser = uc.Chrome(options=options)
 
         try:
-            search_url = f"https://www.udemy.com/courses/search/?q={self.query}"
-            print(f"🔍 Searching for: '{self.query}'")
-            browser.get(search_url)
-
-            self._random_sleep(1.5, 3)
-            WebDriverWait(browser, 20).until(
-                EC.presence_of_element_located(
-                    (
-                        By.CSS_SELECTOR,
-                        "h3[class*='card-title'], h2[class*='card-title']",
-                    )
-                )
-            )
-
-            soup = BeautifulSoup(browser.page_source, "lxml")
-            course_headers = soup.select(
-                "h3[class*='card-title'] a, h2[class*='card-title'] a"
-            )
-
-            target_links = []
-            for header in course_headers[: self.limit]:
-                href = header.get("href")
-                full_link = (
-                    href if href.startswith("http") else "https://www.udemy.com" + href
-                )
-                target_links.append(full_link)
-
-            print(f"✔ Found {len(target_links)} courses. Extracting details...")
-
-            for index, link in enumerate(target_links):
-                print(f"   [{index + 1}/{len(target_links)}] Visiting: {link}")
+            for tag in self.tags:
+                print(f"--- Scraping Udemy: {tag} ---")
+                tag_results = []
                 try:
-                    browser.get(link)
-                    WebDriverWait(browser, 15).until(
-                        EC.presence_of_element_located((By.TAG_NAME, "h1"))
-                    )
-                    self._random_sleep(0.5, 1.0)
+                    import urllib.parse
 
-                    page_soup = BeautifulSoup(browser.page_source, "lxml")
-                    course_data = self._extract_course_details(page_soup, link)
-                    self.results.append(course_data)
-                except Exception as e:
-                    print(f"   ❌ Error: {e}")
+                    encoded_query = urllib.parse.quote_plus(tag)
+                    search_url = (
+                        f"https://www.udemy.com/courses/search/?q={encoded_query}"
+                    )
+                    print(f"🔍 Searching for: '{tag}' (Encoded: {encoded_query})")
+                    browser.get(search_url)
+
+                    self._random_sleep(1.5, 3)
+                    WebDriverWait(browser, 20).until(
+                        EC.presence_of_element_located(
+                            (
+                                By.CSS_SELECTOR,
+                                "h3[class*='card-title'], h2[class*='card-title']",
+                            )
+                        )
+                    )
+
+                    soup = BeautifulSoup(browser.page_source, "lxml")
+                    course_headers = soup.select(
+                        "h3[class*='card-title'] a, h2[class*='card-title'] a"
+                    )
+
+                    target_links = []
+                    for header in course_headers[: self.limit]:
+                        href = header.get("href")
+                        full_link = (
+                            href
+                            if href.startswith("http")
+                            else "https://www.udemy.com" + href
+                        )
+                        target_links.append(full_link)
+
+                    print(f"✔ Found {len(target_links)} courses for '{tag}'")
+
+                    for index, link in enumerate(target_links):
+                        print(f"   [{index + 1}/{len(target_links)}] Visiting: {link}")
+                        try:
+                            browser.get(link)
+                            WebDriverWait(browser, 15).until(
+                                EC.presence_of_element_located((By.TAG_NAME, "h1"))
+                            )
+                            self._random_sleep(0.5, 1.0)
+
+                            page_soup = BeautifulSoup(browser.page_source, "lxml")
+                            course_data = self._extract_course_details(page_soup, link)
+                            tag_results.append(course_data)
+                        except Exception as e:
+                            print(f"   ❌ Error visiting {link}: {e}")
+
+                    self.results[tag] = tag_results
+
+                except Exception as e_tag:
+                    print(f"❌ Error scraping tag '{tag}': {e_tag}")
+                    self.results[tag] = []
 
         except Exception as e:
-            print(f"❌ Critical Error: {e}")
+            print(f"❌ Critical Scraper Error: {e}")
 
         finally:
             print("🛑 Closing Browser...")
