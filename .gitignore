@@ -78,4 +78,3 @@ Thumbs.db
 
 # sensitive data
 .env
-settings.py
