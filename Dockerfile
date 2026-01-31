@@ -22,9 +22,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxss1 \
     libasound2 \
     fonts-liberation \
-    libappindicator3-1 \
+    libgbm1 \
+    libu2f-udev \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Install Google Chrome
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
@@ -53,8 +55,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the API port
-EXPOSE 8000
+EXPOSE 8080
 
 # Start command using xvfb-run to provide a virtual display for Selenium
 # -a: Auto-select a free server number
-CMD ["xvfb-run", "-a", "uvicorn", "src.main:combined_app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["xvfb-run", "-a", "uvicorn", "src.main:combined_app", "--host", "0.0.0.0", "--port", "8080"]
