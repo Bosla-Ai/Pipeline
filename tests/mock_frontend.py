@@ -72,7 +72,7 @@ async def request_language_detection(data):
 
 
 async def main():
-    await sio.connect("http://localhost:8080")
+    await sio.connect("http://localhost:7860")
     await sio.wait()
 
 
