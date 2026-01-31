@@ -1,0 +1,27 @@
+name: Sync to Hugging Face Hub
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: meedoomostafa
+          SPACE_NAME: bosla-pipeline
+        run: |
+          git config --global user.email "bot@github.com"
+          git config --global user.name "GitHub Actions Bot"
+          
+          git remote add space https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/$HF_USERNAME/$SPACE_NAME
+          
+          git push --force space main

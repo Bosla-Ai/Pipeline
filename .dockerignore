@@ -18,4 +18,8 @@ coverage.xml
 .git
 .mypy_cache
 .pytest_cache
-.hypothesiss
+.hypotheses
+
+tests/
+test/
+docs/
