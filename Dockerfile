@@ -6,10 +6,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive
 
+
 # Install system dependencies (Run as Root)
+# FIX: Added 'xauth' here to solve the xvfb error
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget gnupg2 curl ca-certificates apt-transport-https software-properties-common \
-    xvfb unzip libgconf-2-4 libnss3 libxss1 libasound2 fonts-liberation \
+    xvfb xauth unzip libgconf-2-4 libnss3 libxss1 libasound2 fonts-liberation \
     libgbm1 libu2f-udev xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
@@ -48,4 +50,4 @@ COPY --chown=user . .
 EXPOSE 7860
 
 # Start command (Updated port to 7860)
-CMD ["xvfb-run", "-a", "uvicorn", "src.main:combined_app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & export DISPLAY=:99 && uvicorn src.main:combined_app --host 0.0.0.0 --port 7860"]
