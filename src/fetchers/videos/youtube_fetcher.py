@@ -60,7 +60,9 @@ async def fetch_youtube_data(session, url, params):
     return {}
 
 
-async def process_single_tag(session, sio, socket_id, tag, language, max_results, precomputed_scope=None):
+async def process_single_tag(
+    session, sio, socket_id, tag, language, max_results, precomputed_scope=None
+):
     current_lang = language
     candidates = []
 
@@ -318,7 +320,9 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=
             # Get precomputed scope if available
             precomputed = scope_cache.get(tag) if scope_cache else None
             tasks.append(
-                process_single_tag(session, sio, socket_id, tag, language, max_results, precomputed)
+                process_single_tag(
+                    session, sio, socket_id, tag, language, max_results, precomputed
+                )
             )
         results = await asyncio.gather(*tasks)
         final_roadmap = {tag: res for tag, res in results}

@@ -5,8 +5,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ################## Platforms ###############
-# Youtube
-YOUTUBE_API_KEYS = [os.getenv(f"YOUTUBE_API_KEY_{i}") for i in range(1, 13)]
+# Youtube (filter out missing keys)
+YOUTUBE_API_KEYS = [
+    key for key in [os.getenv(f"YOUTUBE_API_KEY_{i}") for i in range(1, 13)] if key
+]
 
 # Udemy
 UDEMY_CLIENT_ID = os.getenv("UDEMY_CLIENT_ID")

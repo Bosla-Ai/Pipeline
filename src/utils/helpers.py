@@ -7,7 +7,6 @@ async def analyze_topic_scope(sio, socket_id, tag):
     if not socket_id:
         return "Atomic"  # Default permissive
 
-
     labels = [
         "a broad computer science subject requiring a full course or playlist",
         "a specific concept or error explainable in a single video",
@@ -33,11 +32,13 @@ async def analyze_topic_scope(sio, socket_id, tag):
         score_map = {
             l: s for l, s in zip(result.get("labels", []), result.get("scores", []))
         }
-        
+
         broad_score = score_map.get(labels[0], 0)
         atomic_score = score_map.get(labels[1], 0)
 
-        print(f"    🧠 Scope Analysis for '{tag}': Broad={broad_score:.2f}, Atomic={atomic_score:.2f}")
+        print(
+            f"    🧠 Scope Analysis for '{tag}': Broad={broad_score:.2f}, Atomic={atomic_score:.2f}"
+        )
 
         if broad_score > atomic_score:
             return "Broad"
@@ -99,7 +100,7 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
         for item in response:
             scores = item.get("scores", [])
             resp_labels = item.get("labels", [])
-            
+
             if not scores or not resp_labels:
                 continue
 
@@ -109,7 +110,7 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
             score_comprehensive = c_map.get(label_comprehensive, 0)
             score_specific = c_map.get(label_specific, 0)
             score_unrelated = c_map.get(label_unrelated, 0)
-            
+
             # 2. Assign Max Label for Debugging
             max_score = -1
             max_label = "Unknown"
@@ -117,12 +118,14 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
                 if s > max_score:
                     max_score = s
                     max_label = l
-            
+
             item["ai_label"] = max_label
             item["ai_confidence"] = max_score
 
             # 3. Logic: Accept if relevant (Target/Specific > Unrelated)
-            is_valid = (score_comprehensive > score_unrelated) or (score_specific > score_unrelated)
+            is_valid = (score_comprehensive > score_unrelated) or (
+                score_specific > score_unrelated
+            )
 
             if is_valid:
                 valid_items.append(item)

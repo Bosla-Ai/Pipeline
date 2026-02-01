@@ -104,21 +104,32 @@ async def generate_roadmap_logic(
             # Hybrid Fetch: Supplement paid courses with focused YouTube videos for atomic concepts
             try:
                 current_sid = socket_server.active_socket_id
-                if current_sid:
-                    from src.utils.helpers import analyze_topic_scope
-                    
-                    atomic_tags = []
-                    scope_cache = {}  # Cache scope to prevent redundant AI inference
-                    for tag in tags:
-                        scope = await analyze_topic_scope(sio, current_sid, tag)
-                        scope_cache[tag] = scope
-                        if scope == "Atomic":
-                            atomic_tags.append(tag)
-                    
+                if not current_sid:
+                    print(
+                        "⚠️ Warning: No React Client connected. AI Classification will be skipped."
+                    )
+                from src.utils.helpers import analyze_topic_scope
+
+                atomic_tags = []
+                scope_cache = {}  # Cache scope to prevent redundant AI inference
+                for tag in tags:
+                    scope = await analyze_topic_scope(sio, current_sid, tag)
+                    scope_cache[tag] = scope
+                    if scope == "Atomic":
+                        atomic_tags.append(tag)
+
                     if atomic_tags:
-                        print(f"    ⚛️ [Hybrid] Fetching atomic topics from YouTube: {atomic_tags}")
+                        print(
+                            f"    ⚛️ [Hybrid] Fetching atomic topics from YouTube: {atomic_tags}"
+                        )
                         # Execute fetch with pre-computed scope cache
-                        youtube_data = await fetch_youtube(sio, current_sid, atomic_tags, language, scope_cache=scope_cache)
+                        youtube_data = await fetch_youtube(
+                            sio,
+                            current_sid,
+                            atomic_tags,
+                            language,
+                            scope_cache=scope_cache,
+                        )
                         roadmap_result["youtube"] = youtube_data
             except Exception as e:
                 print(f"❌ [API] Hybrid Fetch Error: {e}")
