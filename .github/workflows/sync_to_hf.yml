@@ -1,11 +1,15 @@
 name: Sync to Hugging Face Hub
 on:
-  push:
+  workflow_run:
+    workflows: [Run Tests]
     branches: [main]
+    types: 
+      - completed
 
 jobs:
   sync-to-hub:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
