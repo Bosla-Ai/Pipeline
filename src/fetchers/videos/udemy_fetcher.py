@@ -91,21 +91,23 @@ class UdemyFetcher:
             # Navigate to a neutral page first to reset state
             browser.get("about:blank")
             time.sleep(0.5)
-            
+
             # Clear all browser state from previous scraping (Coursera)
             browser.delete_all_cookies()
             try:
-                browser.execute_script("window.localStorage.clear(); window.sessionStorage.clear();")
+                browser.execute_script(
+                    "window.localStorage.clear(); window.sessionStorage.clear();"
+                )
             except:
                 pass  # Ignore if script fails on about:blank
-            
+
             # Verify driver is responsive
             _ = browser.current_url
             print("    ✅ [Udemy] Driver health check passed, state cleared")
         except Exception as health_error:
             print(f"⚠️ [Udemy] Driver health check failed: {health_error}")
             raise RuntimeError("Udemy driver unhealthy - cannot proceed")
-        
+
         # Re-using the core logic with an existing browser instance
         self._core_scraping_logic(browser)
 
@@ -148,17 +150,19 @@ class UdemyFetcher:
                         f"https://www.udemy.com/courses/search/?q={encoded_query}"
                     )
                     print(f"🔍 Searching for: '{tag}' (Encoded: {encoded_query})")
-                    
+
                     try:
                         browser.get(search_url)
                     except WebDriverException as nav_err:
-                        print(f"❌ [Udemy] Navigation failed (driver crash): {str(nav_err)[:100]}")
+                        print(
+                            f"❌ [Udemy] Navigation failed (driver crash): {str(nav_err)[:100]}"
+                        )
                         self._log_diagnostic(browser)
                         self.results[tag] = []
                         continue
 
                     self._random_sleep(1.5, 3)
-                    
+
                     try:
                         WebDriverWait(browser, 20).until(
                             EC.presence_of_element_located(
@@ -169,12 +173,16 @@ class UdemyFetcher:
                             )
                         )
                     except TimeoutException:
-                        print(f"⚠️ [Udemy] No courses found for '{tag}' (possible block or empty results)")
+                        print(
+                            f"⚠️ [Udemy] No courses found for '{tag}' (possible block or empty results)"
+                        )
                         self._log_diagnostic(browser)
                         self.results[tag] = []
                         continue
                     except WebDriverException as wait_err:
-                        print(f"❌ [Udemy] Driver crash during wait: {str(wait_err)[:100]}")
+                        print(
+                            f"❌ [Udemy] Driver crash during wait: {str(wait_err)[:100]}"
+                        )
                         self._log_diagnostic(browser)
                         self.results[tag] = []
                         continue

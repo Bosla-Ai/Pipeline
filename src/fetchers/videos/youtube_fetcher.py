@@ -309,16 +309,19 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=
         return {}
 
     normalized_tags = []
+    original_tags = []  # Keep original for scope_cache lookup
     for t in tags:
+        original_tags.append(t)
         clean = t.lower().replace("-", " ").strip()
         final_tag = TAG_MAP.get(clean, clean)
         normalized_tags.append(final_tag)
 
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for tag in normalized_tags:
-            # Get precomputed scope if available
-            precomputed = scope_cache.get(tag) if scope_cache else None
+        for i, tag in enumerate(normalized_tags):
+            # Use original tag for scope_cache lookup (api.py builds cache with original tags)
+            original = original_tags[i]
+            precomputed = scope_cache.get(original) if scope_cache else None
             tasks.append(
                 process_single_tag(
                     session, sio, socket_id, tag, language, max_results, precomputed

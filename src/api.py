@@ -64,7 +64,7 @@ async def generate_roadmap_logic(
 
             # Brief pause to let driver stabilize before Udemy (different domain)
             await asyncio.sleep(1)
-            
+
             try:
                 udemy_fetcher = UdemyFetcher(
                     tags=tags, limit=5, headless=False, driver=GLOBAL_DRIVER
@@ -121,19 +121,19 @@ async def generate_roadmap_logic(
                     if scope == "Atomic":
                         atomic_tags.append(tag)
 
-                    if atomic_tags:
-                        print(
-                            f"    ⚛️ [Hybrid] Fetching atomic topics from YouTube: {atomic_tags}"
-                        )
-                        # Execute fetch with pre-computed scope cache
-                        youtube_data = await fetch_youtube(
-                            sio,
-                            current_sid,
-                            atomic_tags,
-                            language,
-                            scope_cache=scope_cache,
-                        )
-                        roadmap_result["youtube"] = youtube_data
+                # Fetch YouTube for all atomic tags (after loop completes)
+                if atomic_tags:
+                    print(
+                        f"    ⚛️ [Hybrid] Fetching atomic topics from YouTube: {atomic_tags}"
+                    )
+                    youtube_data = await fetch_youtube(
+                        sio,
+                        current_sid,
+                        atomic_tags,
+                        language,
+                        scope_cache=scope_cache,
+                    )
+                    roadmap_result["youtube"] = youtube_data
             except Exception as e:
                 print(f"❌ [API] Hybrid Fetch Error: {e}")
 

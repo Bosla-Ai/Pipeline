@@ -122,16 +122,51 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
             item["ai_label"] = max_label
             item["ai_confidence"] = max_score
 
-            # 3. Logic: Accept if relevant (Target/Specific > Unrelated)
-            is_valid = (score_comprehensive > score_unrelated) or (
-                score_specific > score_unrelated
+            # 3. Stricter Acceptance: Margin + Title Keyword Check
+            margin_comp = score_comprehensive - score_unrelated
+            margin_spec = score_specific - score_unrelated
+
+            # Must have meaningful margin over "unrelated"
+            has_margin = (margin_comp > 0.15) or (margin_spec > 0.15)
+
+            # Title must contain tag keywords (prevents "looping animation" for "for loops")
+            title_lower = item.get("title", "").lower()
+            tag_words = tag.lower().split()
+
+            # Allow 2-char words (like "c#", "ai", "js") but filter out common stop words
+            STOP_WORDS = {
+                "in",
+                "on",
+                "at",
+                "to",
+                "of",
+                "is",
+                "it",
+                "by",
+                "an",
+                "or",
+                "if",
+                "do",
+                "up",
+                "my",
+                "me",
+                "we",
+            }
+
+            title_has_tag = any(
+                word in title_lower
+                for word in tag_words
+                if len(word) > 2 or (len(word) == 2 and word not in STOP_WORDS)
             )
+
+            is_valid = has_margin and title_has_tag
 
             if is_valid:
                 valid_items.append(item)
             else:
+                reason = "low margin" if not has_margin else "title mismatch"
                 print(
-                    f"    ❌ Rejected '{item['title'][:30]}...' (Label: {max_label}, Score: {max_score:.2f})"
+                    f"    ❌ Rejected '{item['title'][:30]}...' ({reason}, Label: {max_label})"
                 )
 
         return valid_items
