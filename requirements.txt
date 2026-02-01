@@ -1,51 +1,27 @@
-requests
-pyodbc          # for sql-server connection
-python-dotenv   # for .env
-beautifulsoup4  # for scraping
-python-socketio
-uvicorn
+# Core API & Network
 fastapi
+uvicorn
+python-socketio
+python-dotenv
 pydantic
-langdetect
-appdirs
-beautifulsoup4 
-bs4    
-certifi
-charset-normalizer 
-colorama
-configparser
-crayons       
-cssselect
-fake-useragent
-idna     
-lxml
-parse
-pip
-pyee
-pyppeteer
-pyquery
 requests
-requests-html
-selenium
-setuptools
-six
-soupsieve
-tqdm
-urllib3
-w3lib
-webdriver-manager 
-websockets 
-wheel         
-pyqt5
-undetected_chromedriver
-isodate
 aiohttp
 
-# Formatter 
-black
+# Scraping & Browser
+beautifulsoup4
+lxml
+selenium
+undetected_chromedriver
 
-# Testing
+# Utilities
+isodate
+
+# Dev Tools (Formatter & Testing)
+black
 pytest
 pytest-asyncio
 pytest-mock
 httpx
+
+# Compatibility
+setuptools # Required for distutils in Python 3.12+

@@ -7,7 +7,9 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
         return []
 
     if not socket_id:
-        print(f"⚠️ No React Client connected. Skipping AI Classification for tag: {tag}")
+        print(
+            f"⚠️ No React Client connected. Skipping AI Classification for tag: {tag}"
+        )
         return candidates
 
     # New Labels focused on Topic Centrality vs Distractors

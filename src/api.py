@@ -44,57 +44,101 @@ async def generate_roadmap_logic(
             print(f"❌ Error inside YouTube fetcher: {e}")
 
     else:
-        print("⏳ Fetching Paid Content (Coursera API + Udemy Scraper)...")
+        print(f"🔹 [API] Request: Paid Content (Coursera + Udemy) | Tags: {tags}")
 
-        coursera_task = asyncio.create_task(fetch_coursera(sio, tags, language))
+        async with DRIVER_LOCK:
 
-        try:
-            udemy_fetcher = UdemyFetcher(tags=tags, limit=5, headless=True)
-            await asyncio.to_thread(udemy_fetcher.scrape)
+            if GLOBAL_DRIVER:
+                try:
+                    GLOBAL_DRIVER.current_url
+                except:
+                    print("⚠️ [SYSTEM] Global Driver unresponsive")
 
-            # AI Classification for Udemy
-            udemy_results_map = udemy_fetcher.results
-            roadmap_result["udemy"] = {}
-
-            from src.utils.helpers import classify_via_frontend
-
-            for tag, candidates in udemy_results_map.items():
-                if not candidates:
-                    continue
-
-                print(
-                    f"    🤖 AI Analyzing {len(candidates)} Udemy Candidates for '{tag}'..."
+            try:
+                coursera_data = await fetch_coursera(
+                    sio, tags, language, driver=GLOBAL_DRIVER
                 )
+                roadmap_result["coursera"] = coursera_data
+            except Exception as e:
+                print(f"❌ [API] Coursera Error: {e}")
 
-                # Refresh Socket ID just-in-time
-                current_sid = socket_server.active_socket_id
-
-                valid_udemy = await classify_via_frontend(
-                    sio, current_sid, tag, candidates
+            try:
+                udemy_fetcher = UdemyFetcher(
+                    tags=tags, limit=5, headless=False, driver=GLOBAL_DRIVER
                 )
+                await asyncio.to_thread(udemy_fetcher.scrape)
 
-                # If AI returns nothing (or headless), valid_udemy is empty or original list
-                if not valid_udemy:
-                    print(
-                        f"    ⚠️ AI rejected all Udemy items for '{tag}' (or headless/no-connection). Using raw candidates."
+                # AI Classification for Udemy
+                udemy_results_map = udemy_fetcher.results
+                roadmap_result["udemy"] = {}
+
+                from src.utils.helpers import classify_via_frontend
+
+                for tag, candidates in udemy_results_map.items():
+                    if not candidates:
+                        continue
+
+                    # Refresh Socket ID just-in-time
+                    current_sid = socket_server.active_socket_id
+
+                    valid_udemy = await classify_via_frontend(
+                        sio, current_sid, tag, candidates
                     )
-                    valid_udemy = candidates
 
-                if valid_udemy:
-                    valid_udemy.sort(key=lambda x: x.get("score", 0), reverse=True)
-                    winner = valid_udemy[0]
-                    roadmap_result["udemy"][tag] = winner
+                    # If AI returns nothing (or headless), valid_udemy is empty or original list
+                    if not valid_udemy:
+                        print(
+                            f"    ℹ️ [AI] No selection made for '{tag}', using fallback."
+                        )
+                        valid_udemy = candidates
 
-        except Exception as e:
-            print(f"❌ Error inside Udemy scraper: {e}")
+                    if valid_udemy:
+                        valid_udemy.sort(key=lambda x: x.get("score", 0), reverse=True)
+                        winner = valid_udemy[0]
+                        roadmap_result["udemy"][tag] = winner
+                        print(f"    🏆 [AI] Udemy Winner: {winner['title'][:50]}...")
 
-        try:
-            coursera_data = await coursera_task
-            roadmap_result["coursera"] = coursera_data
-        except Exception as e:
-            print(f"❌ Error inside Coursera fetcher: {e}")
+            except Exception as e:
+                print(f"❌ [API] Udemy Error: {e}")
 
     return {"status": "success", "data": roadmap_result}
+
+
+# Global Driver
+GLOBAL_DRIVER = None
+import asyncio
+
+DRIVER_LOCK = asyncio.Lock()
+
+
+@app.on_event("startup")
+def startup_event():
+    global GLOBAL_DRIVER
+    try:
+        import undetected_chromedriver as uc
+
+        print("🔹 [SYSTEM] Initializing Global Chrome Driver...")
+        options = uc.ChromeOptions()
+        # options.add_argument("--headless=new") # Run headed in Xvfb
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+
+        GLOBAL_DRIVER = uc.Chrome(options=options, version_main=144)
+        print("✅ [SYSTEM] Global Driver Initialized & Ready")
+    except Exception as e:
+        print(f"❌ [SYSTEM] Driver Init Failed: {e}")
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    global GLOBAL_DRIVER
+    if GLOBAL_DRIVER:
+        print("🛑 [SYSTEM] Shutting down Global Driver...")
+        try:
+            GLOBAL_DRIVER.quit()
+        except:
+            pass
 
 
 @app.post("/generate-roadmap")
