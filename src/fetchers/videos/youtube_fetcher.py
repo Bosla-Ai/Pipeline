@@ -7,6 +7,7 @@ from src.utils.helpers import (
     is_relevant,
     is_arabic_content,
     is_garbage_content,
+    analyze_topic_scope,
 )
 from src.utils.constants import TAG_MAP
 from src.utils.scoring import calculate_video_score, calculate_playlist_score
@@ -59,7 +60,7 @@ async def fetch_youtube_data(session, url, params):
     return {}
 
 
-async def process_single_tag(session, sio, socket_id, tag, language, max_results):
+async def process_single_tag(session, sio, socket_id, tag, language, max_results, precomputed_scope=None):
     current_lang = language
     candidates = []
 
@@ -257,9 +258,20 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
     if not candidates:
         return tag, None
 
-    candidates.sort(
-        key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
-    )
+    # Scope Analysis for Sorting Strategy
+    if precomputed_scope:
+        scope = precomputed_scope
+    else:
+        scope = await analyze_topic_scope(sio, socket_id, tag)
+
+    if scope == "Broad":
+        # Broad Topic: Prioritize Playlists
+        candidates.sort(
+            key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
+        )
+    else:
+        # Atomic Topic: Meritocracy (Highest Score Wins)
+        candidates.sort(key=lambda x: x["score"], reverse=True)
 
     top_candidates = candidates[:2]
     math_winner = top_candidates[0]
@@ -268,9 +280,13 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
     valid_items = await classify_via_frontend(sio, socket_id, tag, top_candidates)
 
     if valid_items:
-        valid_items.sort(
-            key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
-        )
+        if scope == "Broad":
+            valid_items.sort(
+                key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
+            )
+        else:
+            valid_items.sort(key=lambda x: x["score"], reverse=True)
+
         result = valid_items[0]
         print(
             f"    🏆 AI Selected: {result['title'][:40]}... (Score: {result['score']:.1f})"
@@ -281,7 +297,12 @@ async def process_single_tag(session, sio, socket_id, tag, language, max_results
         return tag, math_winner
 
 
-async def fetch(sio, socket_id, tags, language="en", max_results=5):
+async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=None):
+    """
+    Fetches content from YouTube.
+    Args:
+        scope_cache: Optional map (tag -> 'Broad'|'Atomic') to optimize AI usage.
+    """
     if not tags:
         return {}
 
@@ -292,10 +313,13 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5):
         normalized_tags.append(final_tag)
 
     async with aiohttp.ClientSession() as session:
-        tasks = [
-            process_single_tag(session, sio, socket_id, tag, language, max_results)
-            for tag in normalized_tags
-        ]
+        tasks = []
+        for tag in normalized_tags:
+            # Get precomputed scope if available
+            precomputed = scope_cache.get(tag) if scope_cache else None
+            tasks.append(
+                process_single_tag(session, sio, socket_id, tag, language, max_results, precomputed)
+            )
         results = await asyncio.gather(*tasks)
         final_roadmap = {tag: res for tag, res in results}
 
