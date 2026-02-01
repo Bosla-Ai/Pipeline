@@ -44,98 +44,103 @@ async def generate_roadmap_logic(
             print(f"❌ Error inside YouTube fetcher: {e}")
 
     else:
-        print(f"🔹 [API] Request: Paid Content (Coursera + Udemy) | Tags: {tags}")
+        print(f"🔹 [API] Request: Paid Content | Tags: {tags}")
 
-        async with DRIVER_LOCK:
+        # 1. Analyze scope for ALL tags first
+        from src.utils.helpers import analyze_topic_scope
 
-            if GLOBAL_DRIVER:
+        current_sid = socket_server.active_socket_id
+        if not current_sid:
+            print(
+                "⚠️ Warning: No React Client connected. AI Classification will be skipped."
+            )
+
+        broad_tags = []
+        atomic_tags = []
+        scope_cache = {}
+
+        for tag in tags:
+            scope = await analyze_topic_scope(sio, current_sid, tag)
+            scope_cache[tag] = scope
+            if scope == "Broad":
+                broad_tags.append(tag)
+            else:
+                atomic_tags.append(tag)
+
+        print(f"    📊 Scope Result: Broad={broad_tags}, Atomic={atomic_tags}")
+
+        # 2. Fetch Coursera/Udemy ONLY for Broad tags
+        if broad_tags:
+            async with DRIVER_LOCK:
+                if GLOBAL_DRIVER:
+                    try:
+                        GLOBAL_DRIVER.current_url
+                    except:
+                        print("⚠️ [SYSTEM] Global Driver unresponsive")
+
                 try:
-                    GLOBAL_DRIVER.current_url
-                except:
-                    print("⚠️ [SYSTEM] Global Driver unresponsive")
-
-            try:
-                coursera_data = await fetch_coursera(
-                    sio, tags, language, driver=GLOBAL_DRIVER
-                )
-                roadmap_result["coursera"] = coursera_data
-            except Exception as e:
-                print(f"❌ [API] Coursera Error: {e}")
-
-            # Brief pause to let driver stabilize before Udemy (different domain)
-            await asyncio.sleep(1)
-
-            try:
-                udemy_fetcher = UdemyFetcher(
-                    tags=tags, limit=5, headless=False, driver=GLOBAL_DRIVER
-                )
-                await asyncio.to_thread(udemy_fetcher.scrape)
-
-                # AI Classification for Udemy
-                udemy_results_map = udemy_fetcher.results
-                roadmap_result["udemy"] = {}
-
-                from src.utils.helpers import classify_via_frontend
-
-                for tag, candidates in udemy_results_map.items():
-                    if not candidates:
-                        continue
-
-                    # Refresh Socket ID just-in-time
-                    current_sid = socket_server.active_socket_id
-
-                    valid_udemy = await classify_via_frontend(
-                        sio, current_sid, tag, candidates
+                    coursera_data = await fetch_coursera(
+                        sio, broad_tags, language, driver=GLOBAL_DRIVER
                     )
+                    roadmap_result["coursera"] = coursera_data
+                except Exception as e:
+                    print(f"❌ [API] Coursera Error: {e}")
 
-                    # If AI returns nothing (or headless), valid_udemy is empty or original list
-                    if not valid_udemy:
-                        print(
-                            f"    ℹ️ [AI] No selection made for '{tag}', using fallback."
+                await asyncio.sleep(1)
+
+                try:
+                    udemy_fetcher = UdemyFetcher(
+                        tags=broad_tags, limit=5, headless=False, driver=GLOBAL_DRIVER
+                    )
+                    await asyncio.to_thread(udemy_fetcher.scrape)
+
+                    udemy_results_map = udemy_fetcher.results
+                    roadmap_result["udemy"] = {}
+
+                    from src.utils.helpers import classify_via_frontend
+
+                    for tag, candidates in udemy_results_map.items():
+                        if not candidates:
+                            continue
+
+                        current_sid = socket_server.active_socket_id
+                        valid_udemy = await classify_via_frontend(
+                            sio, current_sid, tag, candidates
                         )
-                        valid_udemy = candidates
 
-                    if valid_udemy:
-                        valid_udemy.sort(key=lambda x: x.get("score", 0), reverse=True)
-                        winner = valid_udemy[0]
-                        roadmap_result["udemy"][tag] = winner
-                        print(f"    🏆 [AI] Udemy Winner: {winner['title'][:50]}...")
+                        if not valid_udemy:
+                            print(
+                                f"    ℹ️ [AI] No selection for '{tag}', using fallback."
+                            )
+                            valid_udemy = candidates
 
-            except Exception as e:
-                print(f"❌ [API] Udemy Error: {e}")
+                        if valid_udemy:
+                            valid_udemy.sort(
+                                key=lambda x: x.get("score", 0), reverse=True
+                            )
+                            winner = valid_udemy[0]
+                            roadmap_result["udemy"][tag] = winner
+                            print(
+                                f"    🏆 [AI] Udemy Winner: {winner['title'][:50]}..."
+                            )
 
-            # Hybrid Fetch: Supplement paid courses with focused YouTube videos for atomic concepts
+                except Exception as e:
+                    print(f"❌ [API] Udemy Error: {e}")
+
+        # 3. Fetch YouTube ONLY for Atomic tags
+        if atomic_tags:
             try:
-                current_sid = socket_server.active_socket_id
-                if not current_sid:
-                    print(
-                        "⚠️ Warning: No React Client connected. AI Classification will be skipped."
-                    )
-                from src.utils.helpers import analyze_topic_scope
-
-                atomic_tags = []
-                scope_cache = {}  # Cache scope to prevent redundant AI inference
-                for tag in tags:
-                    scope = await analyze_topic_scope(sio, current_sid, tag)
-                    scope_cache[tag] = scope
-                    if scope == "Atomic":
-                        atomic_tags.append(tag)
-
-                # Fetch YouTube for all atomic tags (after loop completes)
-                if atomic_tags:
-                    print(
-                        f"    ⚛️ [Hybrid] Fetching atomic topics from YouTube: {atomic_tags}"
-                    )
-                    youtube_data = await fetch_youtube(
-                        sio,
-                        current_sid,
-                        atomic_tags,
-                        language,
-                        scope_cache=scope_cache,
-                    )
-                    roadmap_result["youtube"] = youtube_data
+                print(f"    ⚛️ [Atomic] Fetching YouTube for: {atomic_tags}")
+                youtube_data = await fetch_youtube(
+                    sio,
+                    current_sid,
+                    atomic_tags,
+                    language,
+                    scope_cache=scope_cache,
+                )
+                roadmap_result["youtube"] = youtube_data
             except Exception as e:
-                print(f"❌ [API] Hybrid Fetch Error: {e}")
+                print(f"❌ [API] YouTube Error: {e}")
 
     return {"status": "success", "data": roadmap_result}
 
