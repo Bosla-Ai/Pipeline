@@ -1,5 +1,10 @@
 import re
-from src.utils.constants import NEGATIVE_KEYWORDS, BEGINNER_KEYWORDS, UNWANTED_KEYWORDS
+from src.utils.constants import (
+    NEGATIVE_KEYWORDS,
+    BEGINNER_KEYWORDS,
+    UNWANTED_KEYWORDS,
+    KNOWN_BROAD_TOPICS,
+)
 
 
 async def analyze_topic_scope(sio, socket_id, tag):
@@ -7,9 +12,13 @@ async def analyze_topic_scope(sio, socket_id, tag):
     if not socket_id:
         return "Broad"  # Default permissive
 
+    if tag.lower() in KNOWN_BROAD_TOPICS:
+        print(f"    🛡️ Safety Net: '{tag}' is a known Broad topic. Skipping AI.")
+        return "Broad"
+
     labels = [
-        "a broad computer science subject requiring a full course or playlist",
-        "a specific concept or error explainable in a single video",
+        "an entire programming language, framework, or major technology",
+        "a specific programming concept, error, or technique",
     ]
 
     try:
