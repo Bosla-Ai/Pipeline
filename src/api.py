@@ -15,13 +15,10 @@ app = FastAPI(title="Bosla Pipeline API")
 class RoadmapRequest(BaseModel):
     tags: List[str]
     prefer_paid: bool = False
-    content_type: str = "playlist"
     language: str = "en"
 
 
-async def generate_roadmap_logic(
-    tags: List[str], prefer_paid: bool, content_type: str, language: str
-):
+async def generate_roadmap_logic(tags: List[str], prefer_paid: bool, language: str):
     print(f"🔵 [API] Logic Triggered. Waiting for active connection...")
 
     # 1. Initialize result container
@@ -187,6 +184,5 @@ async def generate_roadmap(request: RoadmapRequest):
     return await generate_roadmap_logic(
         tags=request.tags,
         prefer_paid=request.prefer_paid,
-        content_type=request.content_type,
         language=request.language,
     )
