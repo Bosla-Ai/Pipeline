@@ -62,6 +62,9 @@ async def generate_roadmap_logic(
             except Exception as e:
                 print(f"❌ [API] Coursera Error: {e}")
 
+            # Brief pause to let driver stabilize before Udemy (different domain)
+            await asyncio.sleep(1)
+            
             try:
                 udemy_fetcher = UdemyFetcher(
                     tags=tags, limit=5, headless=False, driver=GLOBAL_DRIVER
