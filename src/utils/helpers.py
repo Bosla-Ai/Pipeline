@@ -45,7 +45,10 @@ async def analyze_topic_scope(sio, socket_id, tag):
         return "Atomic"
 
     except Exception as e:
-        print(f"⚠️ Scope Analysis Failed: {e}")
+        import traceback
+
+        print(f"⚠️ Scope Analysis Failed: {type(e).__name__}: {e}")
+        print(f"    📋 Traceback: {traceback.format_exc()}")
         return "Atomic"
 
 
