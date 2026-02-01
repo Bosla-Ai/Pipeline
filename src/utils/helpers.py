@@ -5,7 +5,7 @@ from src.utils.constants import NEGATIVE_KEYWORDS, BEGINNER_KEYWORDS, UNWANTED_K
 async def analyze_topic_scope(sio, socket_id, tag):
     """Classifies topic scope: 'Broad' (Playlist preferred) vs 'Atomic' (Video viable)."""
     if not socket_id:
-        return "Atomic"  # Default permissive
+        return "Broad"  # Default permissive
 
     labels = [
         "a broad computer science subject requiring a full course or playlist",
