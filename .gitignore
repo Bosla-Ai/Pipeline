@@ -78,3 +78,7 @@ Thumbs.db
 
 # sensitive data
 .env
+
+# Python cache
+src/**/__pycache__
+src/**/__pycache__/*

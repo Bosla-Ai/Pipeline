@@ -2,7 +2,13 @@ import socketio
 
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"],
+    cors_allowed_origins=[
+        "https://bosla.me",
+        "https://front.bosla.almiraj.xyz",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "*",
+    ],
 )
 
 active_socket_id = None

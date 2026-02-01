@@ -9,149 +9,15 @@ from selenium.webdriver.support import expected_conditions as EC
 import src.socket_server as socket_server
 
 
-async def fetch_coursera(sio, tags, language="en", max_results=5):
-    if not tags:
-        return {}
-
-    print(f"⏳ Starting Coursera Scraper for tags: {tags}...")
-    final_roadmap = await asyncio.to_thread(
-        scrape_coursera_sync, sio, tags, language, max_results
-    )
-
-    return final_roadmap
-
-
-def scrape_coursera_sync(sio, tags, language, max_results):
-    candidates_map = {}
-    driver = None
-    lang_param = "Arabic" if language == "ar" else "English"
-
-    try:
-        options = uc.ChromeOptions()
-        options.add_argument("--headless=new")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--blink-settings=imagesEnabled=false")
-
-        driver = uc.Chrome(options=options)
-
-        for tag in tags:
-            print(f"\n--- Scraping Coursera: {tag} ({lang_param}) ---")
-            import urllib.parse
-
-            encoded_tag = urllib.parse.quote_plus(tag)
-            url = f"https://www.coursera.org/search?query={encoded_tag}&language={lang_param}"
-            print(f"    🌍 Visiting: {url}")
-            driver.get(url)
-
-            candidates = []
-            seen_urls = set()
-
-            try:
-                # Wait for any links to appear
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_all_elements_located((By.TAG_NAME, "a"))
-                )
-
-                all_links = driver.find_elements(By.TAG_NAME, "a")
-                print(f"    🔎 Scanning {len(all_links)} total links on page...")
-
-                count = 0
-                for link in all_links:
-                    if count >= max_results + 5:
-                        break
-
-                    try:
-                        href = link.get_attribute("href")
-                        if not href:
-                            continue
-
-                        if "/learn/" not in href and "/projects/" not in href:
-                            continue
-
-                        if href in seen_urls:
-                            continue
-
-                        title = ""
-                        try:
-                            title = link.find_element(
-                                By.XPATH, ".//h2 | .//h3"
-                            ).text.strip()
-                        except:
-                            title = (
-                                link.get_attribute("aria-label")
-                                or link.text.split("\n")[0].strip()
-                            )
-
-                        if not title:
-                            continue
-
-                        has_arabic_char = bool(re.search(r"[\u0600-\u06FF]", title))
-
-                        # Default metadata for scoring
-                        # Coursera doesn't give video count easily on search page, assuming "Full Course" ~ 40 videos
-                        data = {
-                            "contentType": "Course",
-                            "contentId": href,
-                            "url": href,
-                            "title": title,
-                            "description": "Coursera Content",
-                            "imageUrl": "",
-                            "videoCount": 40,
-                            "subscriberCount": 500000,  # Coursera is authoritative
-                            "publishedAt": "2024-01-01T00:00:00Z",  # Assume relatively fresh
-                            "is_native_arabic": has_arabic_char,
-                        }
-
-                        from src.utils.scoring import calculate_playlist_score
-
-                        data["score"] = calculate_playlist_score(data)
-
-                        candidates.append(data)
-                        seen_urls.add(href)
-                        count += 1
-
-                    except Exception as inner_e:
-                        continue
-
-            except Exception as e:
-                print(f"    ❌ Scraper Error: {e}")
-
-            if candidates:
-                if language == "ar":
-                    candidates.sort(key=lambda x: x["is_native_arabic"], reverse=True)
-
-                if candidates:
-                    candidates_map[tag] = candidates
-                else:
-                    print(f"    ❌ No valid courses found for {tag}")
-                    candidates_map[tag] = []
-
-    except Exception as e:
-        print(f"    ❌ Critical Scraper Error: {e}")
-
-    finally:
-        if driver:
-            try:
-                driver.quit()
-            except:
-                pass
-
-    return candidates_map
-
-
-async def fetch_coursera(sio, tags, language="en", max_results=5):
+async def fetch_coursera(sio, tags, language="en", max_results=5, driver=None):
     if not tags:
         return {}
 
     from src.utils.helpers import classify_via_frontend
 
     print(f"⏳ Starting Coursera Scraper for tags: {tags}...")
-
-    # Run sync scraper in thread to get raw candidates
     candidates_map = await asyncio.to_thread(
-        scrape_coursera_sync, sio, tags, language, max_results
+        scrape_coursera_sync, sio, tags, language, max_results, driver
     )
 
     final_roadmap = {}
@@ -175,7 +41,7 @@ async def fetch_coursera(sio, tags, language="en", max_results=5):
                 valid_items.sort(key=lambda x: x["is_native_arabic"], reverse=True)
 
             winner = valid_items[0]
-            print(f"    🏆 Selected: {winner['title']}")
+            print(f"    🏆 [AI] Coursera Winner: {winner['title'][:50]}...")
             final_roadmap[tag] = winner
         else:
             print(
@@ -190,3 +56,142 @@ async def fetch_coursera(sio, tags, language="en", max_results=5):
                 final_roadmap[tag] = candidates[0]
 
     return final_roadmap
+
+
+def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None):
+    candidates_map = {}
+    driver = existing_driver
+    local_driver = False
+    lang_param = "Arabic" if language == "ar" else "English"
+
+    try:
+        if not driver:
+            local_driver = True
+            options = uc.ChromeOptions()
+            # options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--blink-settings=imagesEnabled=false")
+            driver = uc.Chrome(options=options, version_main=144)
+        else:
+            print("    ♻️ Reusing Global Coursera Driver")
+
+        for tag in tags:
+            print(f"\n--- Scraping Coursera: {tag} ({lang_param}) ---")
+            import urllib.parse
+
+            encoded_tag = urllib.parse.quote_plus(tag)
+            url = f"https://www.coursera.org/search?query={encoded_tag}&language={lang_param}"
+            print(f"    🌍 Visiting: {url}")
+            driver.get(url)
+
+            candidates = []
+            seen_urls = set()
+
+            try:
+                # Wait for any links to appear
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_all_elements_located((By.TAG_NAME, "a"))
+                )
+
+                all_links = driver.find_elements(By.TAG_NAME, "a")
+                # print(f"    🔎 Scanning {len(all_links)} total links on page...")
+                print(
+                    f"    🔎 [Coursera] Scanning {len(all_links)} links for '{tag}'..."
+                )
+
+                count = 0
+                for link in all_links:
+                    if count >= max_results + 5:
+                        break
+
+                    try:
+                        href = link.get_attribute("href")
+                        if not href:
+                            continue
+
+                        # Expanded valid URL patterns
+                        if (
+                            "/learn/" not in href
+                            and "/projects/" not in href
+                            and "/specializations/" not in href
+                            and "/professional-certificates/" not in href
+                        ):
+                            continue
+
+                        if href in seen_urls:
+                            continue
+
+                        title = ""
+                        try:
+                            title = link.find_element(
+                                By.XPATH, ".//h2 | .//h3"
+                            ).text.strip()
+                        except:
+                            title = (
+                                link.get_attribute("aria-label")
+                                or link.text.split("\n")[0].strip()
+                            )
+
+                        if not title:
+                            continue
+
+                        has_arabic_char = bool(re.search(r"[\u0600-\u06FF]", title))
+
+                        # Default metadata for scoring
+                        data = {
+                            "contentType": "Course",
+                            "contentId": href,
+                            "url": href,
+                            "title": title,
+                            "description": "Coursera Content",
+                            "imageUrl": "",
+                            "videoCount": 40,
+                            "subscriberCount": 500000,
+                            "publishedAt": "2024-01-01T00:00:00Z",
+                            "is_native_arabic": has_arabic_char,
+                        }
+
+                        from src.utils.scoring import calculate_playlist_score
+
+                        data["score"] = calculate_playlist_score(data)
+
+                        candidates.append(data)
+                        seen_urls.add(href)
+                        count += 1
+                        # print(f"    ✔ Found: {title[:30]}...")
+
+                    except Exception as inner_e:
+                        continue
+
+                print(f"    ✔ [Coursera] Found {len(candidates)} valid candidates.")
+
+            except Exception as e:
+                print(f"    ❌ [Coursera] Error: {e}")
+
+            if language == "ar" and candidates:
+                candidates.sort(key=lambda x: x["is_native_arabic"], reverse=True)
+
+            if candidates:
+                candidates_map[tag] = candidates
+            else:
+                print(f"    ⚠️ [Coursera] No results for '{tag}'")
+                candidates_map[tag] = []
+
+    except Exception as e:
+        print(f"    ❌ [Coursera] Critical Error: {e}")
+
+    finally:
+        if driver and local_driver:
+            if driver:
+                try:
+                    import time
+
+                    time.sleep(2)
+                    driver.quit()
+                    time.sleep(2)  # Extra time for OS to release file handle
+                except:
+                    pass
+
+    return candidates_map

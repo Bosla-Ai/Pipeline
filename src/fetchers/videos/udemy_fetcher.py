@@ -14,18 +14,29 @@ from src.utils.scoring import calculate_playlist_score
 
 class UdemyFetcher:
 
-    def __init__(self, tags, limit=5, headless=False):
+    def __init__(self, tags, limit=5, headless=False, driver=None):
         self.tags = tags
         self.limit = limit
         self.headless = headless
+        self.driver = driver
         self.results = {}
 
     def _random_sleep(self, min_time=0.5, max_time=1.5):
         time.sleep(random.uniform(min_time, max_time))
 
     def scrape(self):
-        print(f"🔧 Headless mode: {self.headless}")
+        # print(f"🔧 Headless mode: {self.headless}")
 
+        # If external driver provided, skip local Xvfb/Driver setup
+        if self.driver:
+            print("    ♻️ Reusing Global Udemy Driver")
+            try:
+                self._scrape_with_driver(self.driver)
+            except Exception as e:
+                print(f"❌ Error with global driver: {e}")
+            return
+
+        # --- LOCAL DRIVER LOGIC (Fallback) ---
         xvfb_process = None
         original_display = os.environ.get("DISPLAY")
 
@@ -56,7 +67,7 @@ class UdemyFetcher:
                 os.environ["DISPLAY"] = new_display
                 print(f"🖥️  Virtual display started on {new_display}")
 
-            self._run_scraper()
+            self._run_local_scraper()
 
         finally:
             # Cleanup
@@ -65,7 +76,11 @@ class UdemyFetcher:
                 os.killpg(os.getpgid(xvfb_process.pid), signal.SIGTERM)
                 print("🖥️  Virtual display stopped")
 
-    def _run_scraper(self):
+    def _scrape_with_driver(self, browser):
+        # Re-using the core logic with an existing browser instance
+        self._core_scraping_logic(browser)
+
+    def _run_local_scraper(self):
         options = uc.ChromeOptions()
         options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_argument("--window-size=1920,1080")
@@ -78,8 +93,20 @@ class UdemyFetcher:
         options.add_argument("--ozone-platform=x11")
 
         print("🚀 Initializing Browser...")
-        browser = uc.Chrome(options=options)
+        browser = uc.Chrome(options=options, version_main=144)
 
+        try:
+            self._core_scraping_logic(browser)
+        finally:
+            print("🛑 Closing Browser...")
+            try:
+                time.sleep(2)
+                browser.quit()
+                time.sleep(2)
+            except:
+                pass
+
+    def _core_scraping_logic(self, browser):
         try:
             for tag in self.tags:
                 print(f"--- Scraping Udemy: {tag} ---")
@@ -119,10 +146,13 @@ class UdemyFetcher:
                         )
                         target_links.append(full_link)
 
-                    print(f"✔ Found {len(target_links)} courses for '{tag}'")
+                    print(
+                        f"    🔎 [Udemy] Found {len(target_links)} raw results for '{tag}'"
+                    )
+                    # print(f"✔ Found {len(target_links)} courses for '{tag}'")
 
                     for index, link in enumerate(target_links):
-                        print(f"   [{index + 1}/{len(target_links)}] Visiting: {link}")
+                        # print(f"   [{index + 1}/{len(target_links)}] Visiting: {link}")
                         try:
                             browser.get(link)
                             WebDriverWait(browser, 15).until(
@@ -134,8 +164,12 @@ class UdemyFetcher:
                             course_data = self._extract_course_details(page_soup, link)
                             tag_results.append(course_data)
                         except Exception as e:
-                            print(f"   ❌ Error visiting {link}: {e}")
+                            # print(f"   ❌ Error visiting {link}: {e}")
+                            pass
 
+                    print(
+                        f"    ✔ [Udemy] Successfully extracted {len(tag_results)} courses."
+                    )
                     self.results[tag] = tag_results
 
                 except Exception as e_tag:
@@ -144,10 +178,6 @@ class UdemyFetcher:
 
         except Exception as e:
             print(f"❌ Critical Scraper Error: {e}")
-
-        finally:
-            print("🛑 Closing Browser...")
-            browser.quit()
 
     def _extract_course_details(self, soup, link):
         title_tag = soup.select_one("h1[data-purpose='lead-title']")
