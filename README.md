@@ -1,3 +1,13 @@
+---
+title: Bosla Pipeline
+emoji: 🧭
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # BoslaPipeline
 
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
