@@ -177,7 +177,8 @@ async def process_single_tag(
                     all_sample_vid_ids = []
                     playlist_vid_map = {}
 
-                    for c in sampling_candidates:
+                    # Parallel fetch of playlistItems for Anti-Shorts sampling
+                    async def fetch_playlist_items(c):
                         pl_items_data = await fetch_youtube_data(
                             session,
                             "https://www.googleapis.com/youtube/v3/playlistItems",
@@ -187,11 +188,21 @@ async def process_single_tag(
                                 "maxResults": 6,
                             },
                         )
-                        p_vids = [
+                        return c["contentId"], [
                             item["contentDetails"]["videoId"]
                             for item in pl_items_data.get("items", [])
                         ]
-                        playlist_vid_map[c["contentId"]] = p_vids
+
+                    results = await asyncio.gather(
+                        *[fetch_playlist_items(c) for c in sampling_candidates],
+                        return_exceptions=True,
+                    )
+
+                    for result in results:
+                        if isinstance(result, Exception):
+                            continue
+                        pl_id, p_vids = result
+                        playlist_vid_map[pl_id] = p_vids
                         all_sample_vid_ids.extend(p_vids)
 
                     if all_sample_vid_ids:
