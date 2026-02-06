@@ -25,17 +25,15 @@ async def fetch_youtube_data(session, url, params):
     attempts = 0
 
     while attempts < max_retries:
-        # 1. Inject the CURRENT key dynamically
         params["key"] = key_manager.get_current_key()
 
         try:
             async with session.get(url, params=params) as response:
 
-                # Success
                 if response.status == 200:
                     return await response.json()
 
-                # Quota Exceeded (403) -> ROTATE & RETRY
+                # Quota Exceeded
                 if response.status == 403:
                     error_msg = await response.text()
                     if "quota" in error_msg.lower():
@@ -44,7 +42,7 @@ async def fetch_youtube_data(session, url, params):
                         )
                         key_manager.rotate()
                         attempts += 1
-                        continue  # Try again with new key
+                        continue
                     else:
                         print(f"    ❌ API Error 403 (Not Quota): {error_msg[:100]}")
                         return {}
@@ -73,9 +71,10 @@ async def process_single_tag(
 
     while attempts < max_attempts:
         attempts += 1
-        print(f"\n--- Processing: {tag} (Attempt {attempts}: {current_lang}) ---")
+        print(
+            f"\n--- Processing: {tag} (Attempt {attempts}/{max_attempts}: {current_lang}) ---"
+        )
 
-        # Simple quality-focused queries for all users
         queries_to_try = [(f"{tag} full course", f"{tag} tutorial")]
 
         api_lang = "ar" if current_lang == "ar" else "en"
@@ -84,7 +83,6 @@ async def process_single_tag(
             if len(candidates) >= 10:
                 break
 
-            # 1. Search Playlists
             pl_data = await fetch_youtube_data(
                 session,
                 SEARCH_URL,
@@ -141,6 +139,7 @@ async def process_single_tag(
                         "defaultLanguage": snippet.get("defaultLanguage", ""),
                         "channelId": snippet.get("channelId", ""),
                         "channelTitle": snippet.get("channelTitle", ""),
+                        "items": [],
                     }
                     batch_candidates.append(data)
 
@@ -173,6 +172,59 @@ async def process_single_tag(
                                     else str(c["subscriberCount"])
                                 )
                                 c["metadata_info"] += f" | {subs_k} Subs"
+
+                    sampling_candidates = batch_candidates[:10]
+                    all_sample_vid_ids = []
+                    playlist_vid_map = {}
+
+                    for c in sampling_candidates:
+                        pl_items_data = await fetch_youtube_data(
+                            session,
+                            "https://www.googleapis.com/youtube/v3/playlistItems",
+                            {
+                                "part": "contentDetails",
+                                "playlistId": c["contentId"],
+                                "maxResults": 6,
+                            },
+                        )
+                        p_vids = [
+                            item["contentDetails"]["videoId"]
+                            for item in pl_items_data.get("items", [])
+                        ]
+                        playlist_vid_map[c["contentId"]] = p_vids
+                        all_sample_vid_ids.extend(p_vids)
+
+                    if all_sample_vid_ids:
+                        vid_chunk_ids = list(set(all_sample_vid_ids))
+                        durations_map = {}
+
+                        v_details_data = await fetch_youtube_data(
+                            session,
+                            VIDEO_URL,
+                            {"part": "contentDetails", "id": ",".join(vid_chunk_ids)},
+                        )
+
+                        for item in v_details_data.get("items", []):
+                            duration_iso = item["contentDetails"].get(
+                                "duration", "PT0S"
+                            )
+                            try:
+                                d_mins = int(
+                                    isodate.parse_duration(duration_iso).total_seconds()
+                                    / 60
+                                )
+                            except:
+                                d_mins = 0
+                            durations_map[item["id"]] = d_mins
+
+                        for c in sampling_candidates:
+                            p_id = c["contentId"]
+                            if p_id in playlist_vid_map:
+                                for vid_id in playlist_vid_map[p_id]:
+                                    if vid_id in durations_map:
+                                        c["items"].append(
+                                            {"duration_mins": durations_map[vid_id]}
+                                        )
 
                 for c in batch_candidates:
                     c["score"] = calculate_playlist_score(c)
@@ -247,6 +299,25 @@ async def process_single_tag(
 
                     candidates.extend(batch_videos)
 
+        if not candidates and attempts == 1 and current_lang == "en":
+            stop_words = [" for ", " in ", " with ", " using ", " and "]
+            new_tag = tag
+            for word in stop_words:
+                if word in tag.lower():
+                    parts = tag.lower().split(word)
+                    if len(parts) > 1:
+                        new_tag = parts[0].strip()
+                        break
+
+            if new_tag != tag and len(new_tag) > 2:
+                print(
+                    f"    ⚠️ No results for '{tag}'. Fallback to Core Topic: '{new_tag}'"
+                )
+                tag = new_tag
+                attempts -= 1
+                await asyncio.sleep(1)
+                continue
+
         if len(candidates) >= 2:
             break
 
@@ -256,23 +327,19 @@ async def process_single_tag(
         else:
             break
 
-    # Final Selection
     if not candidates:
         return tag, None
 
-    # Scope Analysis for Sorting Strategy
     if precomputed_scope:
         scope = precomputed_scope
     else:
         scope = await analyze_topic_scope(sio, socket_id, tag)
 
     if scope == "Broad":
-        # Broad Topic: Prioritize Playlists
         candidates.sort(
             key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
         )
     else:
-        # Atomic Topic: Meritocracy (Highest Score Wins)
         candidates.sort(key=lambda x: x["score"], reverse=True)
 
     top_candidates = candidates[:2]

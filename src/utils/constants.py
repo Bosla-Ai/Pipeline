@@ -330,3 +330,22 @@ KNOWN_BROAD_TOPICS = {
     "arduino",
     "raspberry pi",
 }
+
+STOP_WORDS = {
+    "in",
+    "on",
+    "at",
+    "to",
+    "of",
+    "is",
+    "it",
+    "by",
+    "an",
+    "or",
+    "if",
+    "do",
+    "up",
+    "my",
+    "me",
+    "we",
+}
