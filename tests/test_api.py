@@ -48,6 +48,7 @@ async def test_generate_roadmap_paid(mocker):
                 "tags": ["python"],
                 "prefer_paid": True,
                 "language": "en",
+                "sources": ["coursera", "udemy"],
             },
         )
 
@@ -106,6 +107,7 @@ async def test_generate_roadmap_cpp_tag(mocker):
                 "tags": ["c++"],
                 "prefer_paid": True,
                 "language": "en",
+                "sources": ["coursera"],
             },
         )
 
@@ -181,6 +183,7 @@ async def test_generate_roadmap_broad_topics_collection(mocker):
                     "tags": [topic],
                     "prefer_paid": True,
                     "language": "en",
+                    "sources": ["coursera"],
                 },
             )
 

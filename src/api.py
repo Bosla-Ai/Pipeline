@@ -1,7 +1,8 @@
 import asyncio
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
+from enum import Enum
 import src.socket_server as socket_server
 from src.socket_server import sio
 
@@ -12,20 +13,40 @@ from src.fetchers.videos.udemy_fetcher import UdemyFetcher
 app = FastAPI(title="Bosla Pipeline API")
 
 
+class CourseSource(str, Enum):
+    YOUTUBE = "youtube"
+    UDEMY = "udemy"
+    COURSERA = "coursera"
+
+
 class RoadmapRequest(BaseModel):
     tags: List[str]
     prefer_paid: bool = False
     language: str = "en"
+    sources: Optional[List[CourseSource]] = None
 
 
-async def generate_roadmap_logic(tags: List[str], prefer_paid: bool, language: str):
+async def generate_roadmap_logic(
+    tags: List[str],
+    prefer_paid: bool,
+    language: str,
+    sources: Optional[List[CourseSource]] = None,
+):
     print(f"🔵 [API] Logic Triggered. Waiting for active connection...")
 
-    # 1. Initialize result container
     roadmap_result = {"youtube": {}, "coursera": {}, "udemy": {}}
 
     if not prefer_paid:
-        # YouTube is fast, so we get the ID now
+        active_sources = [CourseSource.YOUTUBE]
+    else:
+        if sources:
+            active_sources = sources
+        else:
+            active_sources = [CourseSource.UDEMY]
+
+    print(f"🔹 [API] Active Sources: {active_sources}")
+
+    if CourseSource.YOUTUBE in active_sources:
         current_sid = socket_server.active_socket_id
         if not current_sid:
             print(
@@ -40,10 +61,16 @@ async def generate_roadmap_logic(tags: List[str], prefer_paid: bool, language: s
         except Exception as e:
             print(f"❌ Error inside YouTube fetcher: {e}")
 
-    else:
+        except Exception as e:
+            print(f"❌ Error inside YouTube fetcher: {e}")
+
+    paid_sources_requested = any(
+        s in active_sources for s in [CourseSource.COURSERA, CourseSource.UDEMY]
+    )
+
+    if paid_sources_requested:
         print(f"🔹 [API] Request: Paid Content | Tags: {tags}")
 
-        # 1. Analyze scope for ALL tags first
         from src.utils.helpers import analyze_topic_scope
 
         current_sid = socket_server.active_socket_id
@@ -66,7 +93,6 @@ async def generate_roadmap_logic(tags: List[str], prefer_paid: bool, language: s
 
         print(f"    📊 Scope Result: Broad={broad_tags}, Atomic={atomic_tags}")
 
-        # 2. Fetch Coursera/Udemy ONLY for Broad tags
         if broad_tags:
             async with DRIVER_LOCK:
                 if GLOBAL_DRIVER:
@@ -75,57 +101,61 @@ async def generate_roadmap_logic(tags: List[str], prefer_paid: bool, language: s
                     except:
                         print("⚠️ [SYSTEM] Global Driver unresponsive")
 
-                try:
-                    coursera_data = await fetch_coursera(
-                        sio, broad_tags, language, driver=GLOBAL_DRIVER
-                    )
-                    roadmap_result["coursera"] = coursera_data
-                except Exception as e:
-                    print(f"❌ [API] Coursera Error: {e}")
+                if CourseSource.COURSERA in active_sources:
+                    try:
+                        coursera_data = await fetch_coursera(
+                            sio, broad_tags, language, driver=GLOBAL_DRIVER
+                        )
+                        roadmap_result["coursera"] = coursera_data
+                    except Exception as e:
+                        print(f"❌ [API] Coursera Error: {e}")
 
                 await asyncio.sleep(1)
 
-                try:
-                    udemy_fetcher = UdemyFetcher(
-                        tags=broad_tags, limit=5, headless=False, driver=GLOBAL_DRIVER
-                    )
-                    await asyncio.to_thread(udemy_fetcher.scrape)
-
-                    udemy_results_map = udemy_fetcher.results
-                    roadmap_result["udemy"] = {}
-
-                    from src.utils.helpers import classify_via_frontend
-
-                    for tag, candidates in udemy_results_map.items():
-                        if not candidates:
-                            continue
-
-                        current_sid = socket_server.active_socket_id
-                        valid_udemy = await classify_via_frontend(
-                            sio, current_sid, tag, candidates
+                if CourseSource.UDEMY in active_sources:
+                    try:
+                        udemy_fetcher = UdemyFetcher(
+                            tags=broad_tags,
+                            limit=5,
+                            headless=False,
+                            driver=GLOBAL_DRIVER,
                         )
+                        await asyncio.to_thread(udemy_fetcher.scrape)
 
-                        if not valid_udemy:
-                            print(
-                                f"    ℹ️ [AI] No selection for '{tag}', using fallback."
+                        udemy_results_map = udemy_fetcher.results
+                        roadmap_result["udemy"] = {}
+
+                        from src.utils.helpers import classify_via_frontend
+
+                        for tag, candidates in udemy_results_map.items():
+                            if not candidates:
+                                continue
+
+                            current_sid = socket_server.active_socket_id
+                            valid_udemy = await classify_via_frontend(
+                                sio, current_sid, tag, candidates
                             )
-                            valid_udemy = candidates
 
-                        if valid_udemy:
-                            valid_udemy.sort(
-                                key=lambda x: x.get("score", 0), reverse=True
-                            )
-                            winner = valid_udemy[0]
-                            roadmap_result["udemy"][tag] = winner
-                            print(
-                                f"    🏆 [AI] Udemy Winner: {winner['title'][:50]}..."
-                            )
+                            if not valid_udemy:
+                                print(
+                                    f"    ℹ️ [AI] No selection for '{tag}', using fallback."
+                                )
+                                valid_udemy = candidates
 
-                except Exception as e:
-                    print(f"❌ [API] Udemy Error: {e}")
+                            if valid_udemy:
+                                valid_udemy.sort(
+                                    key=lambda x: x.get("score", 0), reverse=True
+                                )
+                                winner = valid_udemy[0]
+                                roadmap_result["udemy"][tag] = winner
+                                print(
+                                    f"    🏆 [AI] Udemy Winner: {winner['title'][:50]}..."
+                                )
 
-        # 3. Fetch YouTube ONLY for Atomic tags
-        if atomic_tags:
+                    except Exception as e:
+                        print(f"❌ [API] Udemy Error: {e}")
+
+        if atomic_tags and CourseSource.YOUTUBE in active_sources:
             try:
                 print(f"    ⚛️ [Atomic] Fetching YouTube for: {atomic_tags}")
                 youtube_data = await fetch_youtube(
@@ -142,7 +172,6 @@ async def generate_roadmap_logic(tags: List[str], prefer_paid: bool, language: s
     return {"status": "success", "data": roadmap_result}
 
 
-# Global Driver
 GLOBAL_DRIVER = None
 import asyncio
 
@@ -185,4 +214,5 @@ async def generate_roadmap(request: RoadmapRequest):
         tags=request.tags,
         prefer_paid=request.prefer_paid,
         language=request.language,
+        sources=request.sources,
     )
