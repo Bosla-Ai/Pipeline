@@ -48,7 +48,8 @@ class TestScoring:
             "publishedAt": datetime.now(timezone.utc).isoformat(),
         }
         score = calculate_video_score(video)
-        assert score == 0
+        # v2 logic: no hard gate for low views
+        assert score > 0
 
     def test_calculate_playlist_score(self):
         # Recent playlist, 20 videos

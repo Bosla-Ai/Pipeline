@@ -4,6 +4,7 @@ from src.utils.constants import (
     BEGINNER_KEYWORDS,
     UNWANTED_KEYWORDS,
     KNOWN_BROAD_TOPICS,
+    STOP_WORDS,
 )
 
 
@@ -116,14 +117,12 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
             if not scores or not resp_labels:
                 continue
 
-            # 1. Map Labels -> Scores
             c_map = {l: s for l, s in zip(resp_labels, scores)}
 
             score_comprehensive = c_map.get(label_comprehensive, 0)
             score_specific = c_map.get(label_specific, 0)
             score_unrelated = c_map.get(label_unrelated, 0)
 
-            # 2. Assign Max Label for Debugging
             max_score = -1
             max_label = "Unknown"
             for l, s in c_map.items():
@@ -134,36 +133,37 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
             item["ai_label"] = max_label
             item["ai_confidence"] = max_score
 
-            # 3. Stricter Acceptance: Margin + Title Keyword Check
+            richness_bonus = 0.0
+            is_playlist = item.get("contentType") == "Playlist"
+            video_count = item.get("videoCount", 0)
+            duration = item.get("duration_mins", 0)
+            desc = item.get("description", "").lower()
+
+            if is_playlist and video_count >= 15:
+                richness_bonus = 0.10
+
+            has_timestamps = any(
+                k in desc for k in ["timestamp", "chapter", "0:00", "00:00"]
+            )
+            if not is_playlist and (duration >= 60 or has_timestamps):
+                richness_bonus = 0.10
+
+            score_comprehensive += richness_bonus
+
+            final_mult = 1.0
+            if tag.lower() in item.get("title", "").lower():
+                final_mult = 1.1
+
+            c_map[label_comprehensive] = score_comprehensive * final_mult
+            c_map[label_specific] = score_specific * final_mult
+
             margin_comp = score_comprehensive - score_unrelated
             margin_spec = score_specific - score_unrelated
 
-            # Must have meaningful margin over "unrelated"
             has_margin = (margin_comp > 0.15) or (margin_spec > 0.15)
 
-            # Title must contain tag keywords (prevents "looping animation" for "for loops")
             title_lower = item.get("title", "").lower()
             tag_words = tag.lower().split()
-
-            # Allow 2-char words (like "c#", "ai", "js") but filter out common stop words
-            STOP_WORDS = {
-                "in",
-                "on",
-                "at",
-                "to",
-                "of",
-                "is",
-                "it",
-                "by",
-                "an",
-                "or",
-                "if",
-                "do",
-                "up",
-                "my",
-                "me",
-                "we",
-            }
 
             title_has_tag = any(
                 word in title_lower
