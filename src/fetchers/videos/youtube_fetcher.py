@@ -170,47 +170,88 @@ async def process_single_tag(
                                 int(s_count) if s_count.isdigit() else 0
                             )
 
+                        filtered_candidates = []
+
                         for c in batch_candidates:
                             if c["channelId"] in subs_map:
                                 c["subscriberCount"] = subs_map[c["channelId"]]
+
+                                # No Hard Filter on Subs (User Request) - handled in Scoring
+
                                 subs_k = (
                                     f"{c['subscriberCount']/1000:.1f}K"
                                     if c["subscriberCount"] > 1000
                                     else str(c["subscriberCount"])
                                 )
                                 c["metadata_info"] += f" | {subs_k} Subs"
+                                filtered_candidates.append(c)
+
+                        batch_candidates = filtered_candidates
 
                     sampling_candidates = batch_candidates[:10]
                     all_sample_vid_ids = []
                     playlist_vid_map = {}
 
-                    # Parallel fetch of playlistItems for Anti-Shorts sampling
+                    # Parallel fetch of playlistItems for Anti-Shorts & Ownership Check
                     async def fetch_playlist_items(c):
                         pl_items_data = await fetch_youtube_data(
                             session,
                             "https://www.googleapis.com/youtube/v3/playlistItems",
                             {
-                                "part": "contentDetails",
+                                "part": "snippet,contentDetails",
                                 "playlistId": c["contentId"],
-                                "maxResults": 6,
+                                "maxResults": 10,  # Increased slightly for better sample
                             },
                         )
-                        return c["contentId"], [
-                            item["contentDetails"]["videoId"]
-                            for item in pl_items_data.get("items", [])
-                        ]
+                        items = pl_items_data.get("items", [])
+                        video_ids = []
+                        owned_count = 0
+
+                        playlist_owner = c.get("channelId", "")
+
+                        for item in items:
+                            video_ids.append(item["contentDetails"]["videoId"])
+                            # Check ownership
+                            video_owner = item["snippet"].get("videoOwnerChannelId", "")
+                            if video_owner and video_owner == playlist_owner:
+                                owned_count += 1
+
+                        originality_ratio = (owned_count / len(items)) if items else 0.0
+                        return c["contentId"], video_ids, originality_ratio
 
                     results = await asyncio.gather(
                         *[fetch_playlist_items(c) for c in sampling_candidates],
                         return_exceptions=True,
                     )
 
+                    valid_candidates = []
+                    # Create a map for candidates to filter them
+                    candidate_map = {c["contentId"]: c for c in sampling_candidates}
+
                     for result in results:
                         if isinstance(result, Exception):
                             continue
-                        pl_id, p_vids = result
+                        pl_id, p_vids, originality = result
+
+                        # Filter Mixed Playlists
+                        if originality < 0.7:
+                            c_title = candidate_map.get(pl_id, {}).get(
+                                "title", "Unknown"
+                            )
+                            print(
+                                f"    🗑️ Dropped Mixed Playlist '{c_title[:30]}' (Originality: {originality:.0%})"
+                            )
+                            # Remove from candidate_map effectively or just don't process
+                            if pl_id in candidate_map:
+                                del candidate_map[pl_id]
+                            continue
+
                         playlist_vid_map[pl_id] = p_vids
                         all_sample_vid_ids.extend(p_vids)
+
+                    sampling_candidates = list(candidate_map.values())
+
+                    batch_candidates = sampling_candidates
 
                     if all_sample_vid_ids:
                         vid_chunk_ids = list(set(all_sample_vid_ids))
@@ -219,8 +260,14 @@ async def process_single_tag(
                         v_details_data = await fetch_youtube_data(
                             session,
                             VIDEO_URL,
-                            {"part": "contentDetails", "id": ",".join(vid_chunk_ids)},
+                            {
+                                "part": "contentDetails,statistics",
+                                "id": ",".join(vid_chunk_ids),
+                            },
                         )
+
+                        durations_map = {}
+                        stats_map = {}
 
                         for item in v_details_data.get("items", []):
                             duration_iso = item["contentDetails"].get(
@@ -235,8 +282,21 @@ async def process_single_tag(
                                 d_mins = 0
                             durations_map[item["id"]] = d_mins
 
+                            stats = item.get("statistics", {})
+                            stats_map[item["id"]] = {
+                                "viewCount": int(stats.get("viewCount", 0)),
+                                "likeCount": int(stats.get("likeCount", 0)),
+                                "commentCount": int(stats.get("commentCount", 0)),
+                            }
+
                         for c in sampling_candidates:
                             p_id = c["contentId"]
+
+                            total_views = 0
+                            total_likes = 0
+                            total_comments = 0
+                            valid_video_count = 0
+
                             if p_id in playlist_vid_map:
                                 for vid_id in playlist_vid_map[p_id]:
                                     if vid_id in durations_map:
@@ -244,6 +304,21 @@ async def process_single_tag(
                                             {"duration_mins": durations_map[vid_id]}
                                         )
 
+                                    if vid_id in stats_map:
+                                        s = stats_map[vid_id]
+                                        total_views += s["viewCount"]
+                                        total_likes += s["likeCount"]
+                                        total_comments += s["commentCount"]
+                                        valid_video_count += 1
+
+                            if valid_video_count > 0:
+                                c["avg_views"] = total_views // valid_video_count
+                                c["avg_likes"] = total_likes // valid_video_count
+                                c["avg_comments"] = total_comments // valid_video_count
+                            else:
+                                c["avg_views"] = 0
+                                c["avg_likes"] = 0
+                                c["avg_comments"] = 0
                 for c in batch_candidates:
                     c["score"] = calculate_playlist_score(c)
 

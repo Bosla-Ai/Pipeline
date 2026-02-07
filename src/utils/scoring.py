@@ -1,6 +1,4 @@
 import math
-import isodate
-import re
 from datetime import datetime, timezone
 
 
@@ -101,7 +99,44 @@ def calculate_playlist_score(playlist):
     published_at = playlist.get("publishedAt", "")
     freshness_score = _calculate_soft_freshness(published_at, half_life_years=5)
 
-    final_score = (count_multiplier * 10) * avg_duration_multiplier * freshness_score
+    avg_views = playlist.get("avg_views", 0)
+    avg_likes = playlist.get("avg_likes", 0)
+
+    if avg_views > 0:
+        log_views = math.log10(avg_views + 1)
+        reliability_multiplier = 1.0 + (log_views * 0.1)
+    else:
+        reliability_multiplier = 1.0
+
+    engagement_multiplier = 1.0
+    if avg_views > 100:
+        ratio = (avg_likes / avg_views) * 100
+        if ratio > 3.0:
+            engagement_multiplier = 1.3
+        elif ratio > 1.5:
+            engagement_multiplier = 1.15
+        elif ratio < 0.5:
+            engagement_multiplier = 0.7
+
+    published_at = playlist.get("publishedAt", "")
+    freshness_score = _calculate_soft_freshness(published_at, half_life_years=5)
+    subscriber_count = playlist.get("subscriberCount", 1000)
+    sub_multiplier = 1.0
+
+    if avg_views < 5000:
+        if subscriber_count < 10:
+            sub_multiplier = 0.5
+        elif subscriber_count < 100:
+            sub_multiplier = 0.8
+
+    final_score = (
+        (count_multiplier * 10)
+        * avg_duration_multiplier
+        * freshness_score
+        * reliability_multiplier
+        * engagement_multiplier
+        * sub_multiplier
+    )
 
     return final_score
 
