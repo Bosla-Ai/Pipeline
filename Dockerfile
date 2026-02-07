@@ -9,10 +9,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Install system dependencies (Run as Root)
 # FIX: Added 'xauth' here to solve the xvfb error
+# Added 'redis-server' for caching in HF Spaces (single container)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget gnupg2 curl ca-certificates apt-transport-https software-properties-common \
     xvfb xauth unzip libgconf-2-4 libnss3 libxss1 libasound2 fonts-liberation \
-    libgbm1 libu2f-udev xdg-utils \
+    libgbm1 libu2f-udev xdg-utils redis-server \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome (Run as Root)
@@ -46,8 +47,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=user . .
 
+# Create Redis data directory for non-root user
+RUN mkdir -p $HOME/redis-data
+
 # Change Port to 7860 (Hugging Face Requirement)
 EXPOSE 7860
 
-# Start command (Updated port to 7860)
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & export DISPLAY=:99 && uvicorn src.main:combined_app --host 0.0.0.0 --port 7860"]
+# Start command: Redis (user-mode) + Xvfb + Uvicorn (Updated port to 7860 for HF)
+CMD ["sh", "-c", "redis-server --daemonize yes --dir /home/user/redis-data --bind 127.0.0.1 --port 6379 && Xvfb :99 -screen 0 1920x1080x24 & export DISPLAY=:99 && uvicorn src.main:combined_app --host 0.0.0.0 --port 7860"]

@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from src.utils.cache import cache, generate_cache_key
 
 import src.socket_server as socket_server
 
@@ -15,12 +16,27 @@ async def fetch_coursera(sio, tags, language="en", max_results=5, driver=None):
 
     from src.utils.helpers import classify_via_frontend
 
-    print(f"⏳ Starting Coursera Scraper for tags: {tags}...")
-    candidates_map = await asyncio.to_thread(
-        scrape_coursera_sync, sio, tags, language, max_results, driver
-    )
+    await cache.connect()
 
     final_roadmap = {}
+    tags_to_fetch = []
+
+    for tag in tags:
+        cache_key = generate_cache_key("coursera", tag, language)
+        cached_result = await cache.get(cache_key)
+        if cached_result:
+            print(f"    ✅ [Cache Hit] Coursera: {tag} ({language})")
+            final_roadmap[tag] = cached_result
+        else:
+            tags_to_fetch.append(tag)
+
+    if not tags_to_fetch:
+        return final_roadmap
+
+    print(f"⏳ Starting Coursera Scraper for tags: {tags_to_fetch}...")
+    candidates_map = await asyncio.to_thread(
+        scrape_coursera_sync, sio, tags_to_fetch, language, max_results, driver
+    )
 
     for tag, candidates in candidates_map.items():
         if not candidates:
@@ -43,6 +59,8 @@ async def fetch_coursera(sio, tags, language="en", max_results=5, driver=None):
             winner = valid_items[0]
             print(f"    🏆 [AI] Coursera Winner: {winner['title'][:50]}...")
             final_roadmap[tag] = winner
+            cache_key = generate_cache_key("coursera", tag, language)
+            await cache.set(cache_key, winner)
         else:
             print(
                 f"    ⚠️ AI rejected all Coursera items (or frontend error). Using Safety Net."
@@ -54,6 +72,8 @@ async def fetch_coursera(sio, tags, language="en", max_results=5, driver=None):
             if language == "ar":
                 candidates.sort(key=lambda x: x["is_native_arabic"], reverse=True)
                 final_roadmap[tag] = candidates[0]
+            cache_key = generate_cache_key("coursera", tag, language)
+            await cache.set(cache_key, final_roadmap[tag])
 
     return final_roadmap
 

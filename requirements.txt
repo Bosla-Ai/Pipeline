@@ -6,6 +6,7 @@ python-dotenv
 pydantic
 requests
 aiohttp
+redis
 
 # Scraping & Browser
 beautifulsoup4

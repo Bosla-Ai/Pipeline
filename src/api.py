@@ -9,6 +9,7 @@ from src.socket_server import sio
 from src.fetchers.videos.youtube_fetcher import fetch as fetch_youtube
 from src.fetchers.videos.coursera_fetcher import fetch_coursera
 from src.fetchers.videos.udemy_fetcher import UdemyFetcher
+from src.utils.cache import cache, generate_cache_key
 
 app = FastAPI(title="Bosla Pipeline API")
 
@@ -114,43 +115,65 @@ async def generate_roadmap_logic(
 
                 if CourseSource.UDEMY in active_sources:
                     try:
-                        udemy_fetcher = UdemyFetcher(
-                            tags=broad_tags,
-                            limit=5,
-                            headless=False,
-                            driver=GLOBAL_DRIVER,
-                        )
-                        await asyncio.to_thread(udemy_fetcher.scrape)
+                        await cache.connect()
+                        udemy_cached = {}
+                        udemy_tags_to_fetch = []
 
-                        udemy_results_map = udemy_fetcher.results
-                        roadmap_result["udemy"] = {}
+                        for tag in broad_tags:
+                            cache_key = generate_cache_key("udemy", tag, language)
+                            cached_result = await cache.get(cache_key)
+                            if cached_result:
+                                print(f"    ✅ [Cache Hit] Udemy: {tag}")
+                                udemy_cached[tag] = cached_result
+                            else:
+                                udemy_tags_to_fetch.append(tag)
 
-                        from src.utils.helpers import classify_via_frontend
+                        roadmap_result["udemy"] = udemy_cached
 
-                        for tag, candidates in udemy_results_map.items():
-                            if not candidates:
-                                continue
-
-                            current_sid = socket_server.active_socket_id
-                            valid_udemy = await classify_via_frontend(
-                                sio, current_sid, tag, candidates
+                        if not udemy_tags_to_fetch:
+                            print("    ✅ [Udemy] All tags served from cache")
+                        else:
+                            udemy_fetcher = UdemyFetcher(
+                                tags=udemy_tags_to_fetch,
+                                limit=5,
+                                headless=False,
+                                driver=GLOBAL_DRIVER,
                             )
+                            await asyncio.to_thread(udemy_fetcher.scrape)
 
-                            if not valid_udemy:
-                                print(
-                                    f"    ℹ️ [AI] No selection for '{tag}', using fallback."
-                                )
-                                valid_udemy = candidates
+                            udemy_results_map = udemy_fetcher.results
 
-                            if valid_udemy:
-                                valid_udemy.sort(
-                                    key=lambda x: x.get("score", 0), reverse=True
+                            from src.utils.helpers import classify_via_frontend
+
+                            for tag, candidates in udemy_results_map.items():
+                                if not candidates:
+                                    continue
+
+                                current_sid = socket_server.active_socket_id
+                                valid_udemy = await classify_via_frontend(
+                                    sio, current_sid, tag, candidates
                                 )
-                                winner = valid_udemy[0]
-                                roadmap_result["udemy"][tag] = winner
-                                print(
-                                    f"    🏆 [AI] Udemy Winner: {winner['title'][:50]}..."
-                                )
+
+                                if not valid_udemy:
+                                    print(
+                                        f"    ℹ️ [AI] No selection for '{tag}', using fallback."
+                                    )
+                                    valid_udemy = candidates
+
+                                if valid_udemy:
+                                    valid_udemy.sort(
+                                        key=lambda x: x.get("score", 0), reverse=True
+                                    )
+                                    winner = valid_udemy[0]
+                                    roadmap_result["udemy"][tag] = winner
+                                    # Cache the winner
+                                    cache_key = generate_cache_key(
+                                        "udemy", tag, language
+                                    )
+                                    await cache.set(cache_key, winner)
+                                    print(
+                                        f"    🏆 [AI] Udemy Winner: {winner['title'][:50]}..."
+                                    )
 
                     except Exception as e:
                         print(f"❌ [API] Udemy Error: {e}")

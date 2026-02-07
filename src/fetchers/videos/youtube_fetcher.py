@@ -11,6 +11,7 @@ from src.utils.helpers import (
 )
 from src.utils.constants import TAG_MAP
 from src.utils.scoring import calculate_video_score, calculate_playlist_score
+from src.utils.cache import cache, generate_cache_key
 
 SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
@@ -61,6 +62,12 @@ async def fetch_youtube_data(session, url, params):
 async def process_single_tag(
     session, sio, socket_id, tag, language, max_results, precomputed_scope=None
 ):
+    cache_key = generate_cache_key("youtube", tag, language)
+    cached_result = await cache.get(cache_key)
+    if cached_result:
+        print(f"    ✅ [Cache Hit] YouTube: {tag} ({language})")
+        return tag, cached_result
+
     current_lang = language
     candidates = []
 
@@ -371,9 +378,11 @@ async def process_single_tag(
         print(
             f"    🏆 AI Selected: {result['title'][:40]}... (Score: {result['score']:.1f})"
         )
+        await cache.set(cache_key, result)
         return tag, result
     else:
         print(f"    ⚠️ AI rejected all. Using Richest Candidate (Safety Net).")
+        await cache.set(cache_key, math_winner)
         return tag, math_winner
 
 
@@ -385,6 +394,8 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=
     """
     if not tags:
         return {}
+
+    await cache.connect()
 
     normalized_tags = []
     original_tags = []  # Keep original for scope_cache lookup
