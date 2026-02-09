@@ -11,8 +11,28 @@ from src.fetchers.videos.youtube_fetcher import fetch as fetch_youtube
 from src.fetchers.videos.coursera_fetcher import fetch_coursera
 from src.fetchers.videos.udemy_fetcher import UdemyFetcher
 from src.utils.cache import cache, generate_cache_key
+from src.utils.learning_path import generate_learning_path
 
 app = FastAPI(title="Bosla Pipeline API")
+
+
+def preprocess_tags(tags: list[str]) -> list[str]:
+    """
+    Cleans and normalizes tags from the API before passing to fetchers.
+    Handles rich descriptive tags like 'Automated Testing with Jest'.
+    """
+    cleaned = []
+    seen = set()
+    for tag in tags:
+        t = tag.strip()
+        if not t:
+            continue
+        t = " ".join(t.split())
+        key = t.lower()
+        if key not in seen:
+            seen.add(key)
+            cleaned.append(t)
+    return cleaned
 
 
 class CourseSource(str, Enum):
@@ -66,6 +86,8 @@ async def generate_roadmap_logic(
 ):
     if not job_id:
         job_id = uuid.uuid4().hex[:12]
+
+    tags = preprocess_tags(tags)
 
     print(f"🔵 [JOB {job_id[:8]}] Roadmap requested. Tags: {tags}, Lang: {language}")
     print(f"   Waiting for frontend socket…")
@@ -239,6 +261,10 @@ async def generate_roadmap_logic(
                 roadmap_result["youtube"] = youtube_data
             except Exception as e:
                 print(f"❌ [JOB {job_id[:8]}] YouTube (atomic) Error: {e}")
+
+    print(f"🧬 [JOB {job_id[:8]}] Generating Learning DNA Sequence...")
+    learning_path = generate_learning_path(tags, roadmap_data=roadmap_result)
+    roadmap_result["learning_path"] = learning_path
 
     print(f"✅ [JOB {job_id[:8]}] Roadmap generation complete.")
     return {"status": "success", "data": roadmap_result}

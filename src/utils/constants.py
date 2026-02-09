@@ -1,13 +1,13 @@
 # src/utils/constants.py
 
 TAG_MAP = {
-    # .NET (Minimal Keys to pass Relevance Check)
-    "c#": "c#",  # was "c# programming" (Too strict)
+    # .NET
+    "c#": "c#",
     "net core": "asp.net core",
-    "asp.net api": "asp.net core api",  # was "asp.net core web api" (Too strict)
+    "asp.net api": "asp.net core api",
     "sql-server": "sql server",
     "ef core": "entity framework core",
-    "linq": "linq",  # was "c# linq" (Too strict)
+    "linq": "linq",
     # JS
     "js": "javascript",
     "ts": "typescript",
@@ -26,6 +26,48 @@ TAG_MAP = {
     "go": "golang",
     "r": "r programming",
     "flutter": "flutter dart",
+}
+
+# Maps rich descriptive tags from the API to optimal YouTube search terms.
+# The API now generates tags like "Automated Testing with Jest" — these need
+# decomposition into core technology + search-friendly modifiers.
+DESCRIPTIVE_TAG_DECOMPOSITION = {
+    "automated testing": ("testing", "automated testing"),
+    "unit testing": ("unit testing", "unit test"),
+    "api design": ("api design", "rest api"),
+    "restful api": ("rest api", "restful api"),
+    "database design": ("database design", "database modeling"),
+    "state management": ("state management", "state management"),
+    "responsive design": ("responsive design", "responsive web design"),
+    "version control": ("git", "version control"),
+    "ci/cd": ("ci cd pipeline", "continuous integration"),
+    "containerization": ("docker", "containerization"),
+    "cloud deployment": ("cloud deployment", "deploy to cloud"),
+    "performance optimization": ("performance optimization", "web performance"),
+    "security best practices": ("web security", "security best practices"),
+    "data modeling": ("data modeling", "database schema"),
+    "error handling": ("error handling", "exception handling"),
+    "authentication": ("authentication", "auth"),
+    "authorization": ("authorization", "role based access"),
+}
+
+# Core tech keywords that should be extracted from descriptive tags.
+# e.g., "Automated Testing with Jest" → extracts "jest" as the core tech.
+CORE_TECH_KEYWORDS = {
+    "react", "angular", "vue", "svelte", "next", "nuxt", "gatsby",
+    "node", "express", "fastapi", "django", "flask", "spring", "laravel",
+    "jest", "pytest", "cypress", "selenium", "mocha", "vitest",
+    "docker", "kubernetes", "aws", "azure", "gcp", "terraform",
+    "mongodb", "postgresql", "mysql", "redis", "elasticsearch",
+    "graphql", "rest", "grpc", "websocket",
+    "typescript", "javascript", "python", "java", "c#", "go", "rust",
+    "tailwind", "bootstrap", "sass", "scss",
+    "git", "github", "gitlab",
+    "firebase", "supabase", "prisma", "sequelize",
+    "webpack", "vite", "rollup", "esbuild",
+    "jwt", "oauth", "passport",
+    "redux", "zustand", "mobx", "pinia", "vuex",
+    "rxjs", "ngrx",
 }
 
 NEGATIVE_KEYWORDS = [
