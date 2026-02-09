@@ -16,6 +16,7 @@ undetected_chromedriver
 
 # Utilities
 isodate
+yt-dlp
 
 # Dev Tools (Formatter & Testing)
 black

@@ -9,9 +9,12 @@ from src.utils.helpers import (
     is_garbage_content,
     analyze_topic_scope,
 )
-from src.utils.constants import TAG_MAP
+from src.utils.constants import TAG_MAP, DESCRIPTIVE_TAG_DECOMPOSITION, CORE_TECH_KEYWORDS
 from src.utils.scoring import calculate_video_score, calculate_playlist_score
 from src.utils.cache import cache, generate_cache_key
+from src.fetchers.videos.youtube_scraper import emergency_fetch
+
+_api_exhausted = False
 
 SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
@@ -55,8 +58,56 @@ async def fetch_youtube_data(session, url, params):
             print(f"    ❌ Network Error: {e}")
             return {}
 
-    print("    💀 Fatal: All API Keys exhausted.")
+    global _api_exhausted
+    _api_exhausted = True
+    print("    💀 Fatal: All API Keys exhausted. Emergency scraper will activate.")
     return {}
+
+
+def build_smart_queries(tag: str) -> list[tuple[str, str]]:
+    """
+    Generates optimized YouTube search queries from potentially descriptive tags.
+    Handles API-generated tags like 'Automated Testing with Jest' by decomposing
+    them into core tech + context queries.
+    """
+    tag_lower = tag.lower().strip()
+
+    # Check if this is a known descriptive pattern
+    for pattern, (q1, q2) in DESCRIPTIVE_TAG_DECOMPOSITION.items():
+        if pattern in tag_lower:
+            # Also check for a core tech keyword in the tag
+            core_tech = None
+            for tech in CORE_TECH_KEYWORDS:
+                if tech in tag_lower and tech != pattern:
+                    core_tech = tech
+                    break
+
+            if core_tech:
+                return [
+                    (f"{core_tech} {q1} full course", f"{core_tech} {q2} tutorial"),
+                    (f"{tag} full course", f"{tag} tutorial"),
+                ]
+            return [
+                (f"{q1} full course", f"{q2} tutorial"),
+                (f"{tag} full course", f"{tag} tutorial"),
+            ]
+
+    # For multi-word descriptive tags containing a core tech, lead with the tech
+    words = tag_lower.split()
+    if len(words) >= 3:
+        found_techs = [w for w in words if w in CORE_TECH_KEYWORDS]
+        if found_techs:
+            primary_tech = found_techs[0]
+            context = tag_lower.replace(primary_tech, "").strip()
+            context = " ".join(context.split())  # normalize spaces
+            if context and len(context) > 2:
+                return [
+                    (f"{primary_tech} {context} full course", f"{primary_tech} {context} tutorial"),
+                    (f"{tag} full course", f"{tag} tutorial"),
+                ]
+
+    # Default: original behavior
+    return [(f"{tag} full course", f"{tag} tutorial")]
 
 
 async def process_single_tag(
@@ -67,6 +118,14 @@ async def process_single_tag(
     if cached_result:
         print(f"    ✅ [Cache Hit] YouTube: {tag} ({language})")
         return tag, cached_result
+
+    global _api_exhausted
+    if _api_exhausted:
+        print(f"    ⚡ [Short-Circuit] API exhausted. Going straight to emergency scraper for '{tag}'")
+        fallback_result = await emergency_fetch(tag, language)
+        if fallback_result:
+            await cache.set(cache_key, fallback_result)
+        return tag, fallback_result
 
     current_lang = language
     candidates = []
@@ -82,7 +141,7 @@ async def process_single_tag(
             f"\n--- Processing: {tag} (Attempt {attempts}/{max_attempts}: {current_lang}) ---"
         )
 
-        queries_to_try = [(f"{tag} full course", f"{tag} tutorial")]
+        queries_to_try = build_smart_queries(tag)
 
         api_lang = "ar" if current_lang == "ar" else "en"
 
@@ -421,7 +480,11 @@ async def process_single_tag(
             break
 
     if not candidates:
-        return tag, None
+        print(f"    ⚠️ No API results for '{tag}'. Activating emergency scraper...")
+        fallback_result = await emergency_fetch(tag, language)
+        if fallback_result:
+            await cache.set(cache_key, fallback_result)
+        return tag, fallback_result
 
     if precomputed_scope:
         scope = precomputed_scope
