@@ -7,10 +7,10 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from src.utils.cache import cache, generate_cache_key
 
-import src.socket_server as socket_server
 
-
-async def fetch_coursera(sio, tags, language="en", max_results=5, driver=None):
+async def fetch_coursera(
+    sio, socket_id, tags, language="en", max_results=5, driver=None
+):
     if not tags:
         return {}
 
@@ -47,8 +47,7 @@ async def fetch_coursera(sio, tags, language="en", max_results=5, driver=None):
             f"    🤖 AI Analyzing {len(candidates)} Coursera Candidates for '{tag}'..."
         )
 
-        # Apply AI Classification
-        socket_id = socket_server.active_socket_id
+        # Apply AI Classification using the job-scoped socket_id
         valid_items = await classify_via_frontend(sio, socket_id, tag, candidates)
 
         if valid_items:
