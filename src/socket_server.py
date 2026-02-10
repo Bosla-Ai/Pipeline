@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timezone
 
 import socketio
+from src.utils.event_log import event_log
 
 sio = socketio.AsyncServer(
     async_mode="asgi",
@@ -69,7 +70,7 @@ async def connect(sid, environ, auth=None):
     user_id = auth.get("userId") or auth.get("user_id") or "anonymous"
 
     if not job_id:
-        print(f"⛔ [SOCKET] Rejected connection {sid} — no jobId in auth")
+        event_log.log("warn", "socket", f"Rejected connection {sid} — no jobId in auth")
         await sio.disconnect(sid)
         return False
 
@@ -81,7 +82,7 @@ async def connect(sid, environ, auth=None):
         "connected_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    print(f"✅ [SOCKET] User {user_id} connected for job {job_id[:8]}… (sid: {sid})")
+    event_log.log("success", "socket", f"User {user_id} connected for job {job_id[:8]}… (sid: {sid})", job_id=job_id)
 
     evt = _job_ready_events.get(job_id)
     if evt:
@@ -98,6 +99,28 @@ async def disconnect(sid):
 
     user_id = meta.get("user_id", "?")
     jid = meta.get("job_id", "?")
-    print(
-        f"🔌 [SOCKET] User {user_id} disconnected (job {jid[:8] if len(jid) > 8 else jid})"
-    )
+    event_log.log("info", "socket", f"User {user_id} disconnected (job {jid[:8] if len(jid) > 8 else jid})", job_id=jid if jid != "?" else None)
+
+
+# ── Monitor room for real-time log streaming ────────────
+
+@sio.event
+async def join_monitor(sid, data=None):
+    """Admin dashboards join this room to receive real-time log events."""
+    sio.enter_room(sid, "monitor")
+    await sio.emit("monitor_joined", {"ok": True}, to=sid)
+    event_log.log("info", "socket", f"Monitor joined by {sid}")
+
+
+@sio.event
+async def leave_monitor(sid, data=None):
+    sio.leave_room(sid, "monitor")
+
+
+async def _broadcast_log_entry(entry: dict):
+    """Broadcast a new log entry to all sids in the 'monitor' room."""
+    await sio.emit("new_log", entry, room="monitor")
+
+
+# Wire up broadcast at import time
+event_log.set_broadcast(_broadcast_log_entry)
