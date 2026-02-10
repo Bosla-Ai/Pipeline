@@ -30,6 +30,9 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
     && ACCEPT_EULA=Y apt-get install -y msodbcsql17 unixodbc-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Create Xvfb socket directory before switching users
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+
 # Create a new user (User ID 1000) because Root is forbidden
 RUN useradd -m -u 1000 user
 
@@ -54,4 +57,4 @@ RUN mkdir -p $HOME/redis-data
 EXPOSE 7860
 
 # Start command: Redis (user-mode) + Xvfb + Uvicorn (Updated port to 7860 for HF)
-CMD ["sh", "-c", "redis-server --daemonize yes --dir /home/user/redis-data --bind 127.0.0.1 --port 6379 && Xvfb :99 -screen 0 1920x1080x24 & export DISPLAY=:99 && uvicorn src.main:combined_app --host 0.0.0.0 --port 7860"]
+CMD ["sh", "-c", "redis-server --daemonize yes --dir /home/user/redis-data --bind 127.0.0.1 --port 6379 && Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && export DISPLAY=:99 && uvicorn src.main:combined_app --host 0.0.0.0 --port 7860"]

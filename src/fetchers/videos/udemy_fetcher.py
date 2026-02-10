@@ -1,9 +1,6 @@
 import time
 import json
 import random
-import subprocess
-import os
-import signal
 from bs4 import BeautifulSoup
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
@@ -34,9 +31,7 @@ class UdemyFetcher:
             print("    🔍 [Diagnostic] Could not retrieve browser state")
 
     def scrape(self):
-        # print(f"🔧 Headless mode: {self.headless}")
-
-        # If external driver provided, skip local Xvfb/Driver setup
+        # If external driver provided, skip local driver setup
         if self.driver:
             print("    ♻️ Reusing Global Udemy Driver")
             try:
@@ -45,45 +40,8 @@ class UdemyFetcher:
                 print(f"❌ Error with global driver: {e}")
             return
 
-        # --- LOCAL DRIVER LOGIC (Fallback) ---
-        xvfb_process = None
-        original_display = os.environ.get("DISPLAY")
-
-        try:
-            if self.headless:
-                # Find a free display number
-                display_num = random.randint(99, 999)
-                new_display = f":{display_num}"
-
-                # Start Xvfb
-                xvfb_process = subprocess.Popen(
-                    [
-                        "Xvfb",
-                        new_display,
-                        "-screen",
-                        "0",
-                        "1920x1080x24",
-                        "+extension",
-                        "GLX",
-                    ],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    preexec_fn=os.setsid,
-                )
-                time.sleep(1)
-
-                # Set display for this process and all children
-                os.environ["DISPLAY"] = new_display
-                print(f"🖥️  Virtual display started on {new_display}")
-
-            self._run_local_scraper()
-
-        finally:
-            # Cleanup
-            if xvfb_process:
-                os.environ["DISPLAY"] = original_display or ":0"
-                os.killpg(os.getpgid(xvfb_process.pid), signal.SIGTERM)
-                print("🖥️  Virtual display stopped")
+        # Local driver fallback — uses --headless=new, no Xvfb needed
+        self._run_local_scraper()
 
     def _scrape_with_driver(self, browser):
         # Health check and reset driver state before Udemy scraping
@@ -113,18 +71,21 @@ class UdemyFetcher:
 
     def _run_local_scraper(self):
         options = uc.ChromeOptions()
+        options.add_argument("--headless=new")
         options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_argument("--window-size=1920,1080")
         options.add_argument("--no-sandbox")
         options.add_argument("--mute-audio")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--js-flags=--max-old-space-size=256")
 
         # Force X11 instead of Wayland so Xvfb virtual display works
         options.add_argument("--ozone-platform=x11")
 
         print("🚀 Initializing Browser...")
-        browser = uc.Chrome(options=options, version_main=144)
+        browser = uc.Chrome(options=options)
 
         try:
             self._core_scraping_logic(browser)
