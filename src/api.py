@@ -1,6 +1,10 @@
 import asyncio
+import csv
+import io
 import uuid
-from fastapi import FastAPI, HTTPException
+from datetime import datetime, timezone, timedelta
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from enum import Enum
@@ -12,6 +16,7 @@ from src.fetchers.videos.coursera_fetcher import fetch_coursera
 from src.fetchers.videos.udemy_fetcher import UdemyFetcher
 from src.utils.cache import cache, generate_cache_key
 from src.utils.learning_path import generate_learning_path
+from src.utils.event_log import event_log
 
 app = FastAPI(title="Bosla Pipeline API")
 
@@ -51,8 +56,78 @@ class RoadmapRequest(BaseModel):
 
 @app.get("/stats")
 async def stats():
-    """Return connected sockets, active jobs, and connection details."""
-    return socket_server.get_stats()
+    """Return connected sockets, active jobs, connection details, and recent error count."""
+    base = socket_server.get_stats()
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    recent_errors = event_log.get_logs(since=cutoff, level="error", limit=1000)
+    base["error_count_5m"] = len(recent_errors)
+    return base
+
+
+@app.get("/logs")
+async def get_logs(
+    since: Optional[str] = Query(None, description="ISO timestamp cutoff"),
+    level: Optional[str] = Query(None, description="Filter by level: info, warn, error, success"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    job_id: Optional[str] = Query(None, description="Filter by job ID"),
+    limit: int = Query(200, ge=1, le=1000),
+):
+    """Return pipeline event logs, newest first. Auto-cleaned after 24h."""
+    return {
+        "total": event_log.count,
+        "logs": event_log.get_logs(
+            since=since, level=level, category=category, job_id=job_id, limit=limit
+        ),
+    }
+
+
+@app.get("/logs/job/{job_id}")
+async def get_job_logs(job_id: str, limit: int = Query(500, ge=1, le=2000)):
+    """Return all log entries for a specific job, chronologically (oldest first)."""
+    entries = event_log.get_logs(job_id=job_id, limit=limit)
+    # get_logs returns newest first; reverse for timeline order
+    return {"job_id": job_id, "total": len(entries), "logs": list(reversed(entries))}
+
+
+@app.get("/logs/export")
+async def export_logs(
+    fmt: str = Query("json", description="Export format: json or csv"),
+    since: Optional[str] = Query(None),
+    level: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    job_id: Optional[str] = Query(None),
+    limit: int = Query(1000, ge=1, le=5000),
+):
+    """Export logs as a downloadable JSON or CSV file."""
+    entries = event_log.get_logs(
+        since=since, level=level, category=category, job_id=job_id, limit=limit
+    )
+
+    if fmt == "csv":
+        buf = io.StringIO()
+        writer = csv.DictWriter(
+            buf,
+            fieldnames=["id", "timestamp", "level", "category", "message", "job_id"],
+        )
+        writer.writeheader()
+        for e in entries:
+            writer.writerow({k: e.get(k, "") for k in writer.fieldnames})
+        buf.seek(0)
+        return StreamingResponse(
+            buf,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=pipeline_logs.csv"},
+        )
+
+    # Default: JSON
+    import json as _json
+
+    content = _json.dumps(entries, indent=2)
+    return StreamingResponse(
+        io.BytesIO(content.encode()),
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=pipeline_logs.json"},
+    )
 
 
 SOCKET_WAIT_TIMEOUT = 30
@@ -69,9 +144,7 @@ async def wait_for_socket(job_id: str) -> str | None:
         await asyncio.wait_for(evt.wait(), timeout=SOCKET_WAIT_TIMEOUT)
         return socket_server.get_socket_for_job(job_id)
     except asyncio.TimeoutError:
-        print(
-            f"⚠️ [JOB {job_id[:8]}] No frontend socket connected within {SOCKET_WAIT_TIMEOUT}s. Proceeding without AI."
-        )
+        event_log.log("warn", "job", f"No frontend socket connected within {SOCKET_WAIT_TIMEOUT}s. Proceeding without AI.", job_id=job_id)
         return None
     finally:
         socket_server.cleanup_job_waiter(job_id)
@@ -89,17 +162,15 @@ async def generate_roadmap_logic(
 
     tags = preprocess_tags(tags)
 
-    print(f"🔵 [JOB {job_id[:8]}] Roadmap requested. Tags: {tags}, Lang: {language}")
-    print(f"   Waiting for frontend socket…")
+    event_log.log("info", "job", f"Roadmap requested. Tags: {tags}, Lang: {language}", job_id=job_id)
+    event_log.log("info", "job", "Waiting for frontend socket…", job_id=job_id)
 
     current_sid = await wait_for_socket(job_id)
 
     if current_sid:
-        print(f"✅ [JOB {job_id[:8]}] Frontend socket ready (sid: {current_sid})")
+        event_log.log("success", "job", f"Frontend socket ready (sid: {current_sid})", job_id=job_id)
     else:
-        print(
-            f"⚠️ [JOB {job_id[:8]}] No frontend socket. AI classification will be skipped."
-        )
+        event_log.log("warn", "job", "No frontend socket. AI classification will be skipped.", job_id=job_id)
 
     roadmap_result = {"youtube": {}, "coursera": {}, "udemy": {}}
 
@@ -111,24 +182,22 @@ async def generate_roadmap_logic(
         else:
             active_sources = [CourseSource.UDEMY]
 
-    print(f"🔹 [JOB {job_id[:8]}] Active Sources: {active_sources}")
+    event_log.log("info", "job", f"Active Sources: {active_sources}", job_id=job_id)
 
     if CourseSource.YOUTUBE in active_sources:
         try:
-            print(
-                f"⏳ [JOB {job_id[:8]}] Fetching Free Content (YouTube)... Lang: {language}"
-            )
+            event_log.log("info", "fetcher", f"Fetching Free Content (YouTube)... Lang: {language}", job_id=job_id)
             youtube_data = await fetch_youtube(sio, current_sid, tags, language)
             roadmap_result["youtube"] = youtube_data
         except Exception as e:
-            print(f"❌ [JOB {job_id[:8]}] YouTube fetcher error: {e}")
+            event_log.log("error", "fetcher", f"YouTube fetcher error: {e}", job_id=job_id)
 
     paid_sources_requested = any(
         s in active_sources for s in [CourseSource.COURSERA, CourseSource.UDEMY]
     )
 
     if paid_sources_requested:
-        print(f"🔹 [JOB {job_id[:8]}] Fetching Paid Content | Tags: {tags}")
+        event_log.log("info", "fetcher", f"Fetching Paid Content | Tags: {tags}", job_id=job_id)
 
         from src.utils.helpers import analyze_topic_scope
 
@@ -151,9 +220,7 @@ async def generate_roadmap_logic(
             else:
                 atomic_tags.append(tag)
 
-        print(
-            f"    📊 [JOB {job_id[:8]}] Scope: Broad={broad_tags}, Atomic={atomic_tags}"
-        )
+        event_log.log("info", "job", f"Scope: Broad={broad_tags}, Atomic={atomic_tags}", job_id=job_id)
 
         if broad_tags:
             fetch_tasks = []
@@ -167,7 +234,7 @@ async def generate_roadmap_logic(
                         )
                         roadmap_result["coursera"] = data
                     except Exception as e:
-                        print(f"❌ [JOB {job_id[:8]}] Coursera Error: {e}")
+                        event_log.log("error", "fetcher", f"Coursera Error: {e}", job_id=job_id)
 
                 fetch_tasks.append(fetch_coursera_job())
 
@@ -183,7 +250,7 @@ async def generate_roadmap_logic(
                             cache_key = generate_cache_key("udemy", tag, language)
                             cached_result = await cache.get(cache_key)
                             if cached_result:
-                                print(f"    ✅ [Cache Hit] Udemy: {tag}")
+                                event_log.log("success", "cache", f"Cache Hit - Udemy: {tag}", job_id=job_id)
                                 udemy_cached[tag] = cached_result
                             else:
                                 udemy_tags_to_fetch.append(tag)
@@ -191,7 +258,7 @@ async def generate_roadmap_logic(
                         roadmap_result["udemy"] = udemy_cached
 
                         if not udemy_tags_to_fetch:
-                            print(f"    ✅ [JOB {job_id[:8]}] Udemy: All tags cached")
+                            event_log.log("success", "cache", "Udemy: All tags cached", job_id=job_id)
                         else:
                             async with DRIVER_LOCK:
                                 udemy_fetcher = UdemyFetcher(
@@ -219,9 +286,7 @@ async def generate_roadmap_logic(
                                 )
 
                                 if not valid_udemy:
-                                    print(
-                                        f"    ℹ️ [AI] No selection for '{tag}', using fallback."
-                                    )
+                                    event_log.log("warn", "fetcher", f"No AI selection for '{tag}', using fallback.", job_id=job_id)
                                     valid_udemy = candidates
 
                                 if valid_udemy:
@@ -234,11 +299,9 @@ async def generate_roadmap_logic(
                                         "udemy", tag, language
                                     )
                                     await cache.set(cache_key, winner)
-                                    print(
-                                        f"    🏆 [AI] Udemy Winner: {winner['title'][:50]}..."
-                                    )
+                                    event_log.log("success", "fetcher", f"Udemy Winner: {winner['title'][:50]}...", job_id=job_id)
                     except Exception as e:
-                        print(f"❌ [JOB {job_id[:8]}] Udemy Error: {e}")
+                        event_log.log("error", "fetcher", f"Udemy Error: {e}", job_id=job_id)
 
                 fetch_tasks.append(fetch_udemy_job())
 
@@ -247,9 +310,7 @@ async def generate_roadmap_logic(
 
         if atomic_tags and CourseSource.YOUTUBE in active_sources:
             try:
-                print(
-                    f"    ⚛️ [JOB {job_id[:8]}] Fetching YouTube for atomic tags: {atomic_tags}"
-                )
+                event_log.log("info", "fetcher", f"Fetching YouTube for atomic tags: {atomic_tags}", job_id=job_id)
                 sid = socket_server.get_socket_for_job(job_id) or current_sid
                 youtube_data = await fetch_youtube(
                     sio,
@@ -260,13 +321,13 @@ async def generate_roadmap_logic(
                 )
                 roadmap_result["youtube"] = youtube_data
             except Exception as e:
-                print(f"❌ [JOB {job_id[:8]}] YouTube (atomic) Error: {e}")
+                event_log.log("error", "fetcher", f"YouTube (atomic) Error: {e}", job_id=job_id)
 
-    print(f"🧬 [JOB {job_id[:8]}] Generating Learning DNA Sequence...")
+    event_log.log("info", "job", "Generating Learning DNA Sequence...", job_id=job_id)
     learning_path = generate_learning_path(tags, roadmap_data=roadmap_result)
     roadmap_result["learning_path"] = learning_path
 
-    print(f"✅ [JOB {job_id[:8]}] Roadmap generation complete.")
+    event_log.log("success", "job", "Roadmap generation complete.", job_id=job_id)
     return {"status": "success", "data": roadmap_result}
 
 
@@ -277,12 +338,16 @@ DRIVER_LOCK = asyncio.Lock()
 
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     global GLOBAL_DRIVER
+
+    # Start the 24h log cleanup background task
+    event_log.start_cleanup_task()
+
     try:
         import undetected_chromedriver as uc
 
-        print("🔹 [SYSTEM] Initializing Global Chrome Driver...")
+        event_log.log("info", "driver", "Initializing Global Chrome Driver...")
         options = uc.ChromeOptions()
         options.add_argument("--headless=new")
         options.add_argument("--no-sandbox")
@@ -299,16 +364,16 @@ def startup_event():
         options.add_argument("--blink-settings=imagesEnabled=false")
 
         GLOBAL_DRIVER = uc.Chrome(options=options)
-        print("✅ [SYSTEM] Global Driver Initialized & Ready")
+        event_log.log("success", "driver", "Global Driver Initialized & Ready")
     except Exception as e:
-        print(f"❌ [SYSTEM] Driver Init Failed: {e}")
+        event_log.log("error", "driver", f"Driver Init Failed: {e}")
 
 
 @app.on_event("shutdown")
 def shutdown_event():
     global GLOBAL_DRIVER
     if GLOBAL_DRIVER:
-        print("🛑 [SYSTEM] Shutting down Global Driver...")
+        event_log.log("info", "driver", "Shutting down Global Driver...")
         try:
             GLOBAL_DRIVER.quit()
         except:
@@ -318,7 +383,7 @@ def shutdown_event():
 @app.post("/generate-roadmap")
 async def generate_roadmap(request: RoadmapRequest):
     job_id = request.job_id or uuid.uuid4().hex[:12]
-    print(f"📥 [API] Incoming roadmap request — job_id: {job_id}")
+    event_log.log("info", "job", f"Incoming roadmap request", job_id=job_id)
 
     async with socket_server.job_semaphore:
         return await generate_roadmap_logic(
