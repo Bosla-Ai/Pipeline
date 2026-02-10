@@ -284,12 +284,21 @@ def startup_event():
 
         print("🔹 [SYSTEM] Initializing Global Chrome Driver...")
         options = uc.ChromeOptions()
-        # options.add_argument("--headless=new") # Run headed in Xvfb
+        options.add_argument("--headless=new")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-background-networking")
+        options.add_argument("--disable-default-apps")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--no-first-run")
+        options.add_argument("--js-flags=--max-old-space-size=256")
+        options.add_argument("--disable-background-timer-throttling")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--blink-settings=imagesEnabled=false")
 
-        GLOBAL_DRIVER = uc.Chrome(options=options, version_main=144)
+        GLOBAL_DRIVER = uc.Chrome(options=options)
         print("✅ [SYSTEM] Global Driver Initialized & Ready")
     except Exception as e:
         print(f"❌ [SYSTEM] Driver Init Failed: {e}")

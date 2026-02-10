@@ -87,12 +87,15 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
         if not driver:
             local_driver = True
             options = uc.ChromeOptions()
-            # options.add_argument("--headless=new")
+            options.add_argument("--headless=new")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--disable-gpu")
+            options.add_argument("--disable-software-rasterizer")
+            options.add_argument("--window-size=1920,1080")
+            options.add_argument("--js-flags=--max-old-space-size=256")
             options.add_argument("--blink-settings=imagesEnabled=false")
-            driver = uc.Chrome(options=options, version_main=144)
+            driver = uc.Chrome(options=options)
         else:
             print("    ♻️ Reusing Global Coursera Driver")
 
