@@ -11,7 +11,6 @@ Analyzes roadmap tags and generates an intelligent learning path with:
 
 from collections import defaultdict, deque
 
-
 PREREQUISITE_GRAPH = {
     # Web Fundamentals
     "html": [],
@@ -23,7 +22,6 @@ PREREQUISITE_GRAPH = {
     "javascript": ["html", "css"],
     "typescript": ["javascript"],
     "dom": ["javascript"],
-
     # Frontend Frameworks
     "react": ["javascript"],
     "react js": ["javascript"],
@@ -38,7 +36,6 @@ PREREQUISITE_GRAPH = {
     "nuxt.js": ["vue"],
     "svelte": ["javascript"],
     "sveltekit": ["svelte"],
-
     # State Management
     "redux": ["react"],
     "zustand": ["react"],
@@ -47,11 +44,9 @@ PREREQUISITE_GRAPH = {
     "vuex": ["vue"],
     "ngrx": ["angular"],
     "rxjs": ["typescript"],
-
     # CSS-in-JS / Styling
     "styled-components": ["react", "css"],
     "emotion": ["react", "css"],
-
     # Backend - Node
     "node": ["javascript"],
     "node.js": ["javascript"],
@@ -63,42 +58,26 @@ PREREQUISITE_GRAPH = {
     "nest.js": ["typescript", "node"],
     "nestjs": ["typescript", "node"],
     "fastify": ["node"],
-
     # Backend - Python
     "python": [],
     "flask": ["python"],
     "django": ["python"],
     "fastapi": ["python"],
-
     # Backend - Java
     "java": [],
     "spring": ["java"],
     "spring boot": ["java"],
-
-    # Backend - C#
+    # Backend - C# / .NET
     "c#": [],
-    "asp.net": ["c#"],
-    "asp.net": ["entity framework core"],
-    "asp.net": ["ef core"],
-    "asp.net": ["linq"],
-    "asp.net core": ["c#"],
-    "asp.net core": ["entity framework core"],
-    "asp.net core": ["ef core"],
-    "asp.net core": ["linq"],
-    ".net": ["c#"],
-    ".net": ["entity framework core"],
-    ".net": ["ef core"],
-    ".net": ["linq"],
-    ".net core": ["c#"],
-    ".net core": ["entity framework core"],
-    ".net core": ["ef core"],
-    ".net core": ["linq"],    
-    "entity framework core": ["c#"],
-    "ef core": ["c#"],
     "linq": ["c#"],
+    "ef core": ["c#", "linq"],
+    "entity framework core": ["c#", "linq"],
+    "asp.net": ["c#", "linq", "ef core"],
+    "asp.net core": ["c#", "linq", "ef core"],
+    ".net": ["c#", "linq", "ef core"],
+    ".net core": ["c#", "linq", "ef core"],
     "blazor": ["c#"],
     "signalr": ["asp.net core"],
-
     # Backend - Others
     "php": [],
     "laravel": ["php"],
@@ -113,7 +92,6 @@ PREREQUISITE_GRAPH = {
     "elixir": [],
     "swift": [],
     "dart": [],
-
     # Mobile
     "android": ["java"],
     "jetpack compose": ["kotlin"],
@@ -121,7 +99,6 @@ PREREQUISITE_GRAPH = {
     "swiftui": ["swift"],
     "flutter": ["dart"],
     "react native": ["react"],
-
     # Databases
     "sql": [],
     "mysql": ["sql"],
@@ -134,12 +111,10 @@ PREREQUISITE_GRAPH = {
     "cassandra": [],
     "neo4j": [],
     "elasticsearch": [],
-
     # ORMs & Query
     "prisma": ["typescript"],
     "sequelize": ["node"],
     "sqlalchemy": ["python"],
-
     # APIs
     "rest api": ["javascript"],
     "restful api": ["javascript"],
@@ -147,13 +122,11 @@ PREREQUISITE_GRAPH = {
     "grpc": [],
     "websocket": ["javascript"],
     "api design": [],
-
     # Auth
     "jwt": ["rest api"],
     "oauth": ["rest api"],
     "authentication": [],
     "authorization": ["authentication"],
-
     # Testing
     "testing": [],
     "unit testing": ["testing"],
@@ -163,7 +136,6 @@ PREREQUISITE_GRAPH = {
     "selenium": [],
     "mocha": ["javascript"],
     "vitest": ["javascript"],
-
     # DevOps
     "git": [],
     "github": ["git"],
@@ -176,7 +148,6 @@ PREREQUISITE_GRAPH = {
     "jenkins": ["ci/cd"],
     "terraform": ["cloud deployment"],
     "ansible": ["linux"],
-
     # Cloud
     "aws": [],
     "azure": [],
@@ -188,30 +159,27 @@ PREREQUISITE_GRAPH = {
     "heroku": [],
     "vercel": ["next.js"],
     "netlify": [],
-
     # Linux & System
     "linux": [],
     "bash": ["linux"],
     "shell scripting": ["linux"],
     "powershell": [],
-
     # CS Fundamentals
     "data structures": [],
     "algorithms": ["data structures"],
     "dsa": [],
-    "system design": [],
-    "design patterns": [],
     "oop": [],
     "object oriented programming": [],
     "functional programming": [],
-    "clean code": [],
-    "clean architecture": ["clean code"],
+    "design patterns": ["oop"],
+    "system design": ["design patterns"],
+    "clean code": ["oop"],
     "solid principles": ["oop"],
+    "clean architecture": ["clean code", "solid principles"],
     "domain driven design": ["clean architecture"],
     "ddd": ["clean architecture"],
     "microservices": ["system design", "docker"],
     "event driven architecture": ["system design"],
-
     # Data Science & AI
     "data science": ["python"],
     "data analysis": ["python"],
@@ -229,13 +197,11 @@ PREREQUISITE_GRAPH = {
     "computer vision": ["deep learning"],
     "ai": [],
     "artificial intelligence": [],
-
     # Big Data
     "spark": ["python"],
     "hadoop": [],
     "data engineering": ["python", "sql"],
     "big data": ["python"],
-
     # Security
     "cybersecurity": [],
     "ethical hacking": ["networking"],
@@ -243,12 +209,10 @@ PREREQUISITE_GRAPH = {
     "network security": ["networking"],
     "cryptography": [],
     "networking": [],
-
     # Build Tools
     "webpack": ["javascript"],
     "vite": ["javascript"],
     "rollup": ["javascript"],
-
     # Others
     "blockchain": [],
     "web3": ["blockchain"],
@@ -279,6 +243,8 @@ TAG_ALIASES = {
     "ruby on rails": "rails",
     "asp.net core": "asp.net",
     ".net core": ".net",
+    "entity framework core": "ef core",
+    "object oriented programming": "oop",
 }
 
 DIFFICULTY_MAP = {
@@ -295,29 +261,6 @@ PHASE_NAMES = {
     1: "Core Skills",
     2: "Specialization",
     3: "Mastery",
-}
-
-CHECKPOINT_TEMPLATES = {
-    "Foundation": [
-        "Set up your development environment",
-        "Write your first 'Hello World' program",
-        "Understand core syntax and concepts",
-    ],
-    "Core Skills": [
-        "Build a simple CRUD application",
-        "Implement authentication and basic routing",
-        "Write your first unit tests",
-    ],
-    "Specialization": [
-        "Build a full-stack project with real-world features",
-        "Deploy your application to the cloud",
-        "Implement CI/CD pipeline for your project",
-    ],
-    "Mastery": [
-        "Design and implement a microservices architecture",
-        "Contribute to an open-source project",
-        "Build a production-ready portfolio project",
-    ],
 }
 
 
@@ -369,10 +312,12 @@ def _topological_sort(tags: list[str]) -> list[str]:
 
     # Sort by depth first so Foundation tags come before Advanced ones
     depth_memo = {}
-    queue = deque(sorted(
-        [t for t in normalized if in_degree[t] == 0],
-        key=lambda t: _get_depth(t, depth_memo)
-    ))
+    queue = deque(
+        sorted(
+            [t for t in normalized if in_degree[t] == 0],
+            key=lambda t: _get_depth(t, depth_memo),
+        )
+    )
     sorted_tags = []
 
     while queue:
@@ -425,11 +370,63 @@ def _get_difficulty(tag: str) -> str:
 def _detect_domain(tags: list[str]) -> str:
     normalized = [_normalize_tag(t) for t in tags]
 
-    frontend_kw = {"react", "angular", "vue", "svelte", "css", "html", "next.js", "tailwind", "bootstrap", "sass", "nextjs", "nuxt", "gatsby"}
-    backend_kw = {"node", "express", "django", "flask", "fastapi", "spring", "laravel", "asp.net", "nest.js", "rails"}
-    data_kw = {"machine learning", "deep learning", "data science", "pandas", "tensorflow", "pytorch", "ai", "nlp", "computer vision"}
-    devops_kw = {"docker", "kubernetes", "ci/cd", "terraform", "aws", "azure", "gcp", "jenkins", "ansible"}
-    mobile_kw = {"flutter", "react native", "android", "ios", "swiftui", "jetpack compose"}
+    frontend_kw = {
+        "react",
+        "angular",
+        "vue",
+        "svelte",
+        "css",
+        "html",
+        "next.js",
+        "tailwind",
+        "bootstrap",
+        "sass",
+        "nextjs",
+        "nuxt",
+        "gatsby",
+    }
+    backend_kw = {
+        "node",
+        "express",
+        "django",
+        "flask",
+        "fastapi",
+        "spring",
+        "laravel",
+        "asp.net",
+        "nest.js",
+        "rails",
+    }
+    data_kw = {
+        "machine learning",
+        "deep learning",
+        "data science",
+        "pandas",
+        "tensorflow",
+        "pytorch",
+        "ai",
+        "nlp",
+        "computer vision",
+    }
+    devops_kw = {
+        "docker",
+        "kubernetes",
+        "ci/cd",
+        "terraform",
+        "aws",
+        "azure",
+        "gcp",
+        "jenkins",
+        "ansible",
+    }
+    mobile_kw = {
+        "flutter",
+        "react native",
+        "android",
+        "ios",
+        "swiftui",
+        "jetpack compose",
+    }
 
     scores = {
         "Frontend Development": sum(1 for t in normalized if t in frontend_kw),
@@ -441,7 +438,9 @@ def _detect_domain(tags: list[str]) -> str:
     }
 
     if scores["Frontend Development"] > 0 and scores["Backend Development"] > 0:
-        scores["Full-Stack Development"] = scores["Frontend Development"] + scores["Backend Development"]
+        scores["Full-Stack Development"] = (
+            scores["Frontend Development"] + scores["Backend Development"]
+        )
 
     best = max(scores, key=scores.get)
     if scores[best] == 0:
@@ -449,7 +448,9 @@ def _detect_domain(tags: list[str]) -> str:
     return best
 
 
-def generate_learning_path(tags: list[str], roadmap_data: dict = None) -> dict:
+def generate_learning_path(
+    tags: list[str], roadmap_data: dict = None, tag_checkpoints: dict = None
+) -> dict:
     if not tags:
         return {}
 
@@ -469,12 +470,15 @@ def generate_learning_path(tags: list[str], roadmap_data: dict = None) -> dict:
             if current_phase_tags:
                 phase_idx = len(phases)
                 phase_name = PHASE_NAMES.get(phase_idx, f"Phase {phase_idx + 1}")
-                phases.append(_build_phase(
-                    phase_num=phase_idx + 1,
-                    name=phase_name,
-                    tags=current_phase_tags,
-                    roadmap_data=roadmap_data,
-                ))
+                phases.append(
+                    _build_phase(
+                        phase_num=phase_idx + 1,
+                        name=phase_name,
+                        tags=current_phase_tags,
+                        roadmap_data=roadmap_data,
+                        tag_checkpoints=tag_checkpoints,
+                    )
+                )
             current_phase_tags = []
             current_depth_bucket = bucket
 
@@ -483,12 +487,15 @@ def generate_learning_path(tags: list[str], roadmap_data: dict = None) -> dict:
     if current_phase_tags:
         phase_idx = len(phases)
         phase_name = PHASE_NAMES.get(phase_idx, f"Phase {phase_idx + 1}")
-        phases.append(_build_phase(
-            phase_num=phase_idx + 1,
-            name=phase_name,
-            tags=current_phase_tags,
-            roadmap_data=roadmap_data,
-        ))
+        phases.append(
+            _build_phase(
+                phase_num=phase_idx + 1,
+                name=phase_name,
+                tags=current_phase_tags,
+                roadmap_data=roadmap_data,
+                tag_checkpoints=tag_checkpoints,
+            )
+        )
 
     total_hours = sum(p["estimated_hours"] for p in phases)
     domain = _detect_domain(tags)
@@ -520,7 +527,13 @@ def generate_learning_path(tags: list[str], roadmap_data: dict = None) -> dict:
     return result
 
 
-def _build_phase(phase_num: int, name: str, tags: list[str], roadmap_data: dict = None) -> dict:
+def _build_phase(
+    phase_num: int,
+    name: str,
+    tags: list[str],
+    roadmap_data: dict = None,
+    tag_checkpoints: dict = None,
+) -> dict:
     phase_tags = []
     total_hours = 0
 
@@ -534,6 +547,19 @@ def _build_phase(phase_num: int, name: str, tags: list[str], roadmap_data: dict 
             "difficulty": _get_difficulty(tag),
             "estimated_hours": hours,
         }
+
+        # Use AI-generated checkpoints if available
+        if tag_checkpoints:
+            # Try exact match, then case-insensitive match
+            checkpoints = tag_checkpoints.get(tag)
+            if not checkpoints:
+                tag_lower = tag.lower()
+                for key, val in tag_checkpoints.items():
+                    if key.lower() == tag_lower:
+                        checkpoints = val
+                        break
+            if checkpoints:
+                tag_info["checkpoints"] = checkpoints
 
         prereqs = PREREQUISITE_GRAPH.get(_normalize_tag(tag), [])
         if prereqs:
@@ -549,9 +575,10 @@ def _build_phase(phase_num: int, name: str, tags: list[str], roadmap_data: dict 
 
     difficulties = [t["difficulty"] for t in phase_tags]
     difficulty_order = ["Beginner", "Intermediate", "Advanced"]
-    phase_difficulty = max(difficulties, key=lambda d: difficulty_order.index(d) if d in difficulty_order else 0)
-
-    checkpoints = CHECKPOINT_TEMPLATES.get(name, [f"Complete all {name} topics"])
+    phase_difficulty = max(
+        difficulties,
+        key=lambda d: difficulty_order.index(d) if d in difficulty_order else 0,
+    )
 
     return {
         "phase": phase_num,
@@ -559,7 +586,6 @@ def _build_phase(phase_num: int, name: str, tags: list[str], roadmap_data: dict 
         "difficulty": phase_difficulty,
         "tags": phase_tags,
         "estimated_hours": round(total_hours, 1),
-        "checkpoints": checkpoints,
     }
 
 

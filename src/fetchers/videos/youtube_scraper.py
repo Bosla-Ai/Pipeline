@@ -7,7 +7,9 @@ from src.utils.helpers import is_relevant, is_garbage_content
 from src.utils.scoring import calculate_video_score, calculate_playlist_score
 
 
-async def scrape_youtube_search(tag: str, language: str = "en", max_results: int = 10) -> list[dict]:
+async def scrape_youtube_search(
+    tag: str, language: str = "en", max_results: int = 10
+) -> list[dict]:
     try:
         import yt_dlp
     except ImportError:
@@ -36,7 +38,7 @@ async def scrape_youtube_search(tag: str, language: str = "en", max_results: int
             unique.append(e)
 
     candidates = []
-    for entry in unique[:max_results * 2]:
+    for entry in unique[: max_results * 2]:
         parsed = _parse_entry(entry, tag, language)
         if parsed:
             candidates.append(parsed)
@@ -97,9 +99,11 @@ def _parse_entry(entry: dict, tag: str, language: str) -> Optional[dict]:
     published_at = ""
     if uploaded and len(uploaded) == 8:
         try:
-            published_at = datetime.strptime(uploaded, "%Y%m%d").replace(
-                tzinfo=timezone.utc
-            ).isoformat()
+            published_at = (
+                datetime.strptime(uploaded, "%Y%m%d")
+                .replace(tzinfo=timezone.utc)
+                .isoformat()
+            )
         except:
             pass
 
@@ -110,7 +114,11 @@ def _parse_entry(entry: dict, tag: str, language: str) -> Optional[dict]:
         data = {
             "contentType": "Playlist",
             "contentId": video_id,
-            "url": url if "playlist" in url else f"https://www.youtube.com/playlist?list={video_id}",
+            "url": (
+                url
+                if "playlist" in url
+                else f"https://www.youtube.com/playlist?list={video_id}"
+            ),
             "title": title,
             "description": description[:500],
             "videoCount": count,
@@ -144,8 +152,12 @@ def _parse_entry(entry: dict, tag: str, language: str) -> Optional[dict]:
     return data
 
 
-async def emergency_fetch(tag: str, language: str = "en", max_results: int = 5) -> Optional[dict]:
-    print(f"    🆘 [Emergency Scraper] Searching YouTube for '{tag}' without API keys...")
+async def emergency_fetch(
+    tag: str, language: str = "en", max_results: int = 5
+) -> Optional[dict]:
+    print(
+        f"    🆘 [Emergency Scraper] Searching YouTube for '{tag}' without API keys..."
+    )
 
     candidates = await scrape_youtube_search(tag, language, max_results=max_results * 2)
 
@@ -153,7 +165,9 @@ async def emergency_fetch(tag: str, language: str = "en", max_results: int = 5) 
         core_tag = _extract_core_topic(tag)
         if core_tag != tag:
             print(f"    🔄 [Emergency Scraper] Retrying with core topic: '{core_tag}'")
-            candidates = await scrape_youtube_search(core_tag, language, max_results=max_results * 2)
+            candidates = await scrape_youtube_search(
+                core_tag, language, max_results=max_results * 2
+            )
 
     if not candidates:
         print(f"    💀 [Emergency Scraper] No results found for '{tag}'")
@@ -161,7 +175,9 @@ async def emergency_fetch(tag: str, language: str = "en", max_results: int = 5) 
 
     candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
     winner = candidates[0]
-    print(f"    🏆 [Emergency Scraper] Found: {winner['title'][:50]}... (Score: {winner['score']:.1f})")
+    print(
+        f"    🏆 [Emergency Scraper] Found: {winner['title'][:50]}... (Score: {winner['score']:.1f})"
+    )
     return winner
 
 

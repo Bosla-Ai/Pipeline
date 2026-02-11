@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, patch
 
 import src.socket_server as ss
 
-
 # ── Helpers ───────────────────────────────────────────────────
 
 
@@ -210,7 +209,9 @@ class TestConnectDisconnect:
 
     def test_connect_with_snake_case_auth(self):
         """Auth can use job_id / user_id (snake_case) instead of camelCase."""
-        assert self._simulate_connect("sid-snake", {"job_id": "job-s", "user_id": "eve"})
+        assert self._simulate_connect(
+            "sid-snake", {"job_id": "job-s", "user_id": "eve"}
+        )
         assert ss.get_socket_for_job("job-s") == "sid-snake"
 
     def test_connect_default_anonymous_user(self):

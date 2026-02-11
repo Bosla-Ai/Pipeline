@@ -51,6 +51,7 @@ class RoadmapRequest(BaseModel):
     prefer_paid: bool = False
     language: str = "en"
     sources: Optional[List[CourseSource]] = None
+    tag_checkpoints: Optional[dict] = None
     job_id: Optional[str] = None
 
 
@@ -67,7 +68,9 @@ async def stats():
 @app.get("/logs")
 async def get_logs(
     since: Optional[str] = Query(None, description="ISO timestamp cutoff"),
-    level: Optional[str] = Query(None, description="Filter by level: info, warn, error, success"),
+    level: Optional[str] = Query(
+        None, description="Filter by level: info, warn, error, success"
+    ),
     category: Optional[str] = Query(None, description="Filter by category"),
     job_id: Optional[str] = Query(None, description="Filter by job ID"),
     limit: int = Query(200, ge=1, le=1000),
@@ -144,7 +147,12 @@ async def wait_for_socket(job_id: str) -> str | None:
         await asyncio.wait_for(evt.wait(), timeout=SOCKET_WAIT_TIMEOUT)
         return socket_server.get_socket_for_job(job_id)
     except asyncio.TimeoutError:
-        event_log.log("warn", "job", f"No frontend socket connected within {SOCKET_WAIT_TIMEOUT}s. Proceeding without AI.", job_id=job_id)
+        event_log.log(
+            "warn",
+            "job",
+            f"No frontend socket connected within {SOCKET_WAIT_TIMEOUT}s. Proceeding without AI.",
+            job_id=job_id,
+        )
         return None
     finally:
         socket_server.cleanup_job_waiter(job_id)
@@ -162,15 +170,30 @@ async def generate_roadmap_logic(
 
     tags = preprocess_tags(tags)
 
-    event_log.log("info", "job", f"Roadmap requested. Tags: {tags}, Lang: {language}", job_id=job_id)
+    event_log.log(
+        "info",
+        "job",
+        f"Roadmap requested. Tags: {tags}, Lang: {language}",
+        job_id=job_id,
+    )
     event_log.log("info", "job", "Waiting for frontend socket…", job_id=job_id)
 
     current_sid = await wait_for_socket(job_id)
 
     if current_sid:
-        event_log.log("success", "job", f"Frontend socket ready (sid: {current_sid})", job_id=job_id)
+        event_log.log(
+            "success",
+            "job",
+            f"Frontend socket ready (sid: {current_sid})",
+            job_id=job_id,
+        )
     else:
-        event_log.log("warn", "job", "No frontend socket. AI classification will be skipped.", job_id=job_id)
+        event_log.log(
+            "warn",
+            "job",
+            "No frontend socket. AI classification will be skipped.",
+            job_id=job_id,
+        )
 
     roadmap_result = {"youtube": {}, "coursera": {}, "udemy": {}}
 
@@ -186,18 +209,27 @@ async def generate_roadmap_logic(
 
     if CourseSource.YOUTUBE in active_sources:
         try:
-            event_log.log("info", "fetcher", f"Fetching Free Content (YouTube)... Lang: {language}", job_id=job_id)
+            event_log.log(
+                "info",
+                "fetcher",
+                f"Fetching Free Content (YouTube)... Lang: {language}",
+                job_id=job_id,
+            )
             youtube_data = await fetch_youtube(sio, current_sid, tags, language)
             roadmap_result["youtube"] = youtube_data
         except Exception as e:
-            event_log.log("error", "fetcher", f"YouTube fetcher error: {e}", job_id=job_id)
+            event_log.log(
+                "error", "fetcher", f"YouTube fetcher error: {e}", job_id=job_id
+            )
 
     paid_sources_requested = any(
         s in active_sources for s in [CourseSource.COURSERA, CourseSource.UDEMY]
     )
 
     if paid_sources_requested:
-        event_log.log("info", "fetcher", f"Fetching Paid Content | Tags: {tags}", job_id=job_id)
+        event_log.log(
+            "info", "fetcher", f"Fetching Paid Content | Tags: {tags}", job_id=job_id
+        )
 
         from src.utils.helpers import analyze_topic_scope
 
@@ -220,7 +252,12 @@ async def generate_roadmap_logic(
             else:
                 atomic_tags.append(tag)
 
-        event_log.log("info", "job", f"Scope: Broad={broad_tags}, Atomic={atomic_tags}", job_id=job_id)
+        event_log.log(
+            "info",
+            "job",
+            f"Scope: Broad={broad_tags}, Atomic={atomic_tags}",
+            job_id=job_id,
+        )
 
         if broad_tags:
             fetch_tasks = []
@@ -234,7 +271,9 @@ async def generate_roadmap_logic(
                         )
                         roadmap_result["coursera"] = data
                     except Exception as e:
-                        event_log.log("error", "fetcher", f"Coursera Error: {e}", job_id=job_id)
+                        event_log.log(
+                            "error", "fetcher", f"Coursera Error: {e}", job_id=job_id
+                        )
 
                 fetch_tasks.append(fetch_coursera_job())
 
@@ -250,7 +289,12 @@ async def generate_roadmap_logic(
                             cache_key = generate_cache_key("udemy", tag, language)
                             cached_result = await cache.get(cache_key)
                             if cached_result:
-                                event_log.log("success", "cache", f"Cache Hit - Udemy: {tag}", job_id=job_id)
+                                event_log.log(
+                                    "success",
+                                    "cache",
+                                    f"Cache Hit - Udemy: {tag}",
+                                    job_id=job_id,
+                                )
                                 udemy_cached[tag] = cached_result
                             else:
                                 udemy_tags_to_fetch.append(tag)
@@ -258,7 +302,12 @@ async def generate_roadmap_logic(
                         roadmap_result["udemy"] = udemy_cached
 
                         if not udemy_tags_to_fetch:
-                            event_log.log("success", "cache", "Udemy: All tags cached", job_id=job_id)
+                            event_log.log(
+                                "success",
+                                "cache",
+                                "Udemy: All tags cached",
+                                job_id=job_id,
+                            )
                         else:
                             async with DRIVER_LOCK:
                                 udemy_fetcher = UdemyFetcher(
@@ -286,7 +335,12 @@ async def generate_roadmap_logic(
                                 )
 
                                 if not valid_udemy:
-                                    event_log.log("warn", "fetcher", f"No AI selection for '{tag}', using fallback.", job_id=job_id)
+                                    event_log.log(
+                                        "warn",
+                                        "fetcher",
+                                        f"No AI selection for '{tag}', using fallback.",
+                                        job_id=job_id,
+                                    )
                                     valid_udemy = candidates
 
                                 if valid_udemy:
@@ -299,9 +353,16 @@ async def generate_roadmap_logic(
                                         "udemy", tag, language
                                     )
                                     await cache.set(cache_key, winner)
-                                    event_log.log("success", "fetcher", f"Udemy Winner: {winner['title'][:50]}...", job_id=job_id)
+                                    event_log.log(
+                                        "success",
+                                        "fetcher",
+                                        f"Udemy Winner: {winner['title'][:50]}...",
+                                        job_id=job_id,
+                                    )
                     except Exception as e:
-                        event_log.log("error", "fetcher", f"Udemy Error: {e}", job_id=job_id)
+                        event_log.log(
+                            "error", "fetcher", f"Udemy Error: {e}", job_id=job_id
+                        )
 
                 fetch_tasks.append(fetch_udemy_job())
 
@@ -310,7 +371,12 @@ async def generate_roadmap_logic(
 
         if atomic_tags and CourseSource.YOUTUBE in active_sources:
             try:
-                event_log.log("info", "fetcher", f"Fetching YouTube for atomic tags: {atomic_tags}", job_id=job_id)
+                event_log.log(
+                    "info",
+                    "fetcher",
+                    f"Fetching YouTube for atomic tags: {atomic_tags}",
+                    job_id=job_id,
+                )
                 sid = socket_server.get_socket_for_job(job_id) or current_sid
                 youtube_data = await fetch_youtube(
                     sio,
@@ -321,10 +387,14 @@ async def generate_roadmap_logic(
                 )
                 roadmap_result["youtube"] = youtube_data
             except Exception as e:
-                event_log.log("error", "fetcher", f"YouTube (atomic) Error: {e}", job_id=job_id)
+                event_log.log(
+                    "error", "fetcher", f"YouTube (atomic) Error: {e}", job_id=job_id
+                )
 
     event_log.log("info", "job", "Generating Learning DNA Sequence...", job_id=job_id)
-    learning_path = generate_learning_path(tags, roadmap_data=roadmap_result)
+    learning_path = generate_learning_path(
+        tags, roadmap_data=roadmap_result, tag_checkpoints=request.tag_checkpoints
+    )
     roadmap_result["learning_path"] = learning_path
 
     event_log.log("success", "job", "Roadmap generation complete.", job_id=job_id)
