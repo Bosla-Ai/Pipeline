@@ -163,6 +163,7 @@ async def generate_roadmap_logic(
     prefer_paid: bool,
     language: str,
     sources: Optional[List[CourseSource]] = None,
+    tag_checkpoints: Optional[dict] = None,
     job_id: Optional[str] = None,
 ):
     if not job_id:
@@ -393,7 +394,7 @@ async def generate_roadmap_logic(
 
     event_log.log("info", "job", "Generating Learning DNA Sequence...", job_id=job_id)
     learning_path = generate_learning_path(
-        tags, roadmap_data=roadmap_result, tag_checkpoints=request.tag_checkpoints
+        tags, roadmap_data=roadmap_result, tag_checkpoints=tag_checkpoints
     )
     roadmap_result["learning_path"] = learning_path
 
@@ -461,5 +462,6 @@ async def generate_roadmap(request: RoadmapRequest):
             prefer_paid=request.prefer_paid,
             language=request.language,
             sources=request.sources,
+            tag_checkpoints=request.tag_checkpoints,
             job_id=job_id,
         )
