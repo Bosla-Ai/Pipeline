@@ -137,14 +137,22 @@ class EventLog:
 
         # deque doesn't support in-place filtering; rebuild
         fresh = deque(
-            (e for e in self._entries if datetime.fromisoformat(e["timestamp"]) >= cutoff),
+            (
+                e
+                for e in self._entries
+                if datetime.fromisoformat(e["timestamp"]) >= cutoff
+            ),
             maxlen=self._entries.maxlen,
         )
         self._entries = fresh
 
         removed = before - len(self._entries)
         if removed > 0:
-            self.log("info", "system", f"Cleaned up {removed} log entries older than {hours}h")
+            self.log(
+                "info",
+                "system",
+                f"Cleaned up {removed} log entries older than {hours}h",
+            )
 
     async def _cleanup_loop(self):
         """Background coroutine that purges old entries periodically."""
@@ -156,7 +164,11 @@ class EventLog:
         """Start the background cleanup loop. Call once at app startup."""
         if self._cleanup_task is None or self._cleanup_task.done():
             self._cleanup_task = asyncio.create_task(self._cleanup_loop())
-            self.log("info", "system", f"Log cleanup task started (every {CLEANUP_INTERVAL_SECONDS}s, TTL {LOG_TTL_HOURS}h)")
+            self.log(
+                "info",
+                "system",
+                f"Log cleanup task started (every {CLEANUP_INTERVAL_SECONDS}s, TTL {LOG_TTL_HOURS}h)",
+            )
 
 
 # ── Singleton ───────────────────────────────────────────────

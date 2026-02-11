@@ -9,7 +9,11 @@ from src.utils.helpers import (
     is_garbage_content,
     analyze_topic_scope,
 )
-from src.utils.constants import TAG_MAP, DESCRIPTIVE_TAG_DECOMPOSITION, CORE_TECH_KEYWORDS
+from src.utils.constants import (
+    TAG_MAP,
+    DESCRIPTIVE_TAG_DECOMPOSITION,
+    CORE_TECH_KEYWORDS,
+)
 from src.utils.scoring import calculate_video_score, calculate_playlist_score
 from src.utils.cache import cache, generate_cache_key
 from src.fetchers.videos.youtube_scraper import emergency_fetch
@@ -102,7 +106,10 @@ def build_smart_queries(tag: str) -> list[tuple[str, str]]:
             context = " ".join(context.split())  # normalize spaces
             if context and len(context) > 2:
                 return [
-                    (f"{primary_tech} {context} full course", f"{primary_tech} {context} tutorial"),
+                    (
+                        f"{primary_tech} {context} full course",
+                        f"{primary_tech} {context} tutorial",
+                    ),
                     (f"{tag} full course", f"{tag} tutorial"),
                 ]
 
@@ -121,7 +128,9 @@ async def process_single_tag(
 
     global _api_exhausted
     if _api_exhausted:
-        print(f"    ⚡ [Short-Circuit] API exhausted. Going straight to emergency scraper for '{tag}'")
+        print(
+            f"    ⚡ [Short-Circuit] API exhausted. Going straight to emergency scraper for '{tag}'"
+        )
         fallback_result = await emergency_fetch(tag, language)
         if fallback_result:
             await cache.set(cache_key, fallback_result)

@@ -82,7 +82,12 @@ async def connect(sid, environ, auth=None):
         "connected_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    event_log.log("success", "socket", f"User {user_id} connected for job {job_id[:8]}… (sid: {sid})", job_id=job_id)
+    event_log.log(
+        "success",
+        "socket",
+        f"User {user_id} connected for job {job_id[:8]}… (sid: {sid})",
+        job_id=job_id,
+    )
 
     evt = _job_ready_events.get(job_id)
     if evt:
@@ -99,10 +104,16 @@ async def disconnect(sid):
 
     user_id = meta.get("user_id", "?")
     jid = meta.get("job_id", "?")
-    event_log.log("info", "socket", f"User {user_id} disconnected (job {jid[:8] if len(jid) > 8 else jid})", job_id=jid if jid != "?" else None)
+    event_log.log(
+        "info",
+        "socket",
+        f"User {user_id} disconnected (job {jid[:8] if len(jid) > 8 else jid})",
+        job_id=jid if jid != "?" else None,
+    )
 
 
 # ── Monitor room for real-time log streaming ────────────
+
 
 @sio.event
 async def join_monitor(sid, data=None):
