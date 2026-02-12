@@ -188,18 +188,119 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
         return []
 
 
+# Synonyms for common tag words that YouTube creators use interchangeably
+_WORD_SYNONYMS = {
+    "basics": {
+        "tutorial",
+        "fundamentals",
+        "beginners",
+        "introduction",
+        "intro",
+        "crash course",
+        "beginner",
+    },
+    "fundamentals": {"basics", "tutorial", "introduction", "core", "beginner"},
+    "tutorial": {"basics", "course", "guide", "lesson", "beginner"},
+    "advanced": {"deep dive", "pro", "expert", "mastery", "in depth"},
+    "introduction": {"intro", "basics", "beginner", "getting started", "101"},
+    "intro": {"introduction", "basics", "beginner", "getting started"},
+    "guide": {"tutorial", "course", "walkthrough", "handbook"},
+    "course": {"tutorial", "guide", "full course", "bootcamp", "masterclass"},
+    "overview": {"introduction", "basics", "summary", "crash course"},
+    "essentials": {"basics", "fundamentals", "core", "tutorial", "beginner"},
+    "concepts": {"fundamentals", "basics", "core", "tutorial"},
+    "patterns": {"design patterns", "architecture", "best practices"},
+    "architecture": {"design", "patterns", "structure", "clean code"},
+    "workflow": {"pipeline", "process", "automation", "setup"},
+    "containerization": {"docker", "containers", "container"},
+    "security": {"auth", "authentication", "authorization", "secure"},
+    "restful": {"rest", "rest api", "api"},
+    "nosql": {"mongodb", "cassandra", "redis", "dynamo"},
+    "databases": {"database", "db", "sql", "mongodb", "postgres"},
+    "testing": {"test", "tests", "unit test", "jest", "pytest", "mocha"},
+}
+
+# Extra filler words to strip from descriptive tags (on top of STOP_WORDS)
+_TAG_FILLER_WORDS = {
+    "and",
+    "with",
+    "for",
+    "using",
+    "the",
+    "a",
+    "an",
+    "from",
+    "into",
+    "about",
+    "through",
+    "via",
+    "across",
+    "between",
+}
+
+
+def _extract_core_words(tag_clean: str) -> list[str]:
+    """Extract meaningful words from a descriptive tag, removing stop/filler words."""
+    words = tag_clean.split()
+    core = [
+        w
+        for w in words
+        if w not in STOP_WORDS and w not in _TAG_FILLER_WORDS and len(w) > 1
+    ]
+    return core if core else words  # fallback to all words if everything was filtered
+
+
 def is_relevant(tag, title, description):
     tag_clean = tag.lower().replace("-", " ").strip()
     title_clean = title.lower().replace("-", " ")
+    text = (title_clean + " " + (description or "").lower()).strip()
 
     if any(nk in title_clean for nk in NEGATIVE_KEYWORDS):
         return False
 
+    # Check 1: exact tag substring in title
     if tag_clean in title_clean:
         return True
+
+    # Check 2: all words from tag present in title
     required_words = tag_clean.split()
     if all(word in title_clean for word in required_words):
         return True
+
+    # Check 3: synonym-aware — allow synonym substitutions for tag words
+    # e.g. tag="html basics" matches title="html tutorial for beginners"
+    #      because "basics" -> synonym "tutorial" is in title
+    if len(required_words) >= 2:
+        all_match = True
+        for word in required_words:
+            if word in title_clean:
+                continue  # direct match
+            synonyms = _WORD_SYNONYMS.get(word, set())
+            if any(syn in text for syn in synonyms):
+                continue  # synonym match
+            all_match = False
+            break
+        if all_match:
+            return True
+
+    # Check 4: core-word matching for descriptive/long tags
+    # e.g. "Node.js and Express Framework Essentials" → core: ["node.js", "express", "framework", "essentials"]
+    # If most core words (or their synonyms) match, accept it.
+    core_words = _extract_core_words(tag_clean)
+    if len(core_words) >= 2:
+        matched = 0
+        for word in core_words:
+            if word in title_clean:
+                matched += 1
+                continue
+            synonyms = _WORD_SYNONYMS.get(word, set())
+            if any(syn in text for syn in synonyms):
+                matched += 1
+                continue
+        # Require at least 50% of core words to match (minimum 2)
+        threshold = max(2, len(core_words) // 2)
+        if matched >= threshold:
+            return True
 
     return False
 

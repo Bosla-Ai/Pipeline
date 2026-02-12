@@ -336,7 +336,7 @@ def _topological_sort(tags: list[str]) -> list[str]:
 
 
 def _estimate_hours(tag: str, resource_data: dict = None) -> float:
-    if resource_data:
+    if resource_data and isinstance(resource_data, dict):
         duration = resource_data.get("duration_mins", 0)
         video_count = resource_data.get("videoCount", 0)
 
@@ -565,7 +565,7 @@ def _build_phase(
         if prereqs:
             tag_info["prerequisites"] = prereqs
 
-        if resource:
+        if resource and isinstance(resource, dict):
             tag_info["has_resource"] = True
             tag_info["resource_type"] = resource.get("contentType", "Unknown")
         else:
@@ -590,18 +590,41 @@ def _build_phase(
 
 
 def _find_resource(tag: str, roadmap_data: dict = None) -> dict | None:
+    """Find a resource for *tag* across all sources using progressively
+    looser matching so that minor casing / punctuation differences don't
+    cause a miss.
+    """
     if not roadmap_data:
         return None
 
-    tag_lower = _normalize_tag(tag)
+    tag_norm = _normalize_tag(tag)
+    # Strip all non-alphanumeric chars for fuzzy pass
+    tag_alnum = "".join(ch for ch in tag_norm if ch.isalnum())
 
     for source in ["youtube", "coursera", "udemy"]:
         source_data = roadmap_data.get(source, {})
         if not source_data:
             continue
 
+        # Pass 1 – exact key match (case-insensitive after normalize)
         for key, resource in source_data.items():
-            if resource and _normalize_tag(key) == tag_lower:
+            if resource and _normalize_tag(key) == tag_norm:
+                return resource
+
+        # Pass 2 – alphanumeric-only match (ignores punctuation / spaces)
+        for key, resource in source_data.items():
+            if not resource:
+                continue
+            key_alnum = "".join(ch for ch in _normalize_tag(key) if ch.isalnum())
+            if key_alnum == tag_alnum:
+                return resource
+
+        # Pass 3 – substring containment (one contains the other)
+        for key, resource in source_data.items():
+            if not resource:
+                continue
+            key_norm = _normalize_tag(key)
+            if tag_norm in key_norm or key_norm in tag_norm:
                 return resource
 
     return None
