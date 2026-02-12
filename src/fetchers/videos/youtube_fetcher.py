@@ -533,6 +533,30 @@ async def process_single_tag(
         return tag, math_winner
 
 
+def _ensure_url(resource: dict | None) -> dict | None:
+    """Guarantee every resource dict has a usable `url` field."""
+    if resource is None or not isinstance(resource, dict):
+        return resource
+    url = resource.get("url")
+    if isinstance(url, str) and url.startswith(("http://", "https://")):
+        return resource
+    # Reconstruct from contentId
+    content_id = resource.get("contentId", "")
+    if isinstance(content_id, str) and content_id.startswith(("http://", "https://")):
+        resource["url"] = content_id
+        return resource
+    ct = str(resource.get("contentType") or "").lower()
+    if content_id:
+        if ct == "playlist":
+            resource["url"] = f"https://www.youtube.com/playlist?list={content_id}"
+        elif ct == "video":
+            resource["url"] = f"https://www.youtube.com/watch?v={content_id}"
+        else:
+            # Default to video
+            resource["url"] = f"https://www.youtube.com/watch?v={content_id}"
+    return resource
+
+
 async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=None):
     """
     Fetches content from YouTube.
@@ -564,6 +588,18 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=
                 )
             )
         results = await asyncio.gather(*tasks)
-        final_roadmap = {tag: res for tag, res in results}
+
+        final_roadmap = {}
+        for i, (normalized_key, res) in enumerate(results):
+            original_key = (
+                original_tags[i] if i < len(original_tags) else normalized_key
+            )
+            res = _ensure_url(res)
+            if res is not None:
+                final_roadmap[original_key] = res
+            else:
+                print(
+                    f"    ⚠️ [YouTube] No result for tag '{original_key}' — skipped in roadmap."
+                )
 
     return final_roadmap

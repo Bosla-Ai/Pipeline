@@ -399,6 +399,127 @@ async def generate_roadmap_logic(
     roadmap_result["learning_path"] = learning_path
 
     event_log.log("success", "job", "Roadmap generation complete.", job_id=job_id)
+
+    # ── Resource Audit: log every tag's resource status ───────────────
+    _audit_found = 0
+    _audit_missing = []
+    _audit_no_url = []
+
+    for source_name in ("youtube", "udemy", "coursera"):
+        src_map = roadmap_result.get(source_name, {})
+        for key, resource in (src_map or {}).items():
+            if resource is None:
+                continue
+            if not isinstance(resource, dict):
+                continue
+            url = resource.get("url", "")
+            title = str(resource.get("title", ""))[:60]
+            has_url = isinstance(url, str) and url.startswith(("http://", "https://"))
+            event_log.log(
+                "info",
+                "resource_audit",
+                f"[{source_name.upper()}] tag='{key}' | title='{title}' | url={'YES' if has_url else 'MISSING'}",
+                job_id=job_id,
+            )
+            if has_url:
+                _audit_found += 1
+            else:
+                _audit_no_url.append(f"{source_name}:{key}")
+
+    # Check which tags from the roadmap have NO resource at all
+    lp = roadmap_result.get("learning_path", {})
+    for phase in lp.get("phases", []):
+        for tag_info in phase.get("tags", []):
+            if not tag_info.get("has_resource", False):
+                _audit_missing.append(tag_info.get("tag", "?"))
+
+    if _audit_missing:
+        event_log.log(
+            "warn",
+            "resource_audit",
+            f"Tags with NO matching resource ({len(_audit_missing)}): {_audit_missing}",
+            job_id=job_id,
+        )
+    if _audit_no_url:
+        event_log.log(
+            "warn",
+            "resource_audit",
+            f"Resources with MISSING url ({len(_audit_no_url)}): {_audit_no_url}",
+            job_id=job_id,
+        )
+    event_log.log(
+        "info",
+        "resource_audit",
+        f"Audit summary: {_audit_found} resources with url, "
+        f"{len(_audit_no_url)} without url, {len(_audit_missing)} tags unmatched.",
+        job_id=job_id,
+    )
+
+    # Safety net: normalize resource objects so `url` is present when possible.
+    # This prevents downstream clients from rendering resources without links.
+    def _is_http_url(v):
+        return isinstance(v, str) and v.startswith(("http://", "https://"))
+
+    def _normalize_source_map(source_name: str, source_map: dict):
+        if not isinstance(source_map, dict):
+            return
+
+        for key, resource in source_map.items():
+            if resource is None:
+                continue
+
+            if not isinstance(resource, dict):
+                # Unexpected shape — don't crash the job; just log for debugging.
+                try:
+                    event_log.log(
+                        "warn",
+                        "job",
+                        f"Resource for '{key}' in {source_name} is not an object ({type(resource).__name__}).",
+                        job_id=job_id,
+                    )
+                except Exception:
+                    pass
+                continue
+
+            url = resource.get("url")
+            if _is_http_url(url):
+                continue
+
+            # If dict key is actually a URL (some flows key by url)
+            if _is_http_url(key):
+                resource["url"] = key
+                continue
+
+            content_id = resource.get("contentId")
+            if _is_http_url(content_id):
+                resource["url"] = content_id
+                continue
+
+            # Best-effort YouTube reconstruction
+            if source_name == "youtube" and isinstance(content_id, str) and content_id:
+                ct = str(resource.get("contentType") or "").lower()
+                if ct == "playlist":
+                    resource["url"] = (
+                        f"https://www.youtube.com/playlist?list={content_id}"
+                    )
+                elif ct == "video":
+                    resource["url"] = f"https://www.youtube.com/watch?v={content_id}"
+
+            # Still no url → log once per item (warn)
+            if not _is_http_url(resource.get("url")):
+                try:
+                    event_log.log(
+                        "warn",
+                        "job",
+                        f"Missing url for resource '{key}' in {source_name}.",
+                        job_id=job_id,
+                    )
+                except Exception:
+                    pass
+
+    for _src in ("youtube", "udemy", "coursera"):
+        _normalize_source_map(_src, roadmap_result.get(_src, {}))
+
     return {"status": "success", "data": roadmap_result}
 
 
