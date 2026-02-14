@@ -573,6 +573,32 @@ def shutdown_event():
             pass
 
 
+@app.get("/search-embeddable-video")
+async def search_embeddable_video_endpoint(
+    q: str = Query(..., description="Search query for the video"),
+    lang: str = Query("en", description="Language preference: en or ar"),
+):
+    """
+    Search YouTube for an embeddable video matching the query.
+    """
+    from src.fetchers.videos.youtube_fetcher import search_embeddable_video
+
+    event_log.log("info", "video_search", f"Searching embeddable video: q='{q}', lang='{lang}'")
+
+    result = await search_embeddable_video(q, lang)
+
+    if result is None:
+        event_log.log("warn", "video_search", f"No embeddable video found for: '{q}'")
+        return {"status": "not_found", "message": "No embeddable videos found"}
+
+    event_log.log(
+        "success",
+        "video_search",
+        f"Found embeddable video: '{result.get('title', '?')[:60]}' | Views: {result.get('viewCount', '?')} | URL: {result.get('url', '?')}",
+    )
+    return {"status": "ok", **result}
+
+
 @app.post("/generate-roadmap")
 async def generate_roadmap(request: RoadmapRequest):
     job_id = request.job_id or uuid.uuid4().hex[:12]
