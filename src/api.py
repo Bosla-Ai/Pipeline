@@ -1,4 +1,5 @@
 import asyncio
+import os
 import csv
 import io
 import uuid
@@ -133,7 +134,7 @@ async def export_logs(
     )
 
 
-SOCKET_WAIT_TIMEOUT = 30
+SOCKET_WAIT_TIMEOUT = int(os.environ.get("SOCKET_WAIT_TIMEOUT", "30"))
 
 
 async def wait_for_socket(job_id: str) -> str | None:
