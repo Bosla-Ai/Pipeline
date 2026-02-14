@@ -557,6 +557,83 @@ def _ensure_url(resource: dict | None) -> dict | None:
     return resource
 
 
+async def search_embeddable_video(query: str, language: str = "en") -> dict | None:
+    """
+    Search YouTube for an embeddable video matching the query.
+    Returns dict with {url, title, channelTitle, thumbnail, viewCount} or None.
+    """
+    api_lang = "ar" if language == "ar" else "en"
+
+    async with aiohttp.ClientSession() as session:
+        search_results = await fetch_youtube_data(
+            session,
+            SEARCH_URL,
+            {
+                "part": "snippet",
+                "q": f"{query} tutorial",
+                "type": "video",
+                "videoEmbeddable": "true",
+                "maxResults": 5,
+                "relevanceLanguage": api_lang,
+            },
+        )
+
+        if not search_results or not search_results.get("items"):
+            return None
+
+        # confirm embeddable + stats
+        video_ids = [item["id"]["videoId"] for item in search_results["items"]]
+
+        details_data = await fetch_youtube_data(
+            session,
+            VIDEO_URL,
+            {
+                "part": "snippet,statistics,status",
+                "id": ",".join(video_ids),
+            },
+        )
+
+        if not details_data or not details_data.get("items"):
+            # Fallback: use first search result
+            first = search_results["items"][0]
+            return {
+                "url": f"https://www.youtube.com/watch?v={first['id']['videoId']}",
+                "title": first["snippet"]["title"],
+                "channelTitle": first["snippet"].get("channelTitle", ""),
+                "thumbnail": first["snippet"]["thumbnails"].get("high", {}).get("url", ""),
+            }
+
+        best = None
+        best_views = -1
+
+        for item in details_data.get("items", []):
+            status = item.get("status", {})
+            if not status.get("embeddable", False):
+                continue
+
+            views = int(item.get("statistics", {}).get("viewCount", "0"))
+            if views > best_views:
+                best_views = views
+                best = item
+
+        if not best:
+            first = search_results["items"][0]
+            return {
+                "url": f"https://www.youtube.com/watch?v={first['id']['videoId']}",
+                "title": first["snippet"]["title"],
+                "channelTitle": first["snippet"].get("channelTitle", ""),
+                "thumbnail": first["snippet"]["thumbnails"].get("high", {}).get("url", ""),
+            }
+
+        return {
+            "url": f"https://www.youtube.com/watch?v={best['id']}",
+            "title": best["snippet"]["title"],
+            "channelTitle": best["snippet"].get("channelTitle", ""),
+            "thumbnail": best["snippet"]["thumbnails"].get("high", {}).get("url", ""),
+            "viewCount": best_views,
+        }
+
+
 async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=None):
     """
     Fetches content from YouTube.
