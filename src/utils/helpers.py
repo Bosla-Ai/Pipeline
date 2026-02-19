@@ -3,18 +3,77 @@ from src.utils.constants import (
     NEGATIVE_KEYWORDS,
     BEGINNER_KEYWORDS,
     UNWANTED_KEYWORDS,
-    KNOWN_BROAD_TOPICS,
     STOP_WORDS,
 )
 
 
-async def analyze_topic_scope(sio, socket_id, tag):
-    """Classifies topic scope: 'Broad' (Playlist preferred) vs 'Atomic' (Video viable)."""
-    if not socket_id:
-        return "Broad"  # Default permissive
+# ── Dynamic Scope Analysis (no static list dependency) ────────────────────
 
-    if tag.lower() in KNOWN_BROAD_TOPICS:
-        print(f"    🛡️ Safety Net: '{tag}' is a known Broad topic. Skipping AI.")
+# Markers that signal a broad, curriculum-level topic
+_BROAD_MARKERS = {
+    "mastery", "fundamentals", "essentials", "masterclass", "bootcamp",
+    "complete", "comprehensive", "advanced", "beginner", "intermediate",
+    "administration", "engineering", "development", "architecture",
+    "for developers", "for engineers", "for beginners", "from scratch",
+    "full course", "deep dive", "in depth", "zero to hero",
+}
+
+# Markers that signal an atomic, specific concept
+_ATOMIC_MARKERS = {
+    "how to", "fix", "error", "bug", "vs", "difference between",
+    "what is", "tutorial on", "quick tip", "in 5 minutes",
+    "in 10 minutes", "snippet", "cheat sheet", "one liner",
+}
+
+
+def _heuristic_scope(tag: str) -> str | None:
+    """Classify scope using language heuristics. Returns 'Broad', 'Atomic', or None (uncertain)."""
+    tag_lower = tag.lower().strip()
+    words = tag_lower.split()
+
+    # 1) Very short tags (1-2 words) → almost always a technology name → Broad
+    if len(words) <= 2:
+        return "Broad"
+
+    # 2) Check for explicit broad markers in the tag
+    for marker in _BROAD_MARKERS:
+        if marker in tag_lower:
+            return "Broad"
+
+    # 3) Check for explicit atomic markers
+    for marker in _ATOMIC_MARKERS:
+        if marker in tag_lower:
+            return "Atomic"
+
+    # 4) Tags with "with" or "for" + technology name pattern → curriculum tags → Broad
+    #    e.g. "Automated Testing with Jest", "Kubernetes for Application Developers"
+    if re.search(r'\b(with|for|using)\b', tag_lower):
+        return "Broad"
+
+    # 5) Title-case multi-word tags (like "Linux System Administration") → structured course title → Broad
+    title_case_words = sum(1 for w in tag.split() if w[0].isupper() and len(w) > 2)
+    if title_case_words >= 2:
+        return "Broad"
+
+    return None  # Uncertain — defer to AI
+
+
+async def analyze_topic_scope(sio, socket_id, tag):
+    """Classifies topic scope: 'Broad' (Playlist/Course) vs 'Atomic' (Single Video).
+
+    Uses a heuristic-first approach for speed and reliability,
+    falling back to on-device AI classification when uncertain.
+    No static topic list dependency.
+    """
+    # Fast heuristic pass
+    heuristic = _heuristic_scope(tag)
+    if heuristic:
+        print(f"    🧩 Heuristic Scope: '{tag}' → {heuristic}")
+        return heuristic
+
+    # No socket → default permissive (Broad is safer — searches wider)
+    if not socket_id:
+        print(f"    🧩 No socket, defaulting to Broad for '{tag}'")
         return "Broad"
 
     labels = [
