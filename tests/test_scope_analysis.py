@@ -62,7 +62,9 @@ class TestHeuristicScope:
     )
     def test_broad_markers_detected(self, tag):
         """Tags with broad markers (mastery, fundamentals, etc.) must be Broad."""
-        assert _heuristic_scope(tag) == "Broad", f"'{tag}' should be Broad (broad marker)"
+        assert (
+            _heuristic_scope(tag) == "Broad"
+        ), f"'{tag}' should be Broad (broad marker)"
 
     # ── Rule 3: Atomic markers → Atomic ─────────────────────────────────
 
@@ -79,7 +81,9 @@ class TestHeuristicScope:
     )
     def test_atomic_markers_detected(self, tag):
         """Tags with atomic markers (how to, fix, vs, etc.) must be Atomic."""
-        assert _heuristic_scope(tag) == "Atomic", f"'{tag}' should be Atomic (atomic marker)"
+        assert (
+            _heuristic_scope(tag) == "Atomic"
+        ), f"'{tag}' should be Atomic (atomic marker)"
 
     # ── Rule 4: with/for/using patterns → Broad ─────────────────────────
 
@@ -95,7 +99,9 @@ class TestHeuristicScope:
     )
     def test_with_for_using_patterns_are_broad(self, tag):
         """Tags with 'with/for/using' structure are curriculum-style → Broad."""
-        assert _heuristic_scope(tag) == "Broad", f"'{tag}' should be Broad (with/for/using)"
+        assert (
+            _heuristic_scope(tag) == "Broad"
+        ), f"'{tag}' should be Broad (with/for/using)"
 
     # ── Rule 5: Title-case multi-word → Broad ───────────────────────────
 
@@ -154,7 +160,9 @@ class TestAnalyzeTopicScope:
     @pytest.mark.asyncio
     async def test_broad_marker_bypasses_ai(self, mock_sio):
         """Tags with broad markers should return 'Broad' WITHOUT calling AI."""
-        result = await analyze_topic_scope(mock_sio, "valid_socket_id", "Docker Mastery")
+        result = await analyze_topic_scope(
+            mock_sio, "valid_socket_id", "Docker Mastery"
+        )
         assert result == "Broad"
         mock_sio.call.assert_not_called()
 
@@ -262,4 +270,6 @@ class TestRealWorldTags:
     def test_deployed_tags_all_broad(self, tag, expected):
         """All 9 tags from the failing deployment must be classified as Broad by heuristics."""
         result = _heuristic_scope(tag)
-        assert result == expected, f"'{tag}' classified as '{result}', expected '{expected}'"
+        assert (
+            result == expected
+        ), f"'{tag}' classified as '{result}', expected '{expected}'"

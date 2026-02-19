@@ -6,23 +6,50 @@ from src.utils.constants import (
     STOP_WORDS,
 )
 
-
 # ── Dynamic Scope Analysis (no static list dependency) ────────────────────
 
 # Markers that signal a broad, curriculum-level topic
 _BROAD_MARKERS = {
-    "mastery", "fundamentals", "essentials", "masterclass", "bootcamp",
-    "complete", "comprehensive", "advanced", "beginner", "intermediate",
-    "administration", "engineering", "development", "architecture",
-    "for developers", "for engineers", "for beginners", "from scratch",
-    "full course", "deep dive", "in depth", "zero to hero",
+    "mastery",
+    "fundamentals",
+    "essentials",
+    "masterclass",
+    "bootcamp",
+    "complete",
+    "comprehensive",
+    "advanced",
+    "beginner",
+    "intermediate",
+    "administration",
+    "engineering",
+    "development",
+    "architecture",
+    "for developers",
+    "for engineers",
+    "for beginners",
+    "from scratch",
+    "full course",
+    "deep dive",
+    "in depth",
+    "zero to hero",
 }
 
 # Markers that signal an atomic, specific concept
 _ATOMIC_MARKERS = {
-    "how to", "fix", "error", "bug", "vs", "difference between",
-    "what is", "tutorial on", "quick tip", "in 5 minutes",
-    "in 10 minutes", "snippet", "cheat sheet", "one liner",
+    "how to",
+    "fix",
+    "error",
+    "bug",
+    "vs",
+    "difference between",
+    "what is",
+    "tutorial on",
+    "quick tip",
+    "in 5 minutes",
+    "in 10 minutes",
+    "snippet",
+    "cheat sheet",
+    "one liner",
 }
 
 
@@ -47,7 +74,7 @@ def _heuristic_scope(tag: str) -> str | None:
 
     # 4) Tags with "with" or "for" + technology name pattern → curriculum tags → Broad
     #    e.g. "Automated Testing with Jest", "Kubernetes for Application Developers"
-    if re.search(r'\b(with|for|using)\b', tag_lower):
+    if re.search(r"\b(with|for|using)\b", tag_lower):
         return "Broad"
 
     # 5) Title-case multi-word tags (like "Linux System Administration") → structured course title → Broad

@@ -43,7 +43,9 @@ async def test_prefer_paid_false_ignores_sources(mocker):
 @pytest.mark.asyncio
 async def test_prefer_paid_true_default_sources(mocker):
     """Test default behavior for prefer_paid=True (should be Udemy, then YouTube fallback if empty)."""
-    mock_youtube = mocker.patch("src.api.fetch_youtube", return_value={"python": {"title": "fallback"}})
+    mock_youtube = mocker.patch(
+        "src.api.fetch_youtube", return_value={"python": {"title": "fallback"}}
+    )
     mock_coursera = mocker.patch("src.api.fetch_coursera")
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
@@ -70,8 +72,12 @@ async def test_prefer_paid_true_default_sources(mocker):
 @pytest.mark.asyncio
 async def test_prefer_paid_true_specific_source_coursera(mocker):
     """Test requesting ONLY Coursera — YouTube fallback if Coursera returns nothing for a tag."""
-    mock_youtube = mocker.patch("src.api.fetch_youtube", return_value={"python": {"title": "fallback"}})
-    mock_coursera = mocker.patch("src.api.fetch_coursera", return_value={"python": {"title": "Coursera Python"}})
+    mock_youtube = mocker.patch(
+        "src.api.fetch_youtube", return_value={"python": {"title": "fallback"}}
+    )
+    mock_coursera = mocker.patch(
+        "src.api.fetch_coursera", return_value={"python": {"title": "Coursera Python"}}
+    )
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
 

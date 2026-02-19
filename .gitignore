@@ -84,5 +84,9 @@ src/**/__pycache__/**.png
 *.jpg
 *.jpeg
 
+# Scraper cookies
+.cookies/
+src/.cookies/
+
 # Scripts with secrets
 scripts/
