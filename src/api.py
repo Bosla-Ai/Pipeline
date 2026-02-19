@@ -259,7 +259,11 @@ async def generate_roadmap_logic(
             "job",
             f"Scope: Broad={broad_tags}, Atomic={atomic_tags}",
             job_id=job_id,
-            details={"broad_tags": broad_tags, "atomic_tags": atomic_tags, "method": "heuristic+ai_fallback"},
+            details={
+                "broad_tags": broad_tags,
+                "atomic_tags": atomic_tags,
+                "method": "heuristic+ai_fallback",
+            },
         )
 
         if broad_tags:
@@ -312,15 +316,14 @@ async def generate_roadmap_logic(
                                 job_id=job_id,
                             )
                         else:
-                            # Track Cloudflare blocks after scrape for dashboard
-                            async with DRIVER_LOCK:
-                                udemy_fetcher = UdemyFetcher(
-                                    tags=udemy_tags_to_fetch,
-                                    limit=5,
-                                    headless=False,
-                                    driver=GLOBAL_DRIVER,
-                                )
-                                await asyncio.to_thread(udemy_fetcher.scrape)
+                            # nodriver manages its own browser — no DRIVER_LOCK needed
+                            udemy_fetcher = UdemyFetcher(
+                                tags=udemy_tags_to_fetch,
+                                limit=5,
+                                headless=True,
+                                driver=GLOBAL_DRIVER,  # fallback only
+                            )
+                            await asyncio.to_thread(udemy_fetcher.scrape)
 
                             # Log Cloudflare blocks for dashboard visibility
                             if udemy_fetcher.blocked_tags:
@@ -329,7 +332,11 @@ async def generate_roadmap_logic(
                                     "fetcher",
                                     f"Cloudflare blocked Udemy for: {udemy_fetcher.blocked_tags}",
                                     job_id=job_id,
-                                    details={"source": "udemy", "blocked_tags": udemy_fetcher.blocked_tags, "reason": "cloudflare_waf"},
+                                    details={
+                                        "source": "udemy",
+                                        "blocked_tags": udemy_fetcher.blocked_tags,
+                                        "reason": "cloudflare_waf",
+                                    },
                                 )
 
                             udemy_results_map = udemy_fetcher.results
@@ -410,7 +417,8 @@ async def generate_roadmap_logic(
         # ── Fallback: if paid sources returned nothing for broad tags, use YouTube ──
         if broad_tags:
             unmatched_broad = [
-                t for t in broad_tags
+                t
+                for t in broad_tags
                 if t not in (roadmap_result.get("udemy") or {})
                 and t not in (roadmap_result.get("coursera") or {})
             ]
@@ -420,7 +428,11 @@ async def generate_roadmap_logic(
                     "fetcher",
                     f"Paid sources returned nothing for {unmatched_broad}. Falling back to YouTube.",
                     job_id=job_id,
-                    details={"fallback": "youtube", "unmatched_tags": unmatched_broad, "active_sources": [s.value for s in active_sources]},
+                    details={
+                        "fallback": "youtube",
+                        "unmatched_tags": unmatched_broad,
+                        "active_sources": [s.value for s in active_sources],
+                    },
                 )
                 try:
                     sid = socket_server.get_socket_for_job(job_id) or current_sid
@@ -429,7 +441,11 @@ async def generate_roadmap_logic(
                     )
                     roadmap_result["youtube"].update(youtube_fallback)
 
-                    fb_found = [t for t in unmatched_broad if t in youtube_fallback and youtube_fallback[t]]
+                    fb_found = [
+                        t
+                        for t in unmatched_broad
+                        if t in youtube_fallback and youtube_fallback[t]
+                    ]
                     fb_missed = [t for t in unmatched_broad if t not in fb_found]
                     if fb_found:
                         event_log.log(
@@ -437,7 +453,10 @@ async def generate_roadmap_logic(
                             "fetcher",
                             f"YouTube fallback found resources for: {fb_found}",
                             job_id=job_id,
-                            details={"fallback_found": fb_found, "fallback_missed": fb_missed},
+                            details={
+                                "fallback_found": fb_found,
+                                "fallback_missed": fb_missed,
+                            },
                         )
                     if fb_missed:
                         event_log.log(
@@ -615,9 +634,15 @@ async def startup_event():
             m = _re.search(r"(\d+)\.", out)
             if m:
                 version_main = int(m.group(1))
-                event_log.log("info", "driver", f"Detected Chrome {version_main} ({out})")
+                event_log.log(
+                    "info", "driver", f"Detected Chrome {version_main} ({out})"
+                )
         except Exception:
-            event_log.log("warn", "driver", "Could not detect Chrome version, letting uc auto-detect")
+            event_log.log(
+                "warn",
+                "driver",
+                "Could not detect Chrome version, letting uc auto-detect",
+            )
 
         options = uc.ChromeOptions()
         options.add_argument("--headless=new")
@@ -661,7 +686,9 @@ async def search_embeddable_video_endpoint(
     """
     from src.fetchers.videos.youtube_fetcher import search_embeddable_video
 
-    event_log.log("info", "video_search", f"Searching embeddable video: q='{q}', lang='{lang}'")
+    event_log.log(
+        "info", "video_search", f"Searching embeddable video: q='{q}', lang='{lang}'"
+    )
 
     result = await search_embeddable_video(q, lang)
 

@@ -13,6 +13,7 @@ beautifulsoup4
 lxml
 selenium
 undetected_chromedriver
+nodriver
 
 # Utilities
 isodate

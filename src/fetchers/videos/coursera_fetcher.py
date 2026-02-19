@@ -169,6 +169,7 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                             "title": title,
                             "description": "Coursera Content",
                             "imageUrl": "",
+                            "platform": "Coursera",
                             "videoCount": 40,
                             "subscriberCount": 500000,
                             "publishedAt": "2024-01-01T00:00:00Z",

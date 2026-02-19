@@ -600,7 +600,9 @@ async def search_embeddable_video(query: str, language: str = "en") -> dict | No
                 "url": f"https://www.youtube.com/watch?v={first['id']['videoId']}",
                 "title": first["snippet"]["title"],
                 "channelTitle": first["snippet"].get("channelTitle", ""),
-                "thumbnail": first["snippet"]["thumbnails"].get("high", {}).get("url", ""),
+                "thumbnail": first["snippet"]["thumbnails"]
+                .get("high", {})
+                .get("url", ""),
             }
 
         best = None
@@ -622,7 +624,9 @@ async def search_embeddable_video(query: str, language: str = "en") -> dict | No
                 "url": f"https://www.youtube.com/watch?v={first['id']['videoId']}",
                 "title": first["snippet"]["title"],
                 "channelTitle": first["snippet"].get("channelTitle", ""),
-                "thumbnail": first["snippet"]["thumbnails"].get("high", {}).get("url", ""),
+                "thumbnail": first["snippet"]["thumbnails"]
+                .get("high", {})
+                .get("url", ""),
             }
 
         return {
