@@ -259,7 +259,6 @@ async def generate_roadmap_logic(
             "job",
             f"Scope: Broad={broad_tags}, Atomic={atomic_tags}",
             job_id=job_id,
-            details={"broad_tags": broad_tags, "atomic_tags": atomic_tags, "method": "heuristic+ai_fallback"},
         )
 
         if broad_tags:
@@ -312,7 +311,6 @@ async def generate_roadmap_logic(
                                 job_id=job_id,
                             )
                         else:
-                            # Track Cloudflare blocks after scrape for dashboard
                             async with DRIVER_LOCK:
                                 udemy_fetcher = UdemyFetcher(
                                     tags=udemy_tags_to_fetch,
@@ -321,16 +319,6 @@ async def generate_roadmap_logic(
                                     driver=GLOBAL_DRIVER,
                                 )
                                 await asyncio.to_thread(udemy_fetcher.scrape)
-
-                            # Log Cloudflare blocks for dashboard visibility
-                            if udemy_fetcher.blocked_tags:
-                                event_log.log(
-                                    "warn",
-                                    "fetcher",
-                                    f"Cloudflare blocked Udemy for: {udemy_fetcher.blocked_tags}",
-                                    job_id=job_id,
-                                    details={"source": "udemy", "blocked_tags": udemy_fetcher.blocked_tags, "reason": "cloudflare_waf"},
-                                )
 
                             udemy_results_map = udemy_fetcher.results
 
@@ -383,9 +371,7 @@ async def generate_roadmap_logic(
             if fetch_tasks:
                 await asyncio.gather(*fetch_tasks)
 
-        if atomic_tags:
-            # Always fall back to YouTube for atomic tags — even in paid mode,
-            # atomic topics (specific concepts) are best served by free videos.
+        if atomic_tags and CourseSource.YOUTUBE in active_sources:
             try:
                 event_log.log(
                     "info",
@@ -401,59 +387,11 @@ async def generate_roadmap_logic(
                     language,
                     scope_cache=scope_cache,
                 )
-                roadmap_result["youtube"].update(youtube_data)
+                roadmap_result["youtube"] = youtube_data
             except Exception as e:
                 event_log.log(
                     "error", "fetcher", f"YouTube (atomic) Error: {e}", job_id=job_id
                 )
-
-        # ── Fallback: if paid sources returned nothing for broad tags, use YouTube ──
-        if broad_tags:
-            unmatched_broad = [
-                t for t in broad_tags
-                if t not in (roadmap_result.get("udemy") or {})
-                and t not in (roadmap_result.get("coursera") or {})
-            ]
-            if unmatched_broad:
-                event_log.log(
-                    "warn",
-                    "fetcher",
-                    f"Paid sources returned nothing for {unmatched_broad}. Falling back to YouTube.",
-                    job_id=job_id,
-                    details={"fallback": "youtube", "unmatched_tags": unmatched_broad, "active_sources": [s.value for s in active_sources]},
-                )
-                try:
-                    sid = socket_server.get_socket_for_job(job_id) or current_sid
-                    youtube_fallback = await fetch_youtube(
-                        sio, sid, unmatched_broad, language, scope_cache=scope_cache
-                    )
-                    roadmap_result["youtube"].update(youtube_fallback)
-
-                    fb_found = [t for t in unmatched_broad if t in youtube_fallback and youtube_fallback[t]]
-                    fb_missed = [t for t in unmatched_broad if t not in fb_found]
-                    if fb_found:
-                        event_log.log(
-                            "success",
-                            "fetcher",
-                            f"YouTube fallback found resources for: {fb_found}",
-                            job_id=job_id,
-                            details={"fallback_found": fb_found, "fallback_missed": fb_missed},
-                        )
-                    if fb_missed:
-                        event_log.log(
-                            "warn",
-                            "fetcher",
-                            f"YouTube fallback found nothing for: {fb_missed}",
-                            job_id=job_id,
-                            details={"fallback_missed": fb_missed},
-                        )
-                except Exception as e:
-                    event_log.log(
-                        "error",
-                        "fetcher",
-                        f"YouTube fallback Error: {e}",
-                        job_id=job_id,
-                    )
 
     event_log.log("info", "job", "Generating Learning DNA Sequence...", job_id=job_id)
     learning_path = generate_learning_path(

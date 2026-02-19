@@ -1,134 +1,216 @@
 """
-Tests for dynamic heuristic-based scope analysis.
-Tests heuristic rules, AI fallback behavior, and edge cases.
+Aggressive tests for scope analysis and KNOWN_BROAD_TOPICS safety net.
+Tests edge cases, fuzzy matching, fallback behavior, and stress scenarios.
 """
 
 import pytest
-from unittest.mock import AsyncMock
-from src.utils.helpers import analyze_topic_scope, _heuristic_scope
+from unittest.mock import AsyncMock, patch
+from src.utils.helpers import analyze_topic_scope
+from src.utils.constants import KNOWN_BROAD_TOPICS
 
 
-class TestHeuristicScope:
-    """Test the _heuristic_scope function (pure, sync, no AI)."""
+class TestKnownBroadTopics:
+    """Test the KNOWN_BROAD_TOPICS safety net."""
 
-    # ── Rule 1: Short tags (1-2 words) → Broad ──────────────────────────
-
+    # Programming Languages - Must be Broad
     @pytest.mark.parametrize(
-        "tag",
+        "topic",
         [
+            "python",
             "Python",
-            "Docker",
-            "Kubernetes",
-            "React",
-            "TensorFlow",
-            "Go",
+            "PYTHON",
+            "javascript",
+            "JavaScript",
+            "java",
+            "c++",
             "C++",
-            "AWS",
-            "Rust",
-            "GraphQL",
-            "Redis",
-            "Prometheus",
-            "Nginx",
-            "Apache",
-            "Helm",
-            "Machine Learning",
-            "Deep Learning",
-            "System Design",
-            "Clean Code",
+            "c#",
+            "C#",
+            "rust",
+            "go",
+            "golang",
+            "swift",
+            "kotlin",
+            "typescript",
+            "php",
+            "ruby",
+            "scala",
+            "perl",
+            "r",
+            "matlab",
+            "julia",
+            "haskell",
+            "elixir",
+            "dart",
+            "lua",
+            "assembly",
+            "fortran",
+            "cobol",
         ],
     )
-    def test_short_tags_are_broad(self, tag):
-        """1-2 word tags (technology names) must be Broad."""
-        assert _heuristic_scope(tag) == "Broad", f"'{tag}' should be Broad (short tag)"
+    def test_programming_languages_in_known_broad(self, topic):
+        """All major programming languages must be in KNOWN_BROAD_TOPICS."""
+        assert (
+            topic.lower() in KNOWN_BROAD_TOPICS
+        ), f"'{topic}' should be in KNOWN_BROAD_TOPICS"
 
-    # ── Rule 2: Broad markers → Broad ───────────────────────────────────
-
+    # Frameworks - Must be Broad
     @pytest.mark.parametrize(
-        "tag",
+        "topic",
         [
-            "Docker Mastery",
-            "Python Fundamentals",
-            "React Bootcamp",
-            "Complete Guide to Kubernetes",
-            "Comprehensive AWS Training",
-            "Advanced JavaScript Patterns",
-            "Beginner Python Programming",
-            "Java from Scratch",
-            "Go Zero to Hero",
-            "Deep Dive into Rust",
-            "Full Course on Angular",
-            "Web Development Masterclass",
+            "react",
+            "angular",
+            "vue",
+            "django",
+            "flask",
+            "fastapi",
+            "spring",
+            "spring boot",
+            "express",
+            "laravel",
+            "rails",
+            "ruby on rails",
+            "asp.net",
+            ".net",
+            ".net core",
+            "nestjs",
+            "next.js",
+            "nextjs",
+            "nuxt",
+            "svelte",
+            "gatsby",
+            "flutter",
+            "react native",
         ],
     )
-    def test_broad_markers_detected(self, tag):
-        """Tags with broad markers (mastery, fundamentals, etc.) must be Broad."""
-        assert _heuristic_scope(tag) == "Broad", f"'{tag}' should be Broad (broad marker)"
+    def test_frameworks_in_known_broad(self, topic):
+        """All major frameworks must be in KNOWN_BROAD_TOPICS."""
+        assert (
+            topic.lower() in KNOWN_BROAD_TOPICS
+        ), f"'{topic}' should be in KNOWN_BROAD_TOPICS"
 
-    # ── Rule 3: Atomic markers → Atomic ─────────────────────────────────
-
+    # DevOps/Cloud - Must be Broad
     @pytest.mark.parametrize(
-        "tag",
+        "topic",
         [
-            "How to install Docker on Ubuntu",
-            "Fix Python ImportError",
-            "React vs Angular comparison",
-            "What is a closure in JavaScript",
-            "Quick tip for Git rebase",
-            "Python error handling basics",
+            "docker",
+            "kubernetes",
+            "k8s",
+            "aws",
+            "azure",
+            "gcp",
+            "google cloud",
+            "terraform",
+            "ansible",
+            "jenkins",
+            "ci/cd",
+            "github actions",
+            "devops",
         ],
     )
-    def test_atomic_markers_detected(self, tag):
-        """Tags with atomic markers (how to, fix, vs, etc.) must be Atomic."""
-        assert _heuristic_scope(tag) == "Atomic", f"'{tag}' should be Atomic (atomic marker)"
+    def test_devops_cloud_in_known_broad(self, topic):
+        """All DevOps/Cloud tools must be in KNOWN_BROAD_TOPICS."""
+        assert (
+            topic.lower() in KNOWN_BROAD_TOPICS
+        ), f"'{topic}' should be in KNOWN_BROAD_TOPICS"
 
-    # ── Rule 4: with/for/using patterns → Broad ─────────────────────────
-
+    # Security - Must be Broad
     @pytest.mark.parametrize(
-        "tag",
+        "topic",
         [
-            "Automated Testing with Jest",
-            "Kubernetes for Application Developers",
-            "CI/CD Pipeline using Jenkins",
-            "Building APIs with FastAPI",
-            "Monitoring with Prometheus and Grafana",
+            "cybersecurity",
+            "cyber security",
+            "ethical hacking",
+            "penetration testing",
+            "pen testing",
+            "network security",
+            "application security",
+            "cryptography",
+            "infosec",
+            "information security",
         ],
     )
-    def test_with_for_using_patterns_are_broad(self, tag):
-        """Tags with 'with/for/using' structure are curriculum-style → Broad."""
-        assert _heuristic_scope(tag) == "Broad", f"'{tag}' should be Broad (with/for/using)"
+    def test_security_topics_in_known_broad(self, topic):
+        """All security topics must be in KNOWN_BROAD_TOPICS."""
+        assert (
+            topic.lower() in KNOWN_BROAD_TOPICS
+        ), f"'{topic}' should be in KNOWN_BROAD_TOPICS"
 
-    # ── Rule 5: Title-case multi-word → Broad ───────────────────────────
-
+    # Architecture - Must be Broad
     @pytest.mark.parametrize(
-        "tag",
+        "topic",
         [
-            "Linux System Administration",
-            "Network Security Monitoring",
-            "Cloud Native Architecture",
-            "Service Mesh Implementation",
+            "system design",
+            "software architecture",
+            "microservices",
+            "micro services",
+            "design patterns",
+            "rest api",
+            "restful api",
+            "clean architecture",
+            "clean code",
+            "solid principles",
+            "domain driven design",
+            "ddd",
         ],
     )
-    def test_title_case_tags_are_broad(self, tag):
-        """Title-case structured names → Broad."""
-        assert _heuristic_scope(tag) == "Broad", f"'{tag}' should be Broad (title case)"
+    def test_architecture_topics_in_known_broad(self, topic):
+        """All architecture topics must be in KNOWN_BROAD_TOPICS."""
+        assert (
+            topic.lower() in KNOWN_BROAD_TOPICS
+        ), f"'{topic}' should be in KNOWN_BROAD_TOPICS"
 
-    # ── Uncertain → None (defer to AI) ──────────────────────────────────
+    # CS Fundamentals - Must be Broad
+    @pytest.mark.parametrize(
+        "topic",
+        [
+            "algorithms",
+            "data structures",
+            "dsa",
+            "operating systems",
+            "networking",
+            "computer networks",
+            "compilers",
+            "databases",
+            "distributed systems",
+        ],
+    )
+    def test_cs_fundamentals_in_known_broad(self, topic):
+        """All CS fundamentals must be in KNOWN_BROAD_TOPICS."""
+        assert (
+            topic.lower() in KNOWN_BROAD_TOPICS
+        ), f"'{topic}' should be in KNOWN_BROAD_TOPICS"
 
-    def test_uncertain_returns_none(self):
-        """Ambiguous tags should return None (defer to AI)."""
-        # 3+ word, no markers, no title-case-only, no with/for/using
-        result = _heuristic_scope("some obscure thing here")
-        assert result is None, "Ambiguous tags should return None for AI fallback"
+    # AI/ML - Must be Broad
+    @pytest.mark.parametrize(
+        "topic",
+        [
+            "machine learning",
+            "deep learning",
+            "ai",
+            "artificial intelligence",
+            "nlp",
+            "natural language processing",
+            "computer vision",
+            "tensorflow",
+            "pytorch",
+            "data science",
+            "big data",
+        ],
+    )
+    def test_ai_ml_topics_in_known_broad(self, topic):
+        """All AI/ML topics must be in KNOWN_BROAD_TOPICS."""
+        assert (
+            topic.lower() in KNOWN_BROAD_TOPICS
+        ), f"'{topic}' should be in KNOWN_BROAD_TOPICS"
 
 
 class TestAnalyzeTopicScope:
-    """Test the full analyze_topic_scope function (heuristic + AI fallback)."""
+    """Test the analyze_topic_scope function behavior."""
 
     @pytest.fixture
     def mock_sio(self):
         return AsyncMock()
-
-    # ── No socket → Broad fallback ──────────────────────────────────────
 
     @pytest.mark.asyncio
     async def test_no_socket_returns_broad(self, mock_sio):
@@ -142,40 +224,30 @@ class TestAnalyzeTopicScope:
         result = await analyze_topic_scope(mock_sio, "", "anything")
         assert result == "Broad"
 
-    # ── Heuristic bypass: known patterns skip AI ────────────────────────
-
     @pytest.mark.asyncio
-    async def test_short_tag_bypasses_ai(self, mock_sio):
-        """Short tags (1-2 words) should return 'Broad' WITHOUT calling AI."""
+    async def test_known_broad_topic_bypasses_ai(self, mock_sio):
+        """Known broad topics should return 'Broad' WITHOUT calling AI."""
         result = await analyze_topic_scope(mock_sio, "valid_socket_id", "python")
+
         assert result == "Broad"
-        mock_sio.call.assert_not_called()
+        mock_sio.call.assert_not_called()  # AI should NOT be called
 
     @pytest.mark.asyncio
-    async def test_broad_marker_bypasses_ai(self, mock_sio):
-        """Tags with broad markers should return 'Broad' WITHOUT calling AI."""
-        result = await analyze_topic_scope(mock_sio, "valid_socket_id", "Docker Mastery")
-        assert result == "Broad"
-        mock_sio.call.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_case_insensitive(self, mock_sio):
-        """Heuristic should be case insensitive."""
+    async def test_known_broad_topic_case_insensitive(self, mock_sio):
+        """Known broad topics check should be case insensitive."""
         for variant in ["Python", "PYTHON", "PyThOn"]:
             result = await analyze_topic_scope(mock_sio, "valid_socket_id", variant)
             assert result == "Broad", f"'{variant}' should be classified as Broad"
 
     @pytest.mark.asyncio
     async def test_cpp_is_broad(self, mock_sio):
-        """C++ specifically must be classified as Broad."""
+        """C++ specifically must be classified as Broad (original bug case)."""
         result = await analyze_topic_scope(mock_sio, "valid_socket_id", "c++")
         assert result == "Broad"
 
-    # ── AI fallback for ambiguous topics ─────────────────────────────────
-
     @pytest.mark.asyncio
-    async def test_ambiguous_topic_calls_ai(self, mock_sio):
-        """Ambiguous topics should call the AI for classification."""
+    async def test_unknown_topic_calls_ai(self, mock_sio):
+        """Unknown topics should call the AI for classification."""
         mock_sio.call.return_value = [
             {
                 "labels": [
@@ -187,7 +259,7 @@ class TestAnalyzeTopicScope:
         ]
 
         result = await analyze_topic_scope(
-            mock_sio, "valid_socket_id", "some obscure thing here"
+            mock_sio, "valid_socket_id", "some_obscure_topic"
         )
 
         mock_sio.call.assert_called_once()
@@ -207,59 +279,62 @@ class TestAnalyzeTopicScope:
         ]
 
         result = await analyze_topic_scope(
-            mock_sio, "valid_socket_id", "some obscure thing here"
+            mock_sio, "valid_socket_id", "binary search algorithm"
         )
         assert result == "Atomic"  # 0.2 < 0.8
 
     @pytest.mark.asyncio
     async def test_ai_timeout_returns_atomic(self, mock_sio):
-        """When AI call times out, returns 'Atomic' (fallback)."""
+        """When AI call times out on unknown topic, returns 'Atomic' (current behavior)."""
         mock_sio.call.side_effect = Exception("Timeout")
 
-        result = await analyze_topic_scope(
-            mock_sio, "valid_socket_id", "some obscure thing here"
-        )
-        assert result == "Atomic"
+        result = await analyze_topic_scope(mock_sio, "valid_socket_id", "unknown_topic")
+        assert result == "Atomic"  # Current fallback for exceptions
 
     @pytest.mark.asyncio
     async def test_ai_empty_response_returns_atomic(self, mock_sio):
-        """When AI returns empty response, returns 'Atomic'."""
+        """When AI returns empty response on unknown topic, returns 'Atomic'."""
         mock_sio.call.return_value = None
 
-        result = await analyze_topic_scope(
-            mock_sio, "valid_socket_id", "some obscure thing here"
-        )
-        assert result == "Atomic"
+        result = await analyze_topic_scope(mock_sio, "valid_socket_id", "unknown_topic")
+        assert result == "Atomic"  # Current fallback for empty response
 
     @pytest.mark.asyncio
     async def test_ai_empty_list_returns_atomic(self, mock_sio):
-        """When AI returns empty list, returns 'Atomic'."""
+        """When AI returns empty list on unknown topic, returns 'Atomic'."""
         mock_sio.call.return_value = []
 
-        result = await analyze_topic_scope(
-            mock_sio, "valid_socket_id", "some obscure thing here"
-        )
-        assert result == "Atomic"
+        result = await analyze_topic_scope(mock_sio, "valid_socket_id", "unknown_topic")
+        assert result == "Atomic"  # Current fallback - empty list triggers IndexError
 
 
-class TestRealWorldTags:
-    """Test the originally-failing tags from the deployed pipeline."""
+class TestKnownBroadTopicsCompleteness:
+    """Stress tests to ensure KNOWN_BROAD_TOPICS is comprehensive."""
 
-    @pytest.mark.parametrize(
-        "tag,expected",
-        [
-            ("Docker Mastery", "Broad"),
-            ("Linux System Administration", "Broad"),
-            ("Automated Testing with Jest", "Broad"),
-            ("Python", "Broad"),
-            ("Kubernetes for Application Developers", "Broad"),
-            ("Monitoring with Prometheus and Grafana", "Broad"),
-            ("CI/CD Pipeline using Jenkins", "Broad"),
-            ("Nginx", "Broad"),
-            ("Helm", "Broad"),
-        ],
-    )
-    def test_deployed_tags_all_broad(self, tag, expected):
-        """All 9 tags from the failing deployment must be classified as Broad by heuristics."""
-        result = _heuristic_scope(tag)
-        assert result == expected, f"'{tag}' classified as '{result}', expected '{expected}'"
+    def test_minimum_topic_count(self):
+        """KNOWN_BROAD_TOPICS should have at least 150 entries."""
+        assert (
+            len(KNOWN_BROAD_TOPICS) >= 150
+        ), f"Expected at least 150 topics, got {len(KNOWN_BROAD_TOPICS)}"
+
+    def test_no_duplicates(self):
+        """KNOWN_BROAD_TOPICS should not have duplicates (it's a set, but sanity check)."""
+        topics_list = list(KNOWN_BROAD_TOPICS)
+        assert len(topics_list) == len(set(topics_list))
+
+    def test_all_lowercase(self):
+        """All entries in KNOWN_BROAD_TOPICS should be lowercase."""
+        for topic in KNOWN_BROAD_TOPICS:
+            assert topic == topic.lower(), f"Topic '{topic}' is not lowercase"
+
+    def test_no_empty_strings(self):
+        """KNOWN_BROAD_TOPICS should not contain empty strings."""
+        assert "" not in KNOWN_BROAD_TOPICS
+        assert " " not in KNOWN_BROAD_TOPICS
+
+    def test_no_leading_trailing_spaces(self):
+        """No topic should have leading or trailing whitespace."""
+        for topic in KNOWN_BROAD_TOPICS:
+            assert (
+                topic == topic.strip()
+            ), f"Topic '{topic}' has leading/trailing spaces"

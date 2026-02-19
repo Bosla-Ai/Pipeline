@@ -323,11 +323,6 @@ KNOWN_BROAD_TOPICS = {
     "github actions",
     "gitlab",
     "devops",
-    "prometheus",
-    "grafana",
-    "nginx",
-    "apache",
-    "helm",
     # Databases
     "sql",
     "mysql",

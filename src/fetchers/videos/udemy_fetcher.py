@@ -18,18 +18,9 @@ class UdemyFetcher:
         self.headless = headless
         self.driver = driver
         self.results = {}
-        self.blocked_tags = []  # Tags blocked by Cloudflare / WAF
 
     def _random_sleep(self, min_time=0.5, max_time=1.5):
         time.sleep(random.uniform(min_time, max_time))
-
-    def _is_cloudflare_block(self, browser) -> bool:
-        """Detect Cloudflare challenge / WAF block from page title."""
-        try:
-            title = (browser.title or "").lower()
-            return any(sig in title for sig in ("just a moment", "attention required", "cloudflare", "please wait"))
-        except:
-            return False
 
     def _log_diagnostic(self, browser):
         """Log diagnostic info when errors occur to help debug block pages."""
@@ -143,14 +134,9 @@ class UdemyFetcher:
                             )
                         )
                     except TimeoutException:
-                        is_blocked = self._is_cloudflare_block(browser)
-                        if is_blocked:
-                            print(f"🛡️ [Udemy] Cloudflare blocked for '{tag}'")
-                            self.blocked_tags.append(tag)
-                        else:
-                            print(
-                                f"⚠️ [Udemy] No courses found for '{tag}' (possible block or empty results)"
-                            )
+                        print(
+                            f"⚠️ [Udemy] No courses found for '{tag}' (possible block or empty results)"
+                        )
                         self._log_diagnostic(browser)
                         self.results[tag] = []
                         continue
