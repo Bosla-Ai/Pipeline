@@ -42,8 +42,8 @@ async def test_prefer_paid_false_ignores_sources(mocker):
 
 @pytest.mark.asyncio
 async def test_prefer_paid_true_default_sources(mocker):
-    """Test default behavior for prefer_paid=True (should be Udemy only now)."""
-    mock_youtube = mocker.patch("src.api.fetch_youtube")
+    """Test default behavior for prefer_paid=True (should be Udemy, then YouTube fallback if empty)."""
+    mock_youtube = mocker.patch("src.api.fetch_youtube", return_value={"python": {"title": "fallback"}})
     mock_coursera = mocker.patch("src.api.fetch_coursera")
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
@@ -63,15 +63,15 @@ async def test_prefer_paid_true_default_sources(mocker):
     # Udemy SHOULD be called
     mock_udemy.assert_called()
 
-    # YouTube should NOT be called (unless specifically requested in sources, but default is just Udemy)
-    mock_youtube.assert_not_called()
+    # YouTube SHOULD be called as fallback when Udemy returns nothing
+    mock_youtube.assert_called()
 
 
 @pytest.mark.asyncio
 async def test_prefer_paid_true_specific_source_coursera(mocker):
-    """Test requesting ONLY Coursera."""
-    mock_youtube = mocker.patch("src.api.fetch_youtube")
-    mock_coursera = mocker.patch("src.api.fetch_coursera", return_value={"c": "data"})
+    """Test requesting ONLY Coursera — YouTube fallback if Coursera returns nothing for a tag."""
+    mock_youtube = mocker.patch("src.api.fetch_youtube", return_value={"python": {"title": "fallback"}})
+    mock_coursera = mocker.patch("src.api.fetch_coursera", return_value={"python": {"title": "Coursera Python"}})
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
 
@@ -91,6 +91,7 @@ async def test_prefer_paid_true_specific_source_coursera(mocker):
 
     mock_coursera.assert_called()
     mock_udemy.assert_not_called()
+    # When Coursera successfully returns data for the tag, YouTube fallback should NOT be called
     mock_youtube.assert_not_called()
 
 
