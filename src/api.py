@@ -600,9 +600,25 @@ async def startup_event():
     event_log.start_cleanup_task()
 
     try:
+        import subprocess
+        import re as _re
         import undetected_chromedriver as uc
 
         event_log.log("info", "driver", "Initializing Global Chrome Driver...")
+
+        # Detect installed Chrome major version so ChromeDriver always matches
+        version_main = None
+        try:
+            out = subprocess.check_output(
+                ["google-chrome", "--version"], text=True
+            ).strip()
+            m = _re.search(r"(\d+)\.", out)
+            if m:
+                version_main = int(m.group(1))
+                event_log.log("info", "driver", f"Detected Chrome {version_main} ({out})")
+        except Exception:
+            event_log.log("warn", "driver", "Could not detect Chrome version, letting uc auto-detect")
+
         options = uc.ChromeOptions()
         options.add_argument("--headless=new")
         options.add_argument("--no-sandbox")
@@ -618,7 +634,7 @@ async def startup_event():
         options.add_argument("--window-size=1920,1080")
         options.add_argument("--blink-settings=imagesEnabled=false")
 
-        GLOBAL_DRIVER = uc.Chrome(options=options)
+        GLOBAL_DRIVER = uc.Chrome(options=options, version_main=version_main)
         event_log.log("success", "driver", "Global Driver Initialized & Ready")
     except Exception as e:
         event_log.log("error", "driver", f"Driver Init Failed: {e}")
