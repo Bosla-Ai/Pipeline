@@ -215,6 +215,12 @@ async def generate_roadmap_logic(
 
     if sources:
         active_sources = sources
+        if prefer_paid:
+            # Strip free sources when user explicitly prefers paid;
+            # YouTube is still used as fallback for atomic / unmatched tags later.
+            paid_only = [s for s in active_sources if s != CourseSource.YOUTUBE]
+            if paid_only:
+                active_sources = paid_only
     elif prefer_paid:
         active_sources = [CourseSource.UDEMY]
     else:

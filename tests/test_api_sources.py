@@ -68,6 +68,34 @@ async def test_explicit_sources_override_prefer_paid(mocker):
 
 
 @pytest.mark.asyncio
+async def test_prefer_paid_strips_youtube_from_sources(mocker):
+    """Test that prefer_paid=True strips YouTube from explicit sources."""
+    mock_youtube = mocker.patch("src.api.fetch_youtube")
+    mock_coursera = mocker.patch("src.api.fetch_coursera")
+    mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
+    mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post(
+            "/generate-roadmap",
+            json={
+                "tags": ["python"],
+                "prefer_paid": True,
+                "language": "en",
+                "sources": ["youtube", "udemy"],
+            },
+        )
+
+    assert response.status_code == 200
+
+    # YouTube should be stripped from active sources when prefer_paid=True
+    # (YouTube is still used as fallback for atomic/unmatched tags internally)
+    mock_udemy.assert_called()
+    mock_coursera.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_prefer_paid_true_default_sources(mocker):
     """Test default behavior for prefer_paid=True (should be Udemy, then YouTube fallback if empty)."""
     mock_youtube = mocker.patch(
