@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from enum import Enum
@@ -20,6 +21,19 @@ from src.utils.learning_path import generate_learning_path
 from src.utils.event_log import event_log
 
 app = FastAPI(title="Bosla Pipeline API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://bosla.me",
+        "https://front.bosla.almiraj.xyz",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def preprocess_tags(tags: list[str]) -> list[str]:
@@ -199,13 +213,12 @@ async def generate_roadmap_logic(
 
     roadmap_result = {"youtube": {}, "coursera": {}, "udemy": {}}
 
-    if not prefer_paid:
-        active_sources = [CourseSource.YOUTUBE]
+    if sources:
+        active_sources = sources
+    elif prefer_paid:
+        active_sources = [CourseSource.UDEMY]
     else:
-        if sources:
-            active_sources = sources
-        else:
-            active_sources = [CourseSource.UDEMY]
+        active_sources = [CourseSource.YOUTUBE]
 
     event_log.log("info", "job", f"Active Sources: {active_sources}", job_id=job_id)
 
