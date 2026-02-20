@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 
 
 @pytest.mark.asyncio
-async def test_prefer_paid_false_ignores_sources(mocker):
-    """Test that prefer_paid=False forces YouTube even if other sources are requested."""
+async def test_prefer_paid_false_defaults_to_youtube(mocker):
+    """Test that prefer_paid=False without explicit sources defaults to YouTube."""
     mock_youtube = mocker.patch("src.api.fetch_youtube", return_value={"video": "data"})
     mock_coursera = mocker.patch("src.api.fetch_coursera")
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
@@ -20,14 +20,13 @@ async def test_prefer_paid_false_ignores_sources(mocker):
                 "tags": ["python"],
                 "prefer_paid": False,
                 "language": "en",
-                "sources": ["udemy", "coursera"],
             },
         )
 
     assert response.status_code == 200
     data = response.json()["data"]
 
-    # YouTube should be called
+    # YouTube should be called as the default free source
     mock_youtube.assert_called()
     # Paid fetchers should NOT be called
     mock_coursera.assert_not_called()
@@ -35,9 +34,37 @@ async def test_prefer_paid_false_ignores_sources(mocker):
 
     assert "youtube" in data
     assert data["youtube"] == {"video": "data"}
-    # Paid fetchers should be empty
-    assert data["coursera"] == {}
-    assert data["udemy"] == {}
+
+
+@pytest.mark.asyncio
+async def test_explicit_sources_override_prefer_paid(mocker):
+    """Test that explicit sources take priority even when prefer_paid=False."""
+    mock_youtube = mocker.patch("src.api.fetch_youtube")
+    mock_coursera = mocker.patch(
+        "src.api.fetch_coursera", return_value={"python": {"title": "Coursera Python"}}
+    )
+    mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
+    mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post(
+            "/generate-roadmap",
+            json={
+                "tags": ["python"],
+                "prefer_paid": False,
+                "language": "en",
+                "sources": ["coursera"],
+            },
+        )
+
+    assert response.status_code == 200
+
+    # Explicit sources should be respected regardless of prefer_paid
+    mock_coursera.assert_called()
+    # YouTube should NOT be called — it's not in explicit sources
+    mock_youtube.assert_not_called()
+    mock_udemy.assert_not_called()
 
 
 @pytest.mark.asyncio
