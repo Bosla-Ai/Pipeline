@@ -335,12 +335,10 @@ async def generate_roadmap_logic(
                                 job_id=job_id,
                             )
                         else:
-                            # nodriver manages its own browser — no DRIVER_LOCK needed
                             udemy_fetcher = UdemyFetcher(
                                 tags=udemy_tags_to_fetch,
                                 limit=5,
                                 headless=True,
-                                driver=GLOBAL_DRIVER,  # fallback only
                             )
                             await asyncio.to_thread(udemy_fetcher.scrape)
 
@@ -636,6 +634,40 @@ async def startup_event():
 
     # Start the 24h log cleanup background task
     event_log.start_cleanup_task()
+
+    # ── Udemy dependency readiness check ──
+    udemy_deps = {
+        "scrapling": False,
+        "curl_cffi": False,
+        "playwright": False,
+        "patchright": False,
+        "browserforge": False,
+    }
+    for dep in udemy_deps:
+        try:
+            __import__(dep)
+            udemy_deps[dep] = True
+        except ImportError:
+            pass
+
+    # Final validation: try the actual import chain the scraper uses
+    try:
+        from scrapling.fetchers import AsyncStealthySession  # noqa: F401
+
+        udemy_ready = True
+    except Exception:
+        udemy_ready = False
+
+    if udemy_ready:
+        event_log.log("success", "system", "Udemy fetcher: Ready (all dependencies OK)")
+    else:
+        missing = [k for k, v in udemy_deps.items() if not v]
+        event_log.log(
+            "error",
+            "system",
+            f"Udemy fetcher: NOT READY — missing modules: {', '.join(missing) if missing else 'import chain broken'}. "
+            f"Try: pip install 'scrapling[fetchers]'",
+        )
 
     try:
         import subprocess
