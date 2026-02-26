@@ -48,6 +48,9 @@ WORKDIR $HOME/app
 COPY --chown=user requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Scrapling browser dependencies (Playwright browsers for StealthyFetcher)
+RUN scrapling install
+RUN playwright install --with-deps chromium
 COPY --chown=user . .
 
 # Create Redis data directory for non-root user

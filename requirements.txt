@@ -13,8 +13,8 @@ beautifulsoup4
 lxml
 selenium
 undetected_chromedriver
-nodriver
-
+scrapling[fetchers]>=0.4
+browserforge>=1.2.4
 # Utilities
 isodate
 yt-dlp

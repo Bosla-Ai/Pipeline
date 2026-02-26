@@ -194,7 +194,7 @@ class UdemyFetcher:
             "url": url,
             "imageUrl": image_url,
             "platform": "Udemy",
-            "videoCount": lecture_count or 10,
+            "videoCount": lecture_count,
             "subscriberCount": 0,
             "publishedAt": "",
         }
