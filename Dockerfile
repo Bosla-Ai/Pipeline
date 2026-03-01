@@ -12,7 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Added 'redis-server' for caching in HF Spaces (single container)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget gnupg2 curl ca-certificates apt-transport-https software-properties-common \
-    xvfb xauth unzip libgconf-2-4 libnss3 libxss1 libasound2 fonts-liberation \
+    xauth unzip libgconf-2-4 libnss3 libxss1 libasound2 fonts-liberation \
     libgbm1 libu2f-udev xdg-utils redis-server \
     && rm -rf /var/lib/apt/lists/*
 

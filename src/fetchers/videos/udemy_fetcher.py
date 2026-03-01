@@ -25,8 +25,7 @@ class UdemyFetcher:
     # ── Public API (sync — backward-compatible) ──
 
     def scrape(self):
-        """Sync entry point — runs the async scraper in a NEW event loop.
-        """
+        """Sync entry point — runs the async scraper in a NEW event loop."""
         try:
             asyncio.run(self._async_scrape())
         except Exception as e:
@@ -59,8 +58,8 @@ class UdemyFetcher:
                 batch = remaining[i : i + _MAX_CONCURRENT_TAGS]
                 for t in batch:
                     print(f"    --- Scraping Udemy (v2): {t} ---")
+                    tasks = self._scrape_tag(session, t)
 
-                tasks = [self._scrape_tag(session, t) for t in batch]
                 batch_results = await asyncio.gather(*tasks)
                 for t, res in zip(batch, batch_results):
                     self.results[t] = res
