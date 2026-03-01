@@ -6,13 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive
 
-
 # Install system dependencies (Run as Root)
-# FIX: Added 'xauth' here to solve the xvfb error
-# Added 'redis-server' for caching in HF Spaces (single container)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget gnupg2 curl ca-certificates apt-transport-https software-properties-common \
-    xauth unzip libgconf-2-4 libnss3 libxss1 libasound2 fonts-liberation \
+    xvfb xauth unzip libgconf-2-4 libnss3 libxss1 libasound2 fonts-liberation \
     libgbm1 libu2f-udev xdg-utils redis-server \
     && rm -rf /var/lib/apt/lists/*
 
@@ -33,7 +30,12 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
 # Create Xvfb socket directory before switching users
 RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
-# Create a new user (User ID 1000) because Root is forbidden
+# --- FIX: Install Python packages and Playwright OS dependencies as ROOT ---
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && playwright install-deps
+
+# Create a new user (User ID 1000)
 RUN useradd -m -u 1000 user
 
 # Switch to this user
@@ -44,13 +46,11 @@ ENV HOME=/home/user \
 # Set working directory to the user's home folder
 WORKDIR $HOME/app
 
-# Copy files with PERMISSION for the new user (--chown=user)
-COPY --chown=user requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install Scrapling browser dependencies (Playwright browsers for StealthyFetcher)
+# Install only the browser binaries and scrapling as USER ---
+RUN playwright install chromium
 RUN scrapling install
-RUN playwright install --with-deps chromium
+
+# Copy remaining files
 COPY --chown=user . .
 
 # Create Redis data directory for non-root user
@@ -59,5 +59,5 @@ RUN mkdir -p $HOME/redis-data
 # Change Port to 7860 (Hugging Face Requirement)
 EXPOSE 7860
 
-# Start command: Redis (user-mode) + Xvfb + Uvicorn (Updated port to 7860 for HF)
+# Start command
 CMD ["sh", "-c", "redis-server --daemonize yes --dir /home/user/redis-data --bind 127.0.0.1 --port 6379 && Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && export DISPLAY=:99 && uvicorn src.main:combined_app --host 0.0.0.0 --port 7860"]
