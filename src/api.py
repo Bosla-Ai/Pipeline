@@ -755,6 +755,62 @@ async def search_embeddable_video_endpoint(
     return {"status": "ok", **result}
 
 
+PLAYLIST_ITEMS_URL = "https://www.googleapis.com/youtube/v3/playlistItems"
+
+
+@app.get("/youtube/playlist-items")
+async def youtube_playlist_items(
+    playlistId: str = Query(..., description="YouTube playlist ID"),
+    maxResults: int = Query(50, ge=1, le=50, description="Max items to return"),
+):
+    """
+    Returns the list of videos in a playlist.
+    """
+    import aiohttp
+    from src.fetchers.videos.youtube_fetcher import fetch_youtube_data
+
+    event_log.log(
+        "info",
+        "playlist_proxy",
+        f"Fetching playlist items: playlistId='{playlistId}', maxResults={maxResults}",
+    )
+
+    params = {
+        "part": "snippet",
+        "playlistId": playlistId,
+        "maxResults": str(maxResults),
+    }
+
+    async with aiohttp.ClientSession() as session:
+        data = await fetch_youtube_data(session, PLAYLIST_ITEMS_URL, params)
+
+    if not data or "items" not in data:
+        event_log.log(
+            "warn", "playlist_proxy", f"No items found for playlist: '{playlistId}'"
+        )
+        raise HTTPException(status_code=404, detail="Playlist not found or empty")
+
+    items = [
+        {
+            "id": item["snippet"]["resourceId"]["videoId"],
+            "title": item["snippet"]["title"],
+            "thumbnailUrl": (
+                item["snippet"].get("thumbnails", {}).get("medium", {}).get("url")
+                or item["snippet"].get("thumbnails", {}).get("default", {}).get("url")
+            ),
+        }
+        for item in data.get("items", [])
+        if item.get("snippet", {}).get("resourceId", {}).get("videoId")
+    ]
+
+    event_log.log(
+        "success",
+        "playlist_proxy",
+        f"Returned {len(items)} items for playlist: '{playlistId}'",
+    )
+    return {"status": "ok", "items": items}
+
+
 @app.post("/generate-roadmap")
 async def generate_roadmap(request: RoadmapRequest):
     job_id = request.job_id or uuid.uuid4().hex[:12]
