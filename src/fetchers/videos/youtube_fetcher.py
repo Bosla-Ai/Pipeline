@@ -64,7 +64,7 @@ async def fetch_youtube_data(session, url, params):
 
     global _api_exhausted
     _api_exhausted = True
-    print("    💀 Fatal: All API Keys exhausted. Emergency scraper will activate.")
+    print("    💀 Fatal: All API Keys exhausted.")
     return {}
 
 
@@ -126,15 +126,17 @@ async def process_single_tag(
         print(f"    ✅ [Cache Hit] YouTube: {tag} ({language})")
         return tag, cached_result
 
-    global _api_exhausted
-    if _api_exhausted:
+    # ── Try yt-dlp scraper first (no API quota cost) ──
+    print(f"    🔍 [yt-dlp] Trying scraper first for '{tag}'...")
+    scraper_result = await emergency_fetch(tag, language)
+    if scraper_result:
         print(
-            f"    ⚡ [Short-Circuit] API exhausted. Going straight to emergency scraper for '{tag}'"
+            f"    ✅ [yt-dlp] Found result for '{tag}': {scraper_result.get('title', '')[:50]}"
         )
-        fallback_result = await emergency_fetch(tag, language)
-        if fallback_result:
-            await cache.set(cache_key, fallback_result)
-        return tag, fallback_result
+        await cache.set(cache_key, scraper_result)
+        return tag, scraper_result
+
+    print(f"    ⚠️ [yt-dlp] No results for '{tag}'. Falling back to YouTube API...")
 
     current_lang = language
     candidates = []
@@ -489,11 +491,8 @@ async def process_single_tag(
             break
 
     if not candidates:
-        print(f"    ⚠️ No API results for '{tag}'. Activating emergency scraper...")
-        fallback_result = await emergency_fetch(tag, language)
-        if fallback_result:
-            await cache.set(cache_key, fallback_result)
-        return tag, fallback_result
+        print(f"    💀 No results for '{tag}' from either scraper or API.")
+        return tag, None
 
     if precomputed_scope:
         scope = precomputed_scope
