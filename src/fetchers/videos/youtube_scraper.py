@@ -111,6 +111,13 @@ def _parse_entry(entry: dict, tag: str, language: str) -> Optional[dict]:
 
     if is_playlist:
         count = entry.get("playlist_count") or entry.get("n_entries") or 0
+        thumb = entry.get("thumbnail") or ""
+        if not thumb:
+            thumbs = entry.get("thumbnails") or []
+            if thumbs:
+                thumb = (
+                    thumbs[-1].get("url", "") if isinstance(thumbs[-1], dict) else ""
+                )
         data = {
             "contentType": "Playlist",
             "contentId": video_id,
@@ -121,6 +128,7 @@ def _parse_entry(entry: dict, tag: str, language: str) -> Optional[dict]:
             ),
             "title": title,
             "description": description[:500],
+            "thumbnailUrl": thumb,
             "videoCount": count,
             "publishedAt": published_at,
             "metadata_info": f"Playlist with {count} videos (scraped fallback)",

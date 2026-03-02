@@ -203,12 +203,21 @@ async def process_single_tag(
                     if count < 4:
                         continue
 
+                    thumbnails = snippet.get("thumbnails", {})
+                    thumb_url = (
+                        thumbnails.get("high")
+                        or thumbnails.get("medium")
+                        or thumbnails.get("default")
+                        or {}
+                    ).get("url", "")
+
                     data = {
                         "contentType": "Playlist",
                         "contentId": item["id"],
                         "url": f"https://www.youtube.com/playlist?list={item['id']}",
                         "title": title,
                         "description": desc,
+                        "thumbnailUrl": thumb_url,
                         "videoCount": count,
                         "publishedAt": snippet["publishedAt"],
                         "metadata_info": f"Playlist with {count} videos",
