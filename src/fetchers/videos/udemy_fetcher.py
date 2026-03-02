@@ -56,9 +56,10 @@ class UdemyFetcher:
             remaining = self.tags[1:]
             for i in range(0, len(remaining), _MAX_CONCURRENT_TAGS):
                 batch = remaining[i : i + _MAX_CONCURRENT_TAGS]
+                tasks = []
                 for t in batch:
                     print(f"    --- Scraping Udemy (v2): {t} ---")
-                    tasks = self._scrape_tag(session, t)
+                    tasks.append(self._scrape_tag(session, t))
 
                 batch_results = await asyncio.gather(*tasks)
                 for t, res in zip(batch, batch_results):
