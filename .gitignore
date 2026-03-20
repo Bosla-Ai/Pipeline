@@ -90,3 +90,7 @@ src/.cookies/
 
 # Scripts with secrets
 scripts/
+
+# Pipeline output files
+result.txt
+*.output
