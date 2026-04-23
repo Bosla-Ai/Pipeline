@@ -221,33 +221,33 @@ class TestAnalyzeTopicScope:
 
     @pytest.mark.asyncio
     async def test_ai_timeout_returns_atomic(self, mock_sio):
-        """When AI call times out, returns 'Atomic' (fallback)."""
+        """When AI call times out, returns 'Broad' (safer roadmap fallback)."""
         mock_sio.call.side_effect = Exception("Timeout")
 
         result = await analyze_topic_scope(
             mock_sio, "valid_socket_id", "some obscure thing here"
         )
-        assert result == "Atomic"
+        assert result == "Broad"
 
     @pytest.mark.asyncio
     async def test_ai_empty_response_returns_atomic(self, mock_sio):
-        """When AI returns empty response, returns 'Atomic'."""
+        """When AI returns empty response, returns 'Broad'."""
         mock_sio.call.return_value = None
 
         result = await analyze_topic_scope(
             mock_sio, "valid_socket_id", "some obscure thing here"
         )
-        assert result == "Atomic"
+        assert result == "Broad"
 
     @pytest.mark.asyncio
     async def test_ai_empty_list_returns_atomic(self, mock_sio):
-        """When AI returns empty list, returns 'Atomic'."""
+        """When AI returns empty list, returns 'Broad'."""
         mock_sio.call.return_value = []
 
         result = await analyze_topic_scope(
             mock_sio, "valid_socket_id", "some obscure thing here"
         )
-        assert result == "Atomic"
+        assert result == "Broad"
 
 
 class TestRealWorldTags:

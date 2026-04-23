@@ -1,3 +1,6 @@
+import asyncio
+import math
+import os
 import re
 from src.utils.constants import (
     NEGATIVE_KEYWORDS,
@@ -51,6 +54,73 @@ _ATOMIC_MARKERS = {
     "cheat sheet",
     "one liner",
 }
+
+_TAG_DESCRIPTOR_WORDS = {
+    "advanced",
+    "basics",
+    "beginner",
+    "beginners",
+    "bootcamp",
+    "complete",
+    "comprehensive",
+    "course",
+    "crash",
+    "deep",
+    "essentials",
+    "expert",
+    "for",
+    "from",
+    "full",
+    "fundamentals",
+    "guide",
+    "hero",
+    "in",
+    "intermediate",
+    "intro",
+    "introduction",
+    "masterclass",
+    "mastery",
+    "overview",
+    "practical",
+    "scratch",
+    "step",
+    "steps",
+    "to",
+    "tutorial",
+    "walkthrough",
+    "zero",
+    "أساسيات",
+    "احتراف",
+    "بالكامل",
+    "خطوة",
+    "خطوات",
+    "دليل",
+    "شرح",
+    "شامل",
+    "عملي",
+    "كامل",
+    "كورس",
+    "للمبتدئين",
+    "متقدم",
+    "مقدمة",
+}
+
+
+def _parse_positive_int_env(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if not value:
+        return default
+
+    try:
+        return max(1, int(value))
+    except ValueError:
+        return default
+
+
+_FRONTEND_AI_MAX_CONCURRENCY = _parse_positive_int_env(
+    "FRONTEND_AI_MAX_CONCURRENCY", 2
+)
+_FRONTEND_AI_SEMAPHORE = asyncio.Semaphore(_FRONTEND_AI_MAX_CONCURRENCY)
 
 
 def _heuristic_scope(tag: str) -> str | None:
@@ -109,19 +179,20 @@ async def analyze_topic_scope(sio, socket_id, tag):
     ]
 
     try:
-        response = await sio.call(
-            event="request_inference",
-            data={
-                "candidates": [{"ai_input_text": f"The technical topic is {tag}."}],
-                "labels": labels,
-                "hypothesis_template": "{}",
-            },
-            to=socket_id,
-            timeout=10,
-        )
+        async with _FRONTEND_AI_SEMAPHORE:
+            response = await sio.call(
+                event="request_inference",
+                data={
+                    "candidates": [{"ai_input_text": f"The technical topic is {tag}."}],
+                    "labels": labels,
+                    "hypothesis_template": "{}",
+                },
+                to=socket_id,
+                timeout=4,
+            )
 
         if not response:
-            return "Atomic"
+            return "Broad"
 
         # Map labels to scores
         result = response[0]
@@ -145,7 +216,7 @@ async def analyze_topic_scope(sio, socket_id, tag):
 
         print(f"⚠️ Scope Analysis Failed: {type(e).__name__}: {e}")
         print(f"    📋 Traceback: {traceback.format_exc()}")
-        return "Atomic"
+        return "Broad"
 
 
 async def classify_via_frontend(sio, socket_id, tag, candidates):
@@ -184,16 +255,17 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
     )
 
     try:
-        response = await sio.call(
-            event="request_inference",
-            data={
-                "candidates": formatted_candidates,
-                "labels": labels,
-                "hypothesis_template": "This content is {}.",
-            },
-            to=socket_id,
-            timeout=30,
-        )
+        async with _FRONTEND_AI_SEMAPHORE:
+            response = await sio.call(
+                event="request_inference",
+                data={
+                    "candidates": formatted_candidates,
+                    "labels": labels,
+                    "hypothesis_template": "This content is {}.",
+                },
+                to=socket_id,
+                timeout=12,
+            )
 
         valid_items = []
         for item in response:
@@ -384,11 +456,66 @@ def is_relevant(tag, title, description):
                 matched += 1
                 continue
         # Require at least 50% of core words to match (minimum 2)
-        threshold = max(2, len(core_words) // 2)
+        threshold = max(2, math.ceil(len(core_words) * 0.67))
         if matched >= threshold:
             return True
 
     return False
+
+
+def strict_relevance_score(tag, title, description):
+    tag_clean = tag.lower().replace("-", " ").strip()
+    title_clean = title.lower().replace("-", " ")
+    desc_clean = (description or "").lower()
+    text = f"{title_clean} {desc_clean}".strip()
+
+    if not is_relevant(tag, title, description):
+        return 0.0
+
+    core_words = _extract_core_words(tag_clean)
+    matched = 0
+    for word in core_words:
+        if word in text:
+            matched += 1
+            continue
+        synonyms = _WORD_SYNONYMS.get(word, set())
+        if any(syn in text for syn in synonyms):
+            matched += 1
+
+    ratio = matched / max(len(core_words), 1)
+    score = ratio
+
+    if tag_clean in title_clean:
+        score += 0.35
+
+    if core_words and all(word in title_clean for word in core_words if len(word) > 1):
+        score += 0.25
+
+    anchor_words = _extract_anchor_words(tag_clean)
+    if anchor_words:
+        anchor_matches = 0
+        for word in anchor_words:
+            if word in text:
+                anchor_matches += 1
+                continue
+            synonyms = _WORD_SYNONYMS.get(word, set())
+            if any(syn in text for syn in synonyms):
+                anchor_matches += 1
+
+        if anchor_matches == 0:
+            return 0.0
+
+        score += (anchor_matches / len(anchor_words)) * 0.25
+
+    return min(score, 1.0)
+
+
+def _extract_anchor_words(tag_clean: str) -> list[str]:
+    return [
+        word
+        for word in _extract_core_words(tag_clean)
+        if word not in _TAG_DESCRIPTOR_WORDS and len(word) > 2
+    ]
 
 
 def is_too_basic(title, description, user_level):

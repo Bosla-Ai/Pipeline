@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import isodate
+import re
 from src.utils.key_manager import key_manager
 from src.utils.helpers import (
     classify_via_frontend,
@@ -8,6 +9,7 @@ from src.utils.helpers import (
     is_arabic_content,
     is_garbage_content,
     analyze_topic_scope,
+    strict_relevance_score,
 )
 from src.utils.constants import (
     TAG_MAP,
@@ -23,6 +25,20 @@ _api_exhausted = False
 SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 PLAYLIST_URL = "https://www.googleapis.com/youtube/v3/playlists"
+
+_QUERY_TOKEN_EXPANSIONS = {
+    "eng": "engineer",
+    "engr": "engineer",
+    "dev": "developer",
+}
+
+_ROLE_TOPIC_SUFFIXES = {
+    "analyst": "analytics",
+    "designer": "design",
+    "developer": "development",
+    "engineer": "engineering",
+    "tester": "testing",
+}
 
 
 async def fetch_youtube_data(session, url, params):
@@ -113,8 +129,95 @@ def build_smart_queries(tag: str) -> list[tuple[str, str]]:
                     (f"{tag} full course", f"{tag} tutorial"),
                 ]
 
+    if len(words) >= 2 and words[-1] in _ROLE_TOPIC_SUFFIXES:
+        discipline_tag = " ".join([*words[:-1], _ROLE_TOPIC_SUFFIXES[words[-1]]]).strip()
+        if discipline_tag and discipline_tag != tag_lower:
+            return [
+                (
+                    f"{discipline_tag} full course",
+                    f"{discipline_tag} tutorial",
+                ),
+                (f"{tag} full course", f"{tag} tutorial"),
+            ]
+
     # Default: original behavior
     return [(f"{tag} full course", f"{tag} tutorial")]
+
+
+def normalize_search_tag(tag: str) -> str:
+    clean = " ".join(tag.replace("-", " ").split()).strip()
+    tokens = [
+        _QUERY_TOKEN_EXPANSIONS.get(token.lower(), token)
+        for token in clean.split()
+    ]
+    expanded = " ".join(tokens).strip()
+    return TAG_MAP.get(expanded.lower(), expanded)
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen = set()
+    ordered = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
+
+
+def build_search_tag(tag: str, language: str) -> str:
+    normalized = normalize_search_tag(tag)
+
+    if language != "en":
+        return normalized
+
+    if not re.search(r"[\u0600-\u06FF]", normalized):
+        return normalized
+
+    ascii_terms = []
+    for token in re.findall(r"[A-Za-z0-9#+.]+", normalized):
+        lowered = token.lower()
+        mapped = TAG_MAP.get(lowered, lowered)
+        ascii_terms.append(mapped)
+
+    ascii_terms = _dedupe_preserve_order(ascii_terms)
+    return " ".join(ascii_terms) if ascii_terms else normalized
+
+
+def build_search_plans(tag: str, language: str) -> list[dict]:
+    normalized = normalize_search_tag(tag)
+    has_arabic_query = bool(re.search(r"[\u0600-\u06FF]", normalized))
+    requested_language = "ar" if language == "ar" and has_arabic_query else "en"
+    plans = []
+    seen = set()
+
+    def add_plan(query: str, relevance_language: str | None):
+        clean_query = " ".join(query.split()).strip()
+        if not clean_query:
+            return
+
+        key = (clean_query.lower(), relevance_language or "")
+        if key in seen:
+            return
+
+        seen.add(key)
+        plans.append(
+            {
+                "query": clean_query,
+                "relevance_language": relevance_language,
+            }
+        )
+
+    add_plan(normalized, requested_language)
+
+    if language == "ar":
+        add_plan(normalized, None)
+
+        english_fallback = build_search_tag(normalized, "en")
+        if has_arabic_query and english_fallback.lower() != normalized.lower():
+            add_plan(english_fallback, "en")
+
+    return plans
 
 
 async def process_single_tag(
@@ -126,9 +229,12 @@ async def process_single_tag(
         print(f"    ✅ [Cache Hit] YouTube: {tag} ({language})")
         return tag, cached_result
 
+    search_plans = build_search_plans(tag, language)
+    primary_search_tag = search_plans[0]["query"] if search_plans else tag
+
     # ── Try yt-dlp scraper first (no API quota cost) ──
-    print(f"    🔍 [yt-dlp] Trying scraper first for '{tag}'...")
-    scraper_result = await emergency_fetch(tag, language)
+    print(f"    🔍 [yt-dlp] Trying scraper first for '{primary_search_tag}'...")
+    scraper_result = await emergency_fetch(primary_search_tag, language)
     if scraper_result:
         print(
             f"    ✅ [yt-dlp] Found result for '{tag}': {scraper_result.get('title', '')[:50]}"
@@ -138,39 +244,34 @@ async def process_single_tag(
 
     print(f"    ⚠️ [yt-dlp] No results for '{tag}'. Falling back to YouTube API...")
 
-    current_lang = language
     candidates = []
-
-    attempts = 0
-    max_attempts = 2 if language == "ar" else 1
 
     fetch_limit = 20
 
-    while attempts < max_attempts:
-        attempts += 1
+    for attempt_index, search_plan in enumerate(search_plans, start=1):
+        search_tag = search_plan["query"]
+        relevance_language = search_plan["relevance_language"]
+        plan_label = relevance_language or "any"
         print(
-            f"\n--- Processing: {tag} (Attempt {attempts}/{max_attempts}: {current_lang}) ---"
+            f"\n--- Processing: {tag} (Attempt {attempt_index}/{len(search_plans)}: {plan_label}, query: {search_tag}) ---"
         )
 
-        queries_to_try = build_smart_queries(tag)
-
-        api_lang = "ar" if current_lang == "ar" else "en"
+        queries_to_try = build_smart_queries(search_tag)
 
         for q_playlist, q_video in queries_to_try:
             if len(candidates) >= 10:
                 break
 
-            pl_data = await fetch_youtube_data(
-                session,
-                SEARCH_URL,
-                {
-                    "part": "snippet",
-                    "q": q_playlist,
-                    "type": "playlist",
-                    "maxResults": fetch_limit,
-                    "relevanceLanguage": api_lang,
-                },
-            )
+            playlist_params = {
+                "part": "snippet",
+                "q": q_playlist,
+                "type": "playlist",
+                "maxResults": fetch_limit,
+            }
+            if relevance_language:
+                playlist_params["relevanceLanguage"] = relevance_language
+
+            pl_data = await fetch_youtube_data(session, SEARCH_URL, playlist_params)
 
             pl_ids = [i["id"]["playlistId"] for i in pl_data.get("items", [])]
 
@@ -195,7 +296,7 @@ async def process_single_tag(
                     if not is_relevant(tag, title, desc):
                         continue
 
-                    if current_lang != "ar":
+                    if language != "ar":
                         if is_garbage_content(title, desc):
                             continue
 
@@ -404,18 +505,17 @@ async def process_single_tag(
                 candidates.extend(batch_candidates)
 
             if len(candidates) < 3:
-                vid_data = await fetch_youtube_data(
-                    session,
-                    SEARCH_URL,
-                    {
-                        "part": "snippet",
-                        "q": q_video,
-                        "type": "video",
-                        "videoDuration": "long",
-                        "maxResults": fetch_limit,
-                        "relevanceLanguage": api_lang,
-                    },
-                )
+                video_params = {
+                    "part": "snippet",
+                    "q": q_video,
+                    "type": "video",
+                    "videoDuration": "long",
+                    "maxResults": fetch_limit,
+                }
+                if relevance_language:
+                    video_params["relevanceLanguage"] = relevance_language
+
+                vid_data = await fetch_youtube_data(session, SEARCH_URL, video_params)
 
                 vid_ids = [i["id"]["videoId"] for i in vid_data.get("items", [])]
                 if vid_ids:
@@ -437,7 +537,7 @@ async def process_single_tag(
                         if not is_relevant(tag, title, desc):
                             continue
 
-                        if current_lang != "ar":
+                        if language != "ar":
                             if is_garbage_content(title, desc):
                                 continue
 
@@ -471,32 +571,7 @@ async def process_single_tag(
 
                     candidates.extend(batch_videos)
 
-        if not candidates and attempts == 1 and current_lang == "en":
-            stop_words = [" for ", " in ", " with ", " using ", " and "]
-            new_tag = tag
-            for word in stop_words:
-                if word in tag.lower():
-                    parts = tag.lower().split(word)
-                    if len(parts) > 1:
-                        new_tag = parts[0].strip()
-                        break
-
-            if new_tag != tag and len(new_tag) > 2:
-                print(
-                    f"    ⚠️ No results for '{tag}'. Fallback to Core Topic: '{new_tag}'"
-                )
-                tag = new_tag
-                attempts -= 1
-                await asyncio.sleep(1)
-                continue
-
         if len(candidates) >= 2:
-            break
-
-        if current_lang == "ar":
-            print(f"    ⚠️ No Arabic content for '{tag}'. Switching to English...")
-            current_lang = "en"
-        else:
             break
 
     if not candidates:
@@ -517,6 +592,35 @@ async def process_single_tag(
 
     top_candidates = candidates[:2]
     math_winner = top_candidates[0]
+    strict_candidates = [
+        {
+            **candidate,
+            "_strict_score": strict_relevance_score(
+                tag,
+                candidate.get("title", ""),
+                candidate.get("description", ""),
+            ),
+        }
+        for candidate in top_candidates
+    ]
+    strict_candidates = [c for c in strict_candidates if c["_strict_score"] >= 0.72]
+    strict_candidates.sort(key=lambda x: (x["_strict_score"], x["score"]), reverse=True)
+
+    if strict_candidates:
+        best_strict = strict_candidates[0]
+        lead_margin = (
+            best_strict["_strict_score"] - strict_candidates[1]["_strict_score"]
+            if len(strict_candidates) > 1
+            else best_strict["_strict_score"]
+        )
+        if not socket_id or best_strict["_strict_score"] >= 0.9 or lead_margin >= 0.2:
+            result = {k: v for k, v in best_strict.items() if k != "_strict_score"}
+            print(
+                f"    ✅ Strict local match accepted: {result['title'][:40]}... "
+                f"(strict={best_strict['_strict_score']:.2f}, score={result['score']:.1f})"
+            )
+            await cache.set(cache_key, result)
+            return tag, result
 
     print(f"    🤖 AI Analyzing Top {len(top_candidates)} Candidates...")
     valid_items = await classify_via_frontend(sio, socket_id, tag, top_candidates)
@@ -536,9 +640,17 @@ async def process_single_tag(
         await cache.set(cache_key, result)
         return tag, result
     else:
-        print(f"    ⚠️ AI rejected all. Using Richest Candidate (Safety Net).")
-        await cache.set(cache_key, math_winner)
-        return tag, math_winner
+        if strict_candidates:
+            result = {k: v for k, v in strict_candidates[0].items() if k != "_strict_score"}
+            print(
+                f"    ⚠️ AI unavailable/rejected. Using strict local candidate: "
+                f"{result['title'][:40]}..."
+            )
+            await cache.set(cache_key, result)
+            return tag, result
+
+        print(f"    ⚠️ AI rejected all and no strict local candidate matched '{tag}'.")
+        return tag, None
 
 
 def _ensure_url(resource: dict | None) -> dict | None:
@@ -661,9 +773,7 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=
     original_tags = []  # Keep original for scope_cache lookup
     for t in tags:
         original_tags.append(t)
-        clean = t.lower().replace("-", " ").strip()
-        final_tag = TAG_MAP.get(clean, clean)
-        normalized_tags.append(final_tag)
+        normalized_tags.append(normalize_search_tag(t))
 
     async with aiohttp.ClientSession() as session:
         tasks = []

@@ -1,15 +1,46 @@
 import asyncio
 import math
+import os
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
 from src.utils.helpers import is_relevant, is_garbage_content
 from src.utils.scoring import calculate_video_score, calculate_playlist_score
 
+try:
+    _SCRAPER_COOLDOWN_SECONDS = max(
+        30, int(os.getenv("YT_DLP_ERROR_COOLDOWN_SECONDS", "300"))
+    )
+except ValueError:
+    _SCRAPER_COOLDOWN_SECONDS = 300
+_scraper_disabled_until = 0.0
+
+
+def _scraper_circuit_open() -> bool:
+    return time.monotonic() < _scraper_disabled_until
+
+
+def _trip_scraper_circuit(message: str) -> None:
+    global _scraper_disabled_until
+    lowered = message.lower()
+    if "ssl" not in lowered and "eof occurred in violation of protocol" not in lowered:
+        return
+
+    _scraper_disabled_until = time.monotonic() + _SCRAPER_COOLDOWN_SECONDS
+    print(
+        "    ⚠️ [Scraper] Temporarily disabled after repeated SSL/network failures. "
+        f"Cooldown: {_SCRAPER_COOLDOWN_SECONDS}s"
+    )
+
 
 async def scrape_youtube_search(
     tag: str, language: str = "en", max_results: int = 10
 ) -> list[dict]:
+    if _scraper_circuit_open():
+        print("    ⚠️ [Scraper] Circuit open. Skipping yt-dlp search.")
+        return []
+
     try:
         import yt_dlp
     except ImportError:
@@ -67,6 +98,7 @@ def _extract_search_results(query: str, language: str) -> list[dict]:
                 return [e for e in result["entries"] if e is not None]
     except Exception as e:
         print(f"    ⚠️ [Scraper] yt-dlp search error: {e}")
+        _trip_scraper_circuit(str(e))
 
     return []
 

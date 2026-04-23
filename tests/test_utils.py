@@ -1,6 +1,11 @@
 import pytest
 import math
-from src.utils.helpers import is_relevant, is_garbage_content, is_too_basic
+from src.utils.helpers import (
+    is_relevant,
+    is_garbage_content,
+    is_too_basic,
+    strict_relevance_score,
+)
 from src.utils.scoring import calculate_video_score, calculate_playlist_score
 from datetime import datetime, timezone, timedelta
 
@@ -18,6 +23,36 @@ class TestHelpers:
 
     def test_is_relevant_miss(self):
         assert is_relevant("java", "Learn Python", "") is False
+
+    def test_is_relevant_game_dev_tag_keeps_unity_content(self):
+        assert (
+            is_relevant(
+                "unity level design",
+                "Unity Level Design Full Course",
+                "Build game levels in Unity step by step",
+            )
+            is True
+        )
+
+    def test_is_relevant_game_dev_tag_rejects_game_of_thrones_noise(self):
+        assert (
+            is_relevant(
+                "game development",
+                "Learn English with TV Series | Game of Thrones",
+                "Improve your English with scenes from a TV show",
+            )
+            is False
+        )
+
+    def test_strict_relevance_score_rejects_generic_ai_for_game_characters(self):
+        assert (
+            strict_relevance_score(
+                "الذكاء الاصطناعي البسيط للشخصيات",
+                "كورس الذكاء الاصطناعي و تعلم الالة",
+                "مقدمة عامة في الذكاء الاصطناعي",
+            )
+            == 0.0
+        )
 
     def test_is_garbage_content(self):
         # Hindi characters
