@@ -117,9 +117,7 @@ def _parse_positive_int_env(name: str, default: int) -> int:
         return default
 
 
-_FRONTEND_AI_MAX_CONCURRENCY = _parse_positive_int_env(
-    "FRONTEND_AI_MAX_CONCURRENCY", 2
-)
+_FRONTEND_AI_MAX_CONCURRENCY = _parse_positive_int_env("FRONTEND_AI_MAX_CONCURRENCY", 2)
 _FRONTEND_AI_SEMAPHORE = asyncio.Semaphore(_FRONTEND_AI_MAX_CONCURRENCY)
 
 

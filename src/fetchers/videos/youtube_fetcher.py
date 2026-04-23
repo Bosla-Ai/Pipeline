@@ -130,7 +130,9 @@ def build_smart_queries(tag: str) -> list[tuple[str, str]]:
                 ]
 
     if len(words) >= 2 and words[-1] in _ROLE_TOPIC_SUFFIXES:
-        discipline_tag = " ".join([*words[:-1], _ROLE_TOPIC_SUFFIXES[words[-1]]]).strip()
+        discipline_tag = " ".join(
+            [*words[:-1], _ROLE_TOPIC_SUFFIXES[words[-1]]]
+        ).strip()
         if discipline_tag and discipline_tag != tag_lower:
             return [
                 (
@@ -147,8 +149,7 @@ def build_smart_queries(tag: str) -> list[tuple[str, str]]:
 def normalize_search_tag(tag: str) -> str:
     clean = " ".join(tag.replace("-", " ").split()).strip()
     tokens = [
-        _QUERY_TOKEN_EXPANSIONS.get(token.lower(), token)
-        for token in clean.split()
+        _QUERY_TOKEN_EXPANSIONS.get(token.lower(), token) for token in clean.split()
     ]
     expanded = " ".join(tokens).strip()
     return TAG_MAP.get(expanded.lower(), expanded)
@@ -641,7 +642,9 @@ async def process_single_tag(
         return tag, result
     else:
         if strict_candidates:
-            result = {k: v for k, v in strict_candidates[0].items() if k != "_strict_score"}
+            result = {
+                k: v for k, v in strict_candidates[0].items() if k != "_strict_score"
+            }
             print(
                 f"    ⚠️ AI unavailable/rejected. Using strict local candidate: "
                 f"{result['title'][:40]}..."

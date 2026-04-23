@@ -74,11 +74,11 @@ async def test_process_single_tag_returns_none_when_only_unrelated_candidates_ex
     ]
 
     with patch(
-        "src.fetchers.videos.youtube_fetcher.cache.get", new=AsyncMock(return_value=None)
-    ), patch(
-        "src.fetchers.videos.youtube_fetcher.cache.set", new=AsyncMock()
-    ), patch(
-        "src.fetchers.videos.youtube_fetcher.emergency_fetch", new=AsyncMock(return_value=None)
+        "src.fetchers.videos.youtube_fetcher.cache.get",
+        new=AsyncMock(return_value=None),
+    ), patch("src.fetchers.videos.youtube_fetcher.cache.set", new=AsyncMock()), patch(
+        "src.fetchers.videos.youtube_fetcher.emergency_fetch",
+        new=AsyncMock(return_value=None),
     ), patch(
         "src.fetchers.videos.youtube_fetcher.build_smart_queries",
         return_value=[("game development full course", "game development tutorial")],
