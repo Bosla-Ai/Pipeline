@@ -8,11 +8,12 @@ from src.utils.key_manager import key_manager
 def setup_dummy_keys():
     """Injects dummy keys for ALL tests in this module to pass CI."""
     original_keys = key_manager.keys
+    original_index = key_manager.current_index
     key_manager.keys = ["TEST_KEY_1", "TEST_KEY_2"]
     key_manager.current_index = 0
     yield
-    # Teardown: restore (though not strictly necessary for short-lived CI)
     key_manager.keys = original_keys
+    key_manager.current_index = original_index
 
 
 @pytest.fixture
@@ -48,41 +49,46 @@ async def test_fetch_youtube_data_success(mock_session):
 
 
 @pytest.mark.asyncio
-async def test_fetch_youtube_data_quota_rotation(mock_session):
-    session, response = mock_session
+async def test_fetch_youtube_data_quota_rotation():
+    # Set predictables
+    key_manager.keys = ["KEY_1", "KEY_2"]
+    key_manager.current_index = 0
 
-    # Setup 403 Quota error then 200 Success
-    response.status = 403
-    response.text.return_value = "quotaExceeded"
+    session = MagicMock()
 
-    # We need to simulate the key manager rotation.
-    # We can spy on key_manager.rotate
+    # Track params.copy() to capture the state of params at the time session.get is called
+    requested_keys = []
 
-    original_rotate = key_manager.rotate
-    key_manager.rotate = MagicMock(side_effect=key_manager.rotate)
+    def mock_get(url, params=None):
+        if params:
+            requested_keys.append(params.get("key"))
+        
+        # Determine behavior based on number of calls
+        call_num = len(requested_keys)
+        context_manager = MagicMock()
+        response = AsyncMock()
 
-    try:
-        # Since the loop retries, we need side_effects for the response status.
-        # But AsyncMock return values are tricky with loop.
-        # Easier strategy: Mock session.get to return DIFFERENT responses each call.
+        if call_num == 1:
+            # First call: 403 quotaExceeded
+            response.status = 403
+            response.text.return_value = "quotaExceeded"
+        else:
+            # Second call: 200 success
+            response.status = 200
+            response.json.return_value = {"success": True}
 
-        # Responses: 1. Fail (403), 2. Success (200)
-        resp1 = AsyncMock()
-        resp1.status = 403
-        resp1.text.return_value = "quotaExceeded"
+        context_manager.__aenter__.return_value = response
+        context_manager.__aexit__.return_value = None
+        return context_manager
 
-        resp2 = AsyncMock()
-        resp2.status = 200
-        resp2.json.return_value = {"success": True}
+    session.get.side_effect = mock_get
 
-        # Configure session.get to return a context manager that yields resp1 then resp2
-        # This is complex to mock perfectly with just return_value side_effect on __aenter__
-        # Alternative: We trust the loop logic and just verify rotate is called if we force a fail.
+    result = await fetch_youtube_data(session, "http://api.google.com", {})
 
-        pass  # Skipping complex loop mock in this iteration to avoid flakiness.
-
-    finally:
-        key_manager.rotate = original_rotate
+    assert result == {"success": True}
+    assert session.get.call_count == 2
+    assert requested_keys == ["KEY_1", "KEY_2"]
+    assert key_manager.current_index == 1
 
 
 @pytest.mark.asyncio
