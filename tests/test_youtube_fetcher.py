@@ -91,3 +91,46 @@ async def test_key_manager_rotation(mock_session):
     current_key_idx = key_manager.current_index
     key_manager.rotate()
     assert key_manager.current_index != current_key_idx
+
+
+def test_key_manager_duplicate_rotation_prevention():
+    # Setup key manager with a predictable list of keys
+    key_manager.keys = ["KEY_A", "KEY_B", "KEY_C"]
+    key_manager.current_index = 0
+
+    # First rotation from KEY_A should succeed
+    res1 = key_manager.rotate("KEY_A")
+    assert res1 == "KEY_B"
+    assert key_manager.current_index == 1
+
+    # Second rotation from KEY_A (stale/duplicate) should be ignored
+    res2 = key_manager.rotate("KEY_A")
+    assert res2 == "KEY_B"
+    assert key_manager.current_index == 1
+
+    # Rotation from KEY_B should succeed
+    res3 = key_manager.rotate("KEY_B")
+    assert res3 == "KEY_C"
+    assert key_manager.current_index == 2
+
+
+@pytest.mark.asyncio
+async def test_key_manager_concurrency():
+    import asyncio
+    # Setup key manager
+    key_manager.keys = ["KEY_1", "KEY_2", "KEY_3"]
+    key_manager.current_index = 0
+
+    # Call rotate concurrently with the same failed key in separate async tasks
+    async def task():
+        # Yield control to simulate concurrent scheduling
+        await asyncio.sleep(0.01)
+        return key_manager.rotate("KEY_1")
+
+    results = await asyncio.gather(*(task() for _ in range(10)))
+
+    # They should all resolve to KEY_2, and index should be 1 (rotated only once)
+    for res in results:
+        assert res == "KEY_2"
+    assert key_manager.current_index == 1
+
