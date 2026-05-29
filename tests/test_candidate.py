@@ -1,4 +1,10 @@
 from src.engine.models import Candidate, SourceName
+from src.ranking.dedupe import dedupe_candidates, normalize_url
+from src.ranking.cheap_ranker import (
+    cheap_rank,
+    cheap_rank_candidate,
+    calculate_coursera_score,
+)
 
 
 def test_youtube_normalization():
@@ -81,18 +87,22 @@ def test_candidate_deduplication():
         {"title": "Learn Go Programming", "url": "https://go.dev/learn", "score": 15.0},
     ]
     candidates = [Candidate.from_dict(r, SourceName.COURSERA, "go") for r in raw_list]
-
-    seen_urls = set()
-    deduped = []
-    for c in candidates:
-        url_norm = c.url.strip().lower()
-        if url_norm not in seen_urls:
-            seen_urls.add(url_norm)
-            deduped.append(c)
+    deduped = dedupe_candidates(candidates)
 
     assert len(deduped) == 2
     assert deduped[0].title == "Intro to Go"
     assert deduped[1].title == "Learn Go Programming"
+
+
+def test_url_normalization_edge_cases():
+    # Trailing slash dedupe
+    url1 = "https://example.com/course/"
+    url2 = "https://example.com/course"
+    assert normalize_url(url1) == normalize_url(url2)
+
+    # UTM and Coupon query parameter removal
+    url_utm = "https://example.com/course?couponcode=SALE100&utm_source=fb&utm_medium=cpc&trackingid=abc"
+    assert normalize_url(url_utm) == "https://example.com/course"
 
 
 def test_cheap_ranking():
@@ -103,12 +113,63 @@ def test_cheap_ranking():
         {"title": "React D", "url": "url4", "score": 10.0},
     ]
     candidates = [Candidate.from_dict(r, SourceName.YOUTUBE, "react") for r in raw_list]
+    ranked = cheap_rank(candidates, "react")
 
-    # Cheap rank / prune with limit = 2
-    ranked = sorted(candidates, key=lambda x: x.raw_score, reverse=True)[:2]
-
-    assert len(ranked) == 2
+    # Verify sorting and that raw_score is updated to the cheap-rank score
+    assert len(ranked) == 4
     assert ranked[0].title == "React A"
-    assert ranked[0].raw_score == 90.0
+    # Should be greater than the baseline of 90 due to tag-word match boosts
+    assert ranked[0].raw_score > 90.0
     assert ranked[1].title == "React B"
-    assert ranked[1].raw_score == 50.0
+
+
+def test_coursera_scoring_certificates():
+    # professional-certificates outranks learn
+    cert_score = calculate_coursera_score(
+        title="Python",
+        tag="python",
+        url="https://coursera.org/professional-certificates/python",
+        search_position=1,
+    )
+    learn_score = calculate_coursera_score(
+        title="Python",
+        tag="python",
+        url="https://coursera.org/learn/python",
+        search_position=1,
+    )
+    assert cert_score > learn_score
+
+
+def test_negative_keyword_penalty():
+    cand_ok = Candidate.from_dict(
+        {"title": "Python Programming", "url": "https://ok.com", "score": 50.0},
+        SourceName.YOUTUBE,
+        "python",
+    )
+    cand_penalized = Candidate.from_dict(
+        {"title": "Python Programming Review", "url": "https://bad.com", "score": 50.0},
+        SourceName.YOUTUBE,
+        "python",
+    )
+
+    score_ok = cheap_rank_candidate(cand_ok, "python")
+    score_penalized = cheap_rank_candidate(cand_penalized, "python")
+    assert score_penalized < score_ok
+
+
+def test_raw_score_float_casting():
+    # String raw_score is cast to float
+    cand_str = Candidate.from_dict(
+        {"title": "Test", "url": "https://test.com", "score": "45.5"},
+        SourceName.YOUTUBE,
+        "test",
+    )
+    assert cand_str.raw_score == 45.5
+
+    # Invalid raw_score casts to 0.0
+    cand_invalid = Candidate.from_dict(
+        {"title": "Test", "url": "https://test.com", "score": "invalid-score"},
+        SourceName.YOUTUBE,
+        "test",
+    )
+    assert cand_invalid.raw_score == 0.0
