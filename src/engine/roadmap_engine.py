@@ -43,12 +43,15 @@ def preprocess_tags(tags: list[str]) -> list[str]:
 async def wait_for_socket(job_id: str) -> str | None:
     """Block until the frontend connects with this job_id, or timeout."""
     import src.api as api
+
     existing = socket_server.get_socket_for_job(job_id)
     if existing:
         return existing
 
     evt = socket_server.register_job_waiter(job_id)
-    timeout = getattr(api, "SOCKET_WAIT_TIMEOUT", runtime_limits.socket_wait_timeout_seconds)
+    timeout = getattr(
+        api, "SOCKET_WAIT_TIMEOUT", runtime_limits.socket_wait_timeout_seconds
+    )
     try:
         await asyncio.wait_for(evt.wait(), timeout=timeout)
         return socket_server.get_socket_for_job(job_id)
@@ -100,6 +103,7 @@ class RoadmapEngine:
         job_id: Optional[str] = None,
     ) -> dict[str, Any]:
         import src.api as api  # Local import to break circular reference for GLOBAL_DRIVER
+
         fetch_youtube = getattr(api, "fetch_youtube")
         fetch_coursera = getattr(api, "fetch_coursera")
 
@@ -158,7 +162,9 @@ class RoadmapEngine:
                     f"Fetching Free Content (YouTube)... Lang: {language}",
                     job_id=job_id,
                 )
-                youtube_data = await fetch_youtube(self.sio, current_sid, tags, language)
+                youtube_data = await fetch_youtube(
+                    self.sio, current_sid, tags, language
+                )
                 roadmap_result["youtube"] = youtube_data
             except Exception as e:
                 event_log.log(
@@ -171,7 +177,10 @@ class RoadmapEngine:
 
         if paid_sources_requested:
             event_log.log(
-                "info", "fetcher", f"Fetching Paid Content | Tags: {tags}", job_id=job_id
+                "info",
+                "fetcher",
+                f"Fetching Paid Content | Tags: {tags}",
+                job_id=job_id,
             )
 
             from src.utils.helpers import analyze_topic_scope
@@ -215,12 +224,19 @@ class RoadmapEngine:
                     async def fetch_coursera_job():
                         try:
                             data = await fetch_coursera(
-                                self.sio, current_sid, broad_tags, language, driver=api.GLOBAL_DRIVER
+                                self.sio,
+                                current_sid,
+                                broad_tags,
+                                language,
+                                driver=api.GLOBAL_DRIVER,
                             )
                             roadmap_result["coursera"] = data
                         except Exception as e:
                             event_log.log(
-                                "error", "fetcher", f"Coursera Error: {e}", job_id=job_id
+                                "error",
+                                "fetcher",
+                                f"Coursera Error: {e}",
+                                job_id=job_id,
                             )
 
                     fetch_tasks.append(fetch_coursera_job())
@@ -305,7 +321,8 @@ class RoadmapEngine:
 
                                     if valid_udemy:
                                         valid_udemy.sort(
-                                            key=lambda x: x.get("score", 0), reverse=True
+                                            key=lambda x: x.get("score", 0),
+                                            reverse=True,
                                         )
                                         winner = valid_udemy[0]
                                         roadmap_result["udemy"][tag] = winner
@@ -350,7 +367,10 @@ class RoadmapEngine:
                     roadmap_result["youtube"].update(youtube_data)
                 except Exception as e:
                     event_log.log(
-                        "error", "fetcher", f"YouTube (atomic) Error: {e}", job_id=job_id
+                        "error",
+                        "fetcher",
+                        f"YouTube (atomic) Error: {e}",
+                        job_id=job_id,
                     )
 
             # ── Fallback: if paid sources returned nothing for broad tags, use YouTube ──
@@ -376,7 +396,11 @@ class RoadmapEngine:
                     try:
                         sid = socket_server.get_socket_for_job(job_id) or current_sid
                         youtube_fallback = await fetch_youtube(
-                            self.sio, sid, unmatched_broad, language, scope_cache=scope_cache
+                            self.sio,
+                            sid,
+                            unmatched_broad,
+                            language,
+                            scope_cache=scope_cache,
                         )
                         roadmap_result["youtube"].update(youtube_fallback)
 
@@ -413,7 +437,9 @@ class RoadmapEngine:
                             job_id=job_id,
                         )
 
-        event_log.log("info", "job", "Generating Learning DNA Sequence...", job_id=job_id)
+        event_log.log(
+            "info", "job", "Generating Learning DNA Sequence...", job_id=job_id
+        )
         learning_path = generate_learning_path(
             tags, roadmap_data=roadmap_result, tag_checkpoints=tag_checkpoints
         )
@@ -435,7 +461,9 @@ class RoadmapEngine:
                     continue
                 url = resource.get("url", "")
                 title = str(resource.get("title", ""))[:60]
-                has_url = isinstance(url, str) and url.startswith(("http://", "https://"))
+                has_url = isinstance(url, str) and url.startswith(
+                    ("http://", "https://")
+                )
                 event_log.log(
                     "info",
                     "resource_audit",
@@ -517,14 +545,20 @@ class RoadmapEngine:
                     continue
 
                 # Best-effort YouTube reconstruction
-                if source_name == "youtube" and isinstance(content_id, str) and content_id:
+                if (
+                    source_name == "youtube"
+                    and isinstance(content_id, str)
+                    and content_id
+                ):
                     ct = str(resource.get("contentType") or "").lower()
                     if ct == "playlist":
                         resource["url"] = (
                             f"https://www.youtube.com/playlist?list={content_id}"
                         )
                     elif ct == "video":
-                        resource["url"] = f"https://www.youtube.com/watch?v={content_id}"
+                        resource["url"] = (
+                            f"https://www.youtube.com/watch?v={content_id}"
+                        )
 
                 # Still no url → log once per item (warn)
                 if not _is_http_url(resource.get("url")):

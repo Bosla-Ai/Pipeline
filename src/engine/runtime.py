@@ -40,12 +40,10 @@ def load_runtime_limits() -> RuntimeLimits:
         udemy_concurrency=_int_env("UDEMY_CONCURRENCY", 1),
         coursera_concurrency=_int_env("COURSERA_CONCURRENCY", 1),
         frontend_ai_concurrency=_int_env("FRONTEND_AI_CONCURRENCY", 2),
-
         socket_wait_timeout_seconds=_int_env("SOCKET_WAIT_TIMEOUT", 30),
         frontend_ai_timeout_seconds=_int_env("FRONTEND_AI_TIMEOUT", 12),
         provider_timeout_seconds=_int_env("PROVIDER_TIMEOUT", 20),
         full_job_timeout_seconds=_int_env("FULL_JOB_TIMEOUT", 90),
-
         candidate_pool_limit_per_tag=_int_env("CANDIDATE_POOL_LIMIT_PER_TAG", 30),
         cheap_rank_limit_per_tag=_int_env("CHEAP_RANK_LIMIT_PER_TAG", 12),
         final_result_limit_per_tag=_int_env("FINAL_RESULT_LIMIT_PER_TAG", 3),

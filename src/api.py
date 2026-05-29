@@ -42,12 +42,17 @@ app.add_middleware(
 )
 
 
-async def verify_pipeline_secret(x_pipeline_secret: Optional[str] = Header(None)) -> None:
+async def verify_pipeline_secret(
+    x_pipeline_secret: Optional[str] = Header(None),
+) -> None:
     """Dependency to verify the pipeline shared secret for API authentication."""
     if not PIPELINE_SHARED_SECRET:
         # If no secret is configured, require auth only in production
         if os.getenv("ENVIRONMENT") == "production":
-            raise HTTPException(status_code=500, detail="PIPELINE_SHARED_SECRET must be configured in production")
+            raise HTTPException(
+                status_code=500,
+                detail="PIPELINE_SHARED_SECRET must be configured in production",
+            )
         # Allow all requests in development
         return
     if x_pipeline_secret != PIPELINE_SHARED_SECRET:
@@ -172,9 +177,8 @@ from src.engine.roadmap_engine import RoadmapEngine
 
 async def wait_for_socket(job_id: str) -> str | None:
     from src.engine.roadmap_engine import wait_for_socket as _wait_for_socket
+
     return await _wait_for_socket(job_id)
-
-
 
 
 GLOBAL_DRIVER = None
@@ -367,7 +371,9 @@ async def youtube_playlist_items(
 
 
 @app.post("/generate-roadmap")
-async def generate_roadmap(request: RoadmapRequest, _auth: None = Depends(verify_pipeline_secret)):
+async def generate_roadmap(
+    request: RoadmapRequest, _auth: None = Depends(verify_pipeline_secret)
+):
     job_id = request.job_id or uuid.uuid4().hex[:12]
     event_log.log("info", "job", f"Incoming roadmap request", job_id=job_id)
 
@@ -380,4 +386,3 @@ async def generate_roadmap(request: RoadmapRequest, _auth: None = Depends(verify
         tag_checkpoints=request.tag_checkpoints,
         job_id=job_id,
     )
-
