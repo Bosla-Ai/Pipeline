@@ -297,9 +297,29 @@ def load_aliases():
     return aliases
 
 
+def load_context_aliases():
+    """Load context-aware aliases from data/context_aliases.yaml.
+
+    Returns a dict mapping ambiguous alias keys to a list of
+    {target, default, context} entries.
+    """
+    ctx_aliases = {}
+    path = DATA_DIR / "context_aliases.yaml"
+    if path.exists():
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if data and isinstance(data, dict):
+                    ctx_aliases.update(data)
+        except Exception as e:
+            print(f"Error loading context aliases: {e}")
+    return ctx_aliases
+
+
 # Load dynamic data
 _graph_data = load_skill_graph()
 _aliases_data = load_aliases()
+_context_aliases_data = load_context_aliases()
 
 if _graph_data:
     PREREQUISITE_GRAPH = {
@@ -314,10 +334,57 @@ if _aliases_data:
 else:
     TAG_ALIASES = FALLBACK_TAG_ALIASES
 
+CONTEXT_ALIASES = _context_aliases_data
 
 
-def _normalize_tag(tag: str) -> str:
+
+def _resolve_context_alias(clean_key: str, context_tags: set | None = None) -> str | None:
+    """Resolve an ambiguous alias using sibling tags as context.
+
+    Returns the resolved target string, or None if the key is not a
+    context alias.
+    """
+    entry = CONTEXT_ALIASES.get(clean_key)
+    if not entry or not isinstance(entry, list):
+        return None
+
+    if context_tags:
+        # Score each candidate by counting context-hint overlaps
+        best_target = None
+        best_score = -1
+        default_target = None
+
+        for candidate in entry:
+            target = candidate.get("target", "")
+            hints = set(candidate.get("context", []))
+            is_default = candidate.get("default", False)
+            if is_default:
+                default_target = target
+
+            score = len(hints & context_tags)
+            if score > best_score:
+                best_score = score
+                best_target = target
+
+        # If any context matched, use the best match; otherwise fall back
+        if best_score > 0:
+            return best_target
+        return default_target or best_target
+
+    # No context provided — use default entry
+    for candidate in entry:
+        if candidate.get("default", False):
+            return candidate.get("target", "")
+    # Fallback to first entry
+    return entry[0].get("target", "") if entry else None
+
+
+def _normalize_tag(tag: str, context_tags: set | None = None) -> str:
     clean = tag.lower().replace("-", " ").strip()
+    # Try context-aware alias first
+    ctx_result = _resolve_context_alias(clean, context_tags)
+    if ctx_result is not None:
+        return ctx_result
     return TAG_ALIASES.get(clean, clean)
 
 
@@ -342,8 +409,8 @@ def _get_depth(tag: str, memo: dict = None) -> int:
     return max_depth
 
 
-def _topological_sort(tags: list[str]) -> list[str]:
-    normalized = [_normalize_tag(t) for t in tags]
+def _topological_sort(tags: list[str], context_tags: set | None = None) -> list[str]:
+    normalized = [_normalize_tag(t, context_tags) for t in tags]
     tag_set = set(normalized)
 
     # Build adjacency from prerequisites that exist in our tag set
@@ -353,7 +420,7 @@ def _topological_sort(tags: list[str]) -> list[str]:
     for tag in normalized:
         prereqs = PREREQUISITE_GRAPH.get(tag, [])
         for prereq in prereqs:
-            prereq_norm = _normalize_tag(prereq)
+            prereq_norm = _normalize_tag(prereq, context_tags)
             if prereq_norm in tag_set:
                 adj[prereq_norm].append(tag)
                 in_degree[tag] += 1
@@ -383,7 +450,7 @@ def _topological_sort(tags: list[str]) -> list[str]:
     remaining = [t for t in normalized if t not in sorted_tags]
     sorted_tags.extend(remaining)
 
-    original_map = {_normalize_tag(t): t for t in tags}
+    original_map = {_normalize_tag(t, context_tags): t for t in tags}
     return [original_map.get(t, t) for t in sorted_tags]
 
 
@@ -521,7 +588,12 @@ def generate_learning_path(
     if not tags:
         return {}
 
-    sorted_tags = _topological_sort(tags)
+    # Build context set from raw tags for context-aware alias resolution.
+    # Use simple lowercase normalization (no alias resolution) to avoid
+    # chicken-and-egg: the context set is used to *decide* alias resolution.
+    context_tags = {t.lower().replace("-", " ").strip() for t in tags}
+
+    sorted_tags = _topological_sort(tags, context_tags)
     depth_memo = {}
 
     phases = []
@@ -529,7 +601,7 @@ def generate_learning_path(
     current_depth_bucket = -1
 
     for tag in sorted_tags:
-        normalized = _normalize_tag(tag)
+        normalized = _normalize_tag(tag, context_tags)
         depth = _get_depth(normalized, depth_memo)
         bucket = min(depth // 2, 3)  # Group into 4 phases max
 
@@ -544,6 +616,7 @@ def generate_learning_path(
                         tags=current_phase_tags,
                         roadmap_data=roadmap_data,
                         tag_checkpoints=tag_checkpoints,
+                        context_tags=context_tags,
                     )
                 )
             current_phase_tags = []
@@ -561,6 +634,7 @@ def generate_learning_path(
                 tags=current_phase_tags,
                 roadmap_data=roadmap_data,
                 tag_checkpoints=tag_checkpoints,
+                context_tags=context_tags,
             )
         )
 
@@ -571,11 +645,11 @@ def generate_learning_path(
     weeks = max(1, round(total_hours / (daily_hours * 7)))
 
     prereqs_outside = []
-    tag_set_norm = {_normalize_tag(t) for t in tags}
+    tag_set_norm = {_normalize_tag(t, context_tags) for t in tags}
     for tag in tags:
-        normalized = _normalize_tag(tag)
+        normalized = _normalize_tag(tag, context_tags)
         for prereq in PREREQUISITE_GRAPH.get(normalized, []):
-            prereq_norm = _normalize_tag(prereq)
+            prereq_norm = _normalize_tag(prereq, context_tags)
             if prereq_norm not in tag_set_norm and prereq_norm not in prereqs_outside:
                 prereqs_outside.append(prereq_norm)
 
@@ -600,12 +674,13 @@ def _build_phase(
     tags: list[str],
     roadmap_data: dict = None,
     tag_checkpoints: dict = None,
+    context_tags: set | None = None,
 ) -> dict:
     phase_tags = []
     total_hours = 0
 
     for tag in tags:
-        resource = _find_resource(tag, roadmap_data)
+        resource = _find_resource(tag, roadmap_data, context_tags)
         hours = _estimate_hours(tag, resource)
         total_hours += hours
 
@@ -628,7 +703,7 @@ def _build_phase(
             if checkpoints:
                 tag_info["checkpoints"] = checkpoints
 
-        prereqs = PREREQUISITE_GRAPH.get(_normalize_tag(tag), [])
+        prereqs = PREREQUISITE_GRAPH.get(_normalize_tag(tag, context_tags), [])
         if prereqs:
             tag_info["prerequisites"] = prereqs
 
@@ -656,7 +731,7 @@ def _build_phase(
     }
 
 
-def _find_resource(tag: str, roadmap_data: dict = None) -> dict | None:
+def _find_resource(tag: str, roadmap_data: dict = None, context_tags: set | None = None) -> dict | None:
     """Find a resource for *tag* across all sources using progressively
     looser matching so that minor casing / punctuation differences don't
     cause a miss.
@@ -664,7 +739,7 @@ def _find_resource(tag: str, roadmap_data: dict = None) -> dict | None:
     if not roadmap_data:
         return None
 
-    tag_norm = _normalize_tag(tag)
+    tag_norm = _normalize_tag(tag, context_tags)
     # Strip all non-alphanumeric chars for fuzzy pass
     tag_alnum = "".join(ch for ch in tag_norm if ch.isalnum())
 
@@ -675,14 +750,14 @@ def _find_resource(tag: str, roadmap_data: dict = None) -> dict | None:
 
         # Pass 1 – exact key match (case-insensitive after normalize)
         for key, resource in source_data.items():
-            if resource and _normalize_tag(key) == tag_norm:
+            if resource and _normalize_tag(key, context_tags) == tag_norm:
                 return resource
 
         # Pass 2 – alphanumeric-only match (ignores punctuation / spaces)
         for key, resource in source_data.items():
             if not resource:
                 continue
-            key_alnum = "".join(ch for ch in _normalize_tag(key) if ch.isalnum())
+            key_alnum = "".join(ch for ch in _normalize_tag(key, context_tags) if ch.isalnum())
             if key_alnum == tag_alnum:
                 return resource
 
@@ -690,7 +765,7 @@ def _find_resource(tag: str, roadmap_data: dict = None) -> dict | None:
         for key, resource in source_data.items():
             if not resource:
                 continue
-            key_norm = _normalize_tag(key)
+            key_norm = _normalize_tag(key, context_tags)
             if tag_norm in key_norm or key_norm in tag_norm:
                 return resource
 

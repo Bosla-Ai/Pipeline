@@ -31,7 +31,6 @@ open telemetry: opentelemetry
 prom: prometheus
 kube: kubernetes
 docker compose: docker
-tf: tensorflow
 huggingface: hugging face
 hf: hugging face
 openai: openai api

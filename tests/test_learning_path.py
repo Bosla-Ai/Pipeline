@@ -4,11 +4,13 @@ from pathlib import Path
 from src.utils.learning_path import (
     generate_learning_path,
     _normalize_tag,
+    _resolve_context_alias,
     _get_depth,
     _estimate_hours,
     _get_difficulty,
     PREREQUISITE_GRAPH,
     TAG_ALIASES,
+    CONTEXT_ALIASES,
 )
 
 def test_yaml_files_loaded():
@@ -136,3 +138,74 @@ def test_existing_behavior_remains():
     assert tags_ds.index("numpy") < tags_ds.index("machine learning")
     assert tags_ds.index("machine learning") < tags_ds.index("deep learning")
 
+
+def test_context_aliases_loaded():
+    # Verify context aliases are loaded
+    assert len(CONTEXT_ALIASES) > 0
+    assert "tf" in CONTEXT_ALIASES
+
+
+def test_tf_resolves_to_tensorflow_in_ml_context():
+    # When sibling tags are ML-related, tf should resolve to tensorflow
+    ml_context = {"python", "machine learning", "deep learning", "keras"}
+    result = _normalize_tag("tf", ml_context)
+    assert result == "tensorflow"
+
+
+def test_tf_resolves_to_terraform_in_devops_context():
+    # When sibling tags are DevOps-related, tf should resolve to terraform
+    devops_context = {"docker", "kubernetes", "aws", "ci/cd"}
+    result = _normalize_tag("tf", devops_context)
+    assert result == "terraform"
+
+
+def test_tf_defaults_to_tensorflow_without_context():
+    # Without any context, tf should fall back to the default (tensorflow)
+    result = _normalize_tag("tf")
+    assert result == "tensorflow"
+
+
+def test_tf_defaults_to_tensorflow_with_empty_context():
+    # With empty context set, tf should fall back to the default
+    result = _normalize_tag("tf", set())
+    assert result == "tensorflow"
+
+
+def test_tf_in_mixed_context_prefers_stronger_signal():
+    # When both ML and DevOps signals are present, the stronger one should win
+    # 3 ML signals vs 1 DevOps signal -> tensorflow
+    mixed_context = {"python", "machine learning", "deep learning", "docker"}
+    result = _normalize_tag("tf", mixed_context)
+    assert result == "tensorflow"
+
+    # 1 ML signal vs 3 DevOps signals -> terraform
+    devops_heavy = {"python", "docker", "kubernetes", "aws", "ci/cd"}
+    result2 = _normalize_tag("tf", devops_heavy)
+    assert result2 == "terraform"
+
+
+def test_context_aware_alias_in_learning_path():
+    # Full integration: generate_learning_path with tf + devops tags
+    lp = generate_learning_path(["tf", "docker", "kubernetes", "aws"])
+    phase_tags = [t["tag"] for p in lp["phases"] for t in p["tags"]]
+    # tf should have been resolved to terraform in this context
+    assert "tf" in phase_tags  # original tag name preserved
+
+    # The learning path should detect DevOps domain
+    assert lp["domain"] == "DevOps & Cloud"
+
+
+def test_context_aware_alias_in_ml_learning_path():
+    # Full integration: generate_learning_path with tf + ML tags
+    lp = generate_learning_path(["tf", "python", "deep learning"])
+    phase_tags = [t["tag"] for p in lp["phases"] for t in p["tags"]]
+    assert "tf" in phase_tags
+
+    # The learning path should detect Data Science domain
+    assert lp["domain"] == "Data Science & AI"
+
+
+def test_resolve_context_alias_returns_none_for_non_context_alias():
+    # A regular alias key that is not in CONTEXT_ALIASES should return None
+    result = _resolve_context_alias("golang")
+    assert result is None

@@ -6,6 +6,21 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
+def load_context_aliases():
+    path = DATA_DIR / "context_aliases.yaml"
+    if not path.exists():
+        return {}, []
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            if data is None:
+                return {}, []
+            if not isinstance(data, dict):
+                return {}, [f"Context aliases file must contain a dictionary, got {type(data)}"]
+            return data, []
+    except Exception as e:
+        return {}, [f"Failed to parse context_aliases.yaml: {e}"]
+
 def load_aliases():
     path = DATA_DIR / "aliases.yaml"
     if not path.exists():
@@ -127,20 +142,53 @@ def validate_graph(graph, aliases, node_sources):
         if alias_key in graph:
             errors.append(f"Alias key '{alias_key}' is also defined as a canonical node in the graph. This is ambiguous.")
 
-    # If 'tf' maps to 'tensorflow', warn about it because it is also used for 'terraform'
-    if "tf" in aliases:
-        target = aliases["tf"]
-        warnings.append(
-            f"Ambiguous alias warning: 'tf' maps to '{target}', but 'tf' is also commonly used for 'terraform'."
-        )
+    return errors, warnings
 
+def validate_context_aliases(context_aliases, graph, simple_aliases):
+    errors = []
+    warnings = []
+    
+    for alias_key, candidates in context_aliases.items():
+        if not isinstance(candidates, list):
+            errors.append(f"Context alias '{alias_key}' must map to a list, got {type(candidates)}")
+            continue
+        
+        # Check for conflict with simple aliases
+        if alias_key in simple_aliases:
+            errors.append(f"Context alias key '{alias_key}' also exists in simple aliases.yaml. Remove it from aliases.yaml to avoid conflicts.")
+        
+        has_default = False
+        for i, candidate in enumerate(candidates):
+            if not isinstance(candidate, dict):
+                errors.append(f"Context alias '{alias_key}' entry {i} must be a dict, got {type(candidate)}")
+                continue
+                
+            target = candidate.get("target")
+            if not target:
+                errors.append(f"Context alias '{alias_key}' entry {i} has no 'target' field")
+                continue
+                
+            if target not in graph:
+                errors.append(f"Context alias '{alias_key}' target '{target}' does not exist as a canonical node")
+            
+            if candidate.get("default", False):
+                has_default = True
+                
+            context = candidate.get("context", [])
+            if not isinstance(context, list):
+                errors.append(f"Context alias '{alias_key}' entry {i} 'context' must be a list")
+        
+        if not has_default and len(candidates) > 1:
+            warnings.append(f"Context alias '{alias_key}' has {len(candidates)} candidates but no default")
+    
     return errors, warnings
 
 def main():
     aliases, alias_errors = load_aliases()
     graph, node_sources, graph_errors = load_skill_graphs()
+    context_aliases, ctx_alias_errors = load_context_aliases()
     
-    all_errors = alias_errors + graph_errors
+    all_errors = alias_errors + graph_errors + ctx_alias_errors
     all_warnings = []
     
     if not all_errors:
@@ -148,7 +196,11 @@ def main():
         all_errors.extend(validation_errors)
         all_warnings.extend(validation_warnings)
         
-    print(f"Loaded {len(graph)} canonical nodes and {len(aliases)} aliases.")
+        ctx_errors, ctx_warnings = validate_context_aliases(context_aliases, graph, aliases)
+        all_errors.extend(ctx_errors)
+        all_warnings.extend(ctx_warnings)
+        
+    print(f"Loaded {len(graph)} canonical nodes, {len(aliases)} aliases, and {len(context_aliases)} context aliases.")
     
     if all_warnings:
         print("\n--- WARNINGS ---")

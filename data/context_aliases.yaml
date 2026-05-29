@@ -1,0 +1,41 @@
+# Context-aware aliases for ambiguous abbreviations.
+# Each key maps to a list of possible targets with context hints.
+# At resolution time, the sibling tags determine which target wins.
+# If no context match, the first entry's "default: true" target is used.
+
+tf:
+  - target: tensorflow
+    default: true
+    context:
+      - machine learning
+      - deep learning
+      - tensorflow
+      - pytorch
+      - keras
+      - data science
+      - ai
+      - nlp
+      - computer vision
+      - numpy
+      - pandas
+      - scikit-learn
+      - hugging face
+      - generative ai
+      - llms
+  - target: terraform
+    context:
+      - docker
+      - kubernetes
+      - aws
+      - azure
+      - gcp
+      - ci/cd
+      - ansible
+      - cloud deployment
+      - devops
+      - linux
+      - infrastructure
+      - gitops
+      - argocd
+      - helm
+      - iac
