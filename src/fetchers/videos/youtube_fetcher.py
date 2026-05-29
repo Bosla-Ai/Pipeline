@@ -31,7 +31,7 @@ async def fetch_youtube_data(session, url, params):
     attempts = 0
 
     while attempts < max_retries:
-        current_key = key_manager.get_current_key()
+        current_key, key_idx = key_manager.get_current_key_and_index()
         params["key"] = current_key
 
         try:
@@ -45,7 +45,7 @@ async def fetch_youtube_data(session, url, params):
                     error_msg = await response.text()
                     if "quota" in error_msg.lower():
                         print(
-                            f"    [YouTube] Quota Exceeded for Key #{key_manager.current_index + 1}. Rotating..."
+                            f"    [YouTube] Quota Exceeded for Key #{key_idx + 1}. Rotating..."
                         )
                         key_manager.rotate(failed_key=current_key)
                         attempts += 1

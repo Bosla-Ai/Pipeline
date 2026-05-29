@@ -31,6 +31,13 @@ class KeyManager:
                 raise Exception("No API Keys provided in settings!")
             return self.keys[self.current_index]
 
+    def get_current_key_and_index(self) -> tuple[str, int]:
+        with self._lock:
+            if not self.keys:
+                raise Exception("No API Keys provided in settings!")
+            return self.keys[self.current_index], self.current_index
+
+
     def rotate(self, failed_key: Optional[str] = None) -> str:
         """Switches to the next key. Returns the new key. Only rotates if failed_key matches the current key."""
         with self._lock:
