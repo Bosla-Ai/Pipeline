@@ -209,3 +209,30 @@ def test_resolve_context_alias_returns_none_for_non_context_alias():
     # A regular alias key that is not in CONTEXT_ALIASES should return None
     result = _resolve_context_alias("golang")
     assert result is None
+
+
+def test_domain_detection_with_context_alias():
+    # Weaker DevOps context like tf + ansible should classify as DevOps
+    lp = generate_learning_path(["tf", "ansible"])
+    assert lp["domain"] == "DevOps & Cloud"
+
+    # Weaker ML context like tf + numpy should classify as Data Science & AI
+    lp_ml = generate_learning_path(["tf", "numpy"])
+    assert lp_ml["domain"] == "Data Science & AI"
+
+
+def test_tf_difficulty_and_hours_varies_by_context():
+    # tf in DevOps context should resolve to terraform, which is Intermediate (depth 1)
+    devops_ctx = {"docker", "kubernetes", "aws"}
+    diff_devops = _get_difficulty("tf", devops_ctx)
+    hours_devops = _estimate_hours("tf", context_tags=devops_ctx)
+
+    # tf in ML context should resolve to tensorflow, which is Advanced (depth 4)
+    ml_ctx = {"python", "machine learning", "deep learning"}
+    diff_ml = _get_difficulty("tf", ml_ctx)
+    hours_ml = _estimate_hours("tf", context_tags=ml_ctx)
+
+    assert diff_devops == "Beginner"
+    assert diff_ml == "Advanced"
+    assert hours_devops < hours_ml
+

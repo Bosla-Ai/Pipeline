@@ -388,10 +388,10 @@ def _normalize_tag(tag: str, context_tags: set | None = None) -> str:
     return TAG_ALIASES.get(clean, clean)
 
 
-def _get_depth(tag: str, memo: dict = None) -> int:
+def _get_depth(tag: str, memo: dict = None, context_tags: set | None = None) -> int:
     if memo is None:
         memo = {}
-    normalized = _normalize_tag(tag)
+    normalized = _normalize_tag(tag, context_tags)
     if normalized in memo:
         return memo[normalized]
 
@@ -402,7 +402,7 @@ def _get_depth(tag: str, memo: dict = None) -> int:
 
     max_depth = 0
     for prereq in prereqs:
-        d = _get_depth(prereq, memo)
+        d = _get_depth(prereq, memo, context_tags)
         max_depth = max(max_depth, d + 1)
 
     memo[normalized] = max_depth
@@ -434,7 +434,7 @@ def _topological_sort(tags: list[str], context_tags: set | None = None) -> list[
     queue = deque(
         sorted(
             [t for t in normalized if in_degree[t] == 0],
-            key=lambda t: _get_depth(t, depth_memo),
+            key=lambda t: _get_depth(t, depth_memo, context_tags),
         )
     )
     sorted_tags = []
@@ -454,7 +454,7 @@ def _topological_sort(tags: list[str], context_tags: set | None = None) -> list[
     return [original_map.get(t, t) for t in sorted_tags]
 
 
-def _estimate_hours(tag: str, resource_data: dict = None) -> float:
+def _estimate_hours(tag: str, resource_data: dict = None, context_tags: set | None = None) -> float:
     if resource_data and isinstance(resource_data, dict):
         duration = resource_data.get("duration_mins", 0)
         video_count = resource_data.get("videoCount", 0)
@@ -466,7 +466,7 @@ def _estimate_hours(tag: str, resource_data: dict = None) -> float:
             avg_video_mins = 15
             return round((video_count * avg_video_mins) / 60 * 1.5, 1)
 
-    normalized = _normalize_tag(tag)
+    normalized = _normalize_tag(tag, context_tags)
     if _graph_data:
         node_data = _graph_data.get(normalized)
         if isinstance(node_data, dict) and "estimated_hours" in node_data:
@@ -474,7 +474,7 @@ def _estimate_hours(tag: str, resource_data: dict = None) -> float:
             if isinstance(val, (int, float)):
                 return float(val)
 
-    depth = _get_depth(normalized)
+    depth = _get_depth(normalized, context_tags=context_tags)
 
     base_hours = {
         0: 20,  # Beginner topics
@@ -487,8 +487,8 @@ def _estimate_hours(tag: str, resource_data: dict = None) -> float:
     return base_hours.get(min(depth, 5), 40)
 
 
-def _get_difficulty(tag: str) -> str:
-    normalized = _normalize_tag(tag)
+def _get_difficulty(tag: str, context_tags: set | None = None) -> str:
+    normalized = _normalize_tag(tag, context_tags)
     if _graph_data:
         node_data = _graph_data.get(normalized)
         if isinstance(node_data, dict) and "difficulty" in node_data:
@@ -496,13 +496,15 @@ def _get_difficulty(tag: str) -> str:
             if isinstance(diff, str):
                 return diff.capitalize()
 
-    depth = _get_depth(normalized)
+    depth = _get_depth(normalized, context_tags=context_tags)
     return DIFFICULTY_MAP.get(min(depth, 5), "Advanced")
 
 
 
-def _detect_domain(tags: list[str]) -> str:
-    normalized = [_normalize_tag(t) for t in tags]
+def _detect_domain(tags: list[str], context_tags: set | None = None) -> str:
+    if context_tags is None:
+        context_tags = {t.lower().replace("-", " ").strip() for t in tags}
+    normalized = [_normalize_tag(t, context_tags) for t in tags]
 
     frontend_kw = {
         "react",
@@ -602,7 +604,7 @@ def generate_learning_path(
 
     for tag in sorted_tags:
         normalized = _normalize_tag(tag, context_tags)
-        depth = _get_depth(normalized, depth_memo)
+        depth = _get_depth(normalized, depth_memo, context_tags)
         bucket = min(depth // 2, 3)  # Group into 4 phases max
 
         if bucket != current_depth_bucket:
@@ -639,7 +641,7 @@ def generate_learning_path(
         )
 
     total_hours = sum(p["estimated_hours"] for p in phases)
-    domain = _detect_domain(tags)
+    domain = _detect_domain(tags, context_tags)
 
     daily_hours = 2
     weeks = max(1, round(total_hours / (daily_hours * 7)))
@@ -681,12 +683,12 @@ def _build_phase(
 
     for tag in tags:
         resource = _find_resource(tag, roadmap_data, context_tags)
-        hours = _estimate_hours(tag, resource)
+        hours = _estimate_hours(tag, resource, context_tags)
         total_hours += hours
 
         tag_info = {
             "tag": tag,
-            "difficulty": _get_difficulty(tag),
+            "difficulty": _get_difficulty(tag, context_tags),
             "estimated_hours": hours,
         }
 
