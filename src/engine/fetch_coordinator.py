@@ -476,8 +476,16 @@ class FetchCoordinator:
                 winner = valid_udemy[0]
                 result_map[tag] = winner
                 cache_key = generate_cache_key("udemy", tag, language)
-                await cache.connect()
-                await cache.set(cache_key, winner)
+                try:
+                    await cache.connect()
+                    await cache.set(cache_key, winner)
+                except Exception as ce:
+                    event_log.log(
+                        "error",
+                        "cache",
+                        f"Udemy Cache Set Error for tag '{tag}': {ce}",
+                        job_id=job_id,
+                    )
                 event_log.log(
                     "success",
                     "fetcher",
