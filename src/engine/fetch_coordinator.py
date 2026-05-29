@@ -157,17 +157,6 @@ class FetchCoordinator:
                                         )
                                         udemy_cached[tag] = cached_result
                                     else:
-                                        event_log.log(
-                                            "info",
-                                            "cache",
-                                            "cache_miss",
-                                            job_id=job_id,
-                                            metadata={
-                                                "source": "udemy",
-                                                "tag": tag,
-                                                "language": language,
-                                            }
-                                        )
                                         udemy_tags_to_fetch.append(tag)
                             except Exception as ce:
                                 event_log.log(
@@ -187,10 +176,38 @@ class FetchCoordinator:
                                     "Udemy: All tags cached",
                                     job_id=job_id,
                                 )
-                            else:
+                                return
+
+                            import uuid
+                            tags_to_scrape = []
+                            tags_to_wait = []
+                            locked_tokens = {}
+
+                            for tag in udemy_tags_to_fetch:
+                                cache_key = generate_cache_key("udemy", tag, language)
+                                token = str(uuid.uuid4())
+                                acquired = await cache.acquire_lock(cache_key, token, ttl=60)
+                                if acquired:
+                                    locked_tokens[tag] = token
+                                    tags_to_scrape.append(tag)
+                                    event_log.log(
+                                        "info",
+                                        "cache",
+                                        "cache_miss",
+                                        job_id=job_id,
+                                        metadata={
+                                            "source": "udemy",
+                                            "tag": tag,
+                                            "language": language,
+                                        }
+                                    )
+                                else:
+                                    tags_to_wait.append(tag)
+
+                            if tags_to_scrape:
                                 try:
                                     udemy_data = await self._fetch_udemy_with_limit(
-                                        tags=udemy_tags_to_fetch,
+                                        tags=tags_to_scrape,
                                         language=language,
                                         current_sid=current_sid,
                                         job_id=job_id,
@@ -203,6 +220,69 @@ class FetchCoordinator:
                                         f"Udemy limit-fetching unexpected error: {ue}",
                                         job_id=job_id,
                                     )
+                                finally:
+                                    for tag, token in locked_tokens.items():
+                                        cache_key = generate_cache_key("udemy", tag, language)
+                                        await cache.release_lock(cache_key, token)
+
+                            if tags_to_wait:
+                                print(f"    [Cache Stampede Protection] Waiting for Udemy locks on: {tags_to_wait}...")
+                                for tag in tags_to_wait:
+                                    cache_key = generate_cache_key("udemy", tag, language)
+                                    resolved = False
+                                    for _ in range(30):  # 15 seconds max wait
+                                        await asyncio.sleep(0.5)
+                                        try:
+                                            cached = await cache.get(cache_key)
+                                        except Exception as ce:
+                                            print(f"    [Cache Wait] Error reading cached result for {tag}: {ce}")
+                                            cached = None
+                                        if cached is not None:
+                                            print(f"    [Cache Hit via Lock] Udemy: {tag} ({language})")
+                                            event_log.log(
+                                                "success",
+                                                "cache",
+                                                "cache_hit",
+                                                job_id=job_id,
+                                                metadata={
+                                                    "source": "udemy",
+                                                    "tag": tag,
+                                                    "language": language,
+                                                    "stampede_protection": True,
+                                                }
+                                            )
+                                            roadmap_result["udemy"][tag] = cached
+                                            resolved = True
+                                            break
+                                    if not resolved:
+                                        print(f"    [Cache Wait Timeout] Falling back to fetch Udemy for '{tag}' individually...")
+                                        event_log.log(
+                                            "info",
+                                            "cache",
+                                            "cache_miss_fallback",
+                                            job_id=job_id,
+                                            metadata={
+                                                "source": "udemy",
+                                                "tag": tag,
+                                                "language": language,
+                                                "reason": "lock_wait_timeout",
+                                            }
+                                        )
+                                        try:
+                                            udemy_data = await self._fetch_udemy_with_limit(
+                                                tags=[tag],
+                                                language=language,
+                                                current_sid=current_sid,
+                                                job_id=job_id,
+                                            )
+                                            roadmap_result["udemy"].update(udemy_data)
+                                        except Exception as ue:
+                                            event_log.log(
+                                                "error",
+                                                "fetcher",
+                                                f"Udemy limit-fetching fallback error: {ue}",
+                                                job_id=job_id,
+                                            )
                         except Exception as e:
                             event_log.log(
                                 "error",

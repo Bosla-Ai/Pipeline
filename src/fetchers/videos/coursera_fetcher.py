@@ -16,6 +16,7 @@ async def fetch_coursera(
 
     from src.utils.helpers import classify_via_frontend
     from src.utils.event_log import event_log
+    import uuid
 
     await cache.connect()
 
@@ -56,17 +57,12 @@ async def fetch_coursera(
     if not tags_to_fetch:
         return final_roadmap
 
-    print(f"[Coursera] Starting Coursera Scraper for tags: {tags_to_fetch}...")
-    candidates_map = await asyncio.to_thread(
-        scrape_coursera_sync, sio, tags_to_fetch, language, max_results, driver
-    )
-
-    for tag, candidates in candidates_map.items():
+    async def process_and_cache_candidates(tag, candidates):
         if not candidates:
             final_roadmap[tag] = None
-            continue
+            return None
 
-        # Normalization, Deduplication, and Cheap Ranking (Phase 6, 7, 8)
+        # Normalization, Deduplication, and Cheap Ranking
         from src.engine.models import Candidate, SourceName
         from src.engine.runtime import runtime_limits
         from src.ranking.dedupe import dedupe_candidates
@@ -97,7 +93,7 @@ async def fetch_coursera(
 
         if not ranked_dicts:
             final_roadmap[tag] = None
-            continue
+            return None
 
         print(
             f"    [Coursera] AI Analyzing {len(ranked_dicts)} Coursera Candidates for '{tag}'..."
@@ -116,19 +112,97 @@ async def fetch_coursera(
             final_roadmap[tag] = winner
             cache_key = generate_cache_key("coursera", tag, language)
             await cache.set(cache_key, winner)
+            return winner
         else:
             print(
                 f"    [Coursera] AI rejected all Coursera items (or frontend error). Using Safety Net."
             )
             # Fallback to the first candidate (which is usually the most relevant from search)
             winner = ranked_dicts[0]
-            final_roadmap[tag] = winner
-            # Ensure native arabic sort applies to fallback too if needed
             if language == "ar":
                 ranked_dicts.sort(key=lambda x: x["is_native_arabic"], reverse=True)
-                final_roadmap[tag] = ranked_dicts[0]
+                winner = ranked_dicts[0]
+            final_roadmap[tag] = winner
             cache_key = generate_cache_key("coursera", tag, language)
-            await cache.set(cache_key, final_roadmap[tag])
+            await cache.set(cache_key, winner)
+            return winner
+
+    tags_to_scrape = []
+    tags_to_wait = []
+    locked_tokens = {}
+
+    for tag in tags_to_fetch:
+        cache_key = generate_cache_key("coursera", tag, language)
+        token = str(uuid.uuid4())
+        acquired = await cache.acquire_lock(cache_key, token, ttl=60)
+        if acquired:
+            locked_tokens[tag] = token
+            tags_to_scrape.append(tag)
+        else:
+            tags_to_wait.append(tag)
+
+    if tags_to_scrape:
+        try:
+            print(f"[Coursera] Starting Coursera Scraper for tags: {tags_to_scrape}...")
+            candidates_map = await asyncio.to_thread(
+                scrape_coursera_sync, sio, tags_to_scrape, language, max_results, driver
+            )
+            for tag in tags_to_scrape:
+                candidates = candidates_map.get(tag, [])
+                await process_and_cache_candidates(tag, candidates)
+        finally:
+            for tag, token in locked_tokens.items():
+                cache_key = generate_cache_key("coursera", tag, language)
+                await cache.release_lock(cache_key, token)
+
+    if tags_to_wait:
+        print(f"    [Cache Stampede Protection] Waiting for Coursera locks on: {tags_to_wait}...")
+        for tag in tags_to_wait:
+            cache_key = generate_cache_key("coursera", tag, language)
+            resolved = False
+            for _ in range(30):  # 15 seconds max wait
+                await asyncio.sleep(0.5)
+                try:
+                    cached = await cache.get(cache_key)
+                except Exception as ce:
+                    print(f"    [Cache Wait] Error reading cached result for {tag}: {ce}")
+                    cached = None
+                if cached is not None:
+                    print(f"    [Cache Hit via Lock] Coursera: {tag} ({language})")
+                    event_log.log(
+                        "success",
+                        "cache",
+                        "cache_hit",
+                        job_id=job_id,
+                        metadata={
+                            "source": "coursera",
+                            "tag": tag,
+                            "language": language,
+                            "stampede_protection": True,
+                        }
+                    )
+                    final_roadmap[tag] = cached
+                    resolved = True
+                    break
+            if not resolved:
+                print(f"    [Cache Wait Timeout] Falling back to scrape Coursera for '{tag}' individually...")
+                event_log.log(
+                    "info",
+                    "cache",
+                    "cache_miss_fallback",
+                    job_id=job_id,
+                    metadata={
+                        "source": "coursera",
+                        "tag": tag,
+                        "language": language,
+                        "reason": "lock_wait_timeout",
+                    }
+                )
+                single_map = await asyncio.to_thread(
+                    scrape_coursera_sync, sio, [tag], language, max_results, driver
+                )
+                candidates = single_map.get(tag, [])
+                await process_and_cache_candidates(tag, candidates)
 
     return final_roadmap
 

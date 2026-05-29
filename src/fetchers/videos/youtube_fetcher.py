@@ -71,37 +71,29 @@ async def fetch_youtube_data(session, url, params):
 async def process_single_tag(
     session, sio, socket_id, tag, language, max_results, precomputed_scope=None, job_id=None
 ):
-    from src.utils.event_log import event_log
-
     cache_key = generate_cache_key("youtube", tag, language)
-    cached_result = await cache.get(cache_key)
-    if cached_result:
-        print(f"    [Cache Hit] YouTube: {tag} ({language})")
-        event_log.log(
-            "success",
-            "cache",
-            "cache_hit",
-            job_id=job_id,
-            metadata={
-                "source": "youtube",
-                "tag": tag,
-                "language": language,
-            }
-        )
-        return tag, cached_result
-    else:
-        event_log.log(
-            "info",
-            "cache",
-            "cache_miss",
-            job_id=job_id,
-            metadata={
-                "source": "youtube",
-                "tag": tag,
-                "language": language,
-            }
+
+    async def fetch_factory():
+        return await _process_single_tag_impl(
+            session, sio, socket_id, tag, language, max_results, precomputed_scope, job_id
         )
 
+    from src.utils.cache import DEFAULT_TTL
+    result = await cache.get_or_set_with_lock(
+        key=cache_key,
+        ttl=DEFAULT_TTL,
+        factory=fetch_factory,
+        job_id=job_id,
+        source="youtube",
+        tag=tag,
+        language=language,
+    )
+    return tag, result
+
+
+async def _process_single_tag_impl(
+    session, sio, socket_id, tag, language, max_results, precomputed_scope=None, job_id=None
+):
     search_plans = QueryPlanner.build_search_plans(tag, language)
     primary_search_tag = search_plans[0]["query"] if search_plans else tag
 
@@ -112,8 +104,7 @@ async def process_single_tag(
         print(
             f"    [yt-dlp] Found result for '{tag}': {scraper_result.get('title', '')[:50]}"
         )
-        await cache.set(cache_key, scraper_result)
-        return tag, scraper_result
+        return scraper_result
 
     print(f"    [yt-dlp] No results for '{tag}'. Falling back to YouTube API...")
 
@@ -530,8 +521,7 @@ async def process_single_tag(
                 f"    [YouTube] Strict local match accepted: {result['title'][:40]}... "
                 f"(strict={best_strict['_strict_score']:.2f}, score={result['score']:.1f})"
             )
-            await cache.set(cache_key, result)
-            return tag, result
+            return result
 
     print(f"    [YouTube] AI Analyzing Top {len(top_candidates)} Candidates...")
     valid_items = await classify_via_frontend(sio, socket_id, tag, top_candidates, job_id=job_id)
@@ -548,8 +538,7 @@ async def process_single_tag(
         print(
             f"    [YouTube] AI Selected: {result['title'][:40]}... (Score: {result['score']:.1f})"
         )
-        await cache.set(cache_key, result)
-        return tag, result
+        return result
     else:
         if strict_candidates:
             result = {
@@ -559,13 +548,12 @@ async def process_single_tag(
                 f"    [YouTube] AI unavailable/rejected. Using strict local candidate: "
                 f"{result['title'][:40]}..."
             )
-            await cache.set(cache_key, result)
-            return tag, result
+            return result
 
         print(
             f"    [YouTube] AI rejected all and no strict local candidate matched '{tag}'."
         )
-        return tag, None
+        return None
 
 
 def _ensure_url(resource: dict | None) -> dict | None:
