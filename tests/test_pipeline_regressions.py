@@ -1,11 +1,13 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from src.planning.query_planner import QueryPlanner
 from src.fetchers.videos.youtube_fetcher import (
-    build_search_plans,
-    build_search_tag,
     process_single_tag,
 )
+
+build_search_plans = QueryPlanner.build_search_plans
+build_search_tag = QueryPlanner.build_search_tag
 
 
 def test_build_search_tag_extracts_dynamic_english_fallback_terms():
@@ -80,7 +82,7 @@ async def test_process_single_tag_returns_none_when_only_unrelated_candidates_ex
         "src.fetchers.videos.youtube_fetcher.emergency_fetch",
         new=AsyncMock(return_value=None),
     ), patch(
-        "src.fetchers.videos.youtube_fetcher.build_smart_queries",
+        "src.planning.query_planner.QueryPlanner.build_smart_queries",
         return_value=[("game development full course", "game development tutorial")],
     ), patch(
         "src.fetchers.videos.youtube_fetcher.fetch_youtube_data",

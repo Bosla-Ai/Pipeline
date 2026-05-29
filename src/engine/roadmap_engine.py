@@ -12,6 +12,7 @@ from src.utils.learning_path import generate_learning_path
 from src.utils.event_log import event_log
 from src.engine.runtime import runtime_limits, runtime_semaphores
 from src.engine.models import CourseSource
+from src.planning.source_planner import SourcePlanner
 
 
 def preprocess_tags(tags: list[str]) -> list[str]:
@@ -162,18 +163,7 @@ class RoadmapEngine:
 
         roadmap_result = {"youtube": {}, "coursera": {}, "udemy": {}}
 
-        if sources:
-            active_sources = sources
-            if prefer_paid:
-                # Strip free sources when user explicitly prefers paid;
-                # YouTube is still used as fallback for atomic / unmatched tags later.
-                paid_only = [s for s in active_sources if s != CourseSource.YOUTUBE]
-                if paid_only:
-                    active_sources = paid_only
-        elif prefer_paid:
-            active_sources = [CourseSource.UDEMY]
-        else:
-            active_sources = [CourseSource.YOUTUBE]
+        active_sources = SourcePlanner.plan_sources(sources, prefer_paid)
 
         event_log.log("info", "job", f"Active Sources: {active_sources}", job_id=job_id)
 
@@ -206,26 +196,12 @@ class RoadmapEngine:
                 job_id=job_id,
             )
 
-            from src.utils.helpers import analyze_topic_scope
-
             # Refresh sid in case the socket reconnected
             current_sid = socket_server.get_socket_for_job(job_id) or current_sid
 
-            broad_tags = []
-            atomic_tags = []
-            scope_cache = {}
-
-            async def analyze_tag(tag):
-                scope = await analyze_topic_scope(self.sio, current_sid, tag)
-                return tag, scope
-
-            scope_results = await asyncio.gather(*(analyze_tag(t) for t in tags))
-            for tag, scope in scope_results:
-                scope_cache[tag] = scope
-                if scope == "Broad":
-                    broad_tags.append(tag)
-                else:
-                    atomic_tags.append(tag)
+            broad_tags, atomic_tags, scope_cache = await SourcePlanner.plan_tag_scopes(
+                self.sio, current_sid, tags
+            )
 
             event_log.log(
                 "info",

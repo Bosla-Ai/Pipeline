@@ -11,11 +11,7 @@ from src.utils.helpers import (
     analyze_topic_scope,
     strict_relevance_score,
 )
-from src.utils.constants import (
-    TAG_MAP,
-    DESCRIPTIVE_TAG_DECOMPOSITION,
-    CORE_TECH_KEYWORDS,
-)
+from src.planning.query_planner import QueryPlanner
 from src.utils.scoring import calculate_video_score, calculate_playlist_score
 from src.utils.cache import cache, generate_cache_key
 from src.fetchers.videos.youtube_scraper import emergency_fetch
@@ -25,20 +21,6 @@ _api_exhausted = False
 SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 PLAYLIST_URL = "https://www.googleapis.com/youtube/v3/playlists"
-
-_QUERY_TOKEN_EXPANSIONS = {
-    "eng": "engineer",
-    "engr": "engineer",
-    "dev": "developer",
-}
-
-_ROLE_TOPIC_SUFFIXES = {
-    "analyst": "analytics",
-    "designer": "design",
-    "developer": "development",
-    "engineer": "engineering",
-    "tester": "testing",
-}
 
 
 async def fetch_youtube_data(session, url, params):
@@ -86,143 +68,6 @@ async def fetch_youtube_data(session, url, params):
     return {}
 
 
-def build_smart_queries(tag: str) -> list[tuple[str, str]]:
-    """
-    Generates optimized YouTube search queries from potentially descriptive tags.
-    Handles API-generated tags like 'Automated Testing with Jest' by decomposing
-    them into core tech + context queries.
-    """
-    tag_lower = tag.lower().strip()
-
-    # Check if this is a known descriptive pattern
-    for pattern, (q1, q2) in DESCRIPTIVE_TAG_DECOMPOSITION.items():
-        if pattern in tag_lower:
-            # Also check for a core tech keyword in the tag
-            core_tech = None
-            for tech in CORE_TECH_KEYWORDS:
-                if tech in tag_lower and tech != pattern:
-                    core_tech = tech
-                    break
-
-            if core_tech:
-                return [
-                    (f"{core_tech} {q1} full course", f"{core_tech} {q2} tutorial"),
-                    (f"{tag} full course", f"{tag} tutorial"),
-                ]
-            return [
-                (f"{q1} full course", f"{q2} tutorial"),
-                (f"{tag} full course", f"{tag} tutorial"),
-            ]
-
-    # For multi-word descriptive tags containing a core tech, lead with the tech
-    words = tag_lower.split()
-    if len(words) >= 3:
-        found_techs = [w for w in words if w in CORE_TECH_KEYWORDS]
-        if found_techs:
-            primary_tech = found_techs[0]
-            context = tag_lower.replace(primary_tech, "").strip()
-            context = " ".join(context.split())  # normalize spaces
-            if context and len(context) > 2:
-                return [
-                    (
-                        f"{primary_tech} {context} full course",
-                        f"{primary_tech} {context} tutorial",
-                    ),
-                    (f"{tag} full course", f"{tag} tutorial"),
-                ]
-
-    if len(words) >= 2 and words[-1] in _ROLE_TOPIC_SUFFIXES:
-        discipline_tag = " ".join(
-            [*words[:-1], _ROLE_TOPIC_SUFFIXES[words[-1]]]
-        ).strip()
-        if discipline_tag and discipline_tag != tag_lower:
-            return [
-                (
-                    f"{discipline_tag} full course",
-                    f"{discipline_tag} tutorial",
-                ),
-                (f"{tag} full course", f"{tag} tutorial"),
-            ]
-
-    # Default: original behavior
-    return [(f"{tag} full course", f"{tag} tutorial")]
-
-
-def normalize_search_tag(tag: str) -> str:
-    clean = " ".join(tag.replace("-", " ").split()).strip()
-    tokens = [
-        _QUERY_TOKEN_EXPANSIONS.get(token.lower(), token) for token in clean.split()
-    ]
-    expanded = " ".join(tokens).strip()
-    return TAG_MAP.get(expanded.lower(), expanded)
-
-
-def _dedupe_preserve_order(values: list[str]) -> list[str]:
-    seen = set()
-    ordered = []
-    for value in values:
-        if value in seen:
-            continue
-        seen.add(value)
-        ordered.append(value)
-    return ordered
-
-
-def build_search_tag(tag: str, language: str) -> str:
-    normalized = normalize_search_tag(tag)
-
-    if language != "en":
-        return normalized
-
-    if not re.search(r"[\u0600-\u06FF]", normalized):
-        return normalized
-
-    ascii_terms = []
-    for token in re.findall(r"[A-Za-z0-9#+.]+", normalized):
-        lowered = token.lower()
-        mapped = TAG_MAP.get(lowered, lowered)
-        ascii_terms.append(mapped)
-
-    ascii_terms = _dedupe_preserve_order(ascii_terms)
-    return " ".join(ascii_terms) if ascii_terms else normalized
-
-
-def build_search_plans(tag: str, language: str) -> list[dict]:
-    normalized = normalize_search_tag(tag)
-    has_arabic_query = bool(re.search(r"[\u0600-\u06FF]", normalized))
-    requested_language = "ar" if language == "ar" and has_arabic_query else "en"
-    plans = []
-    seen = set()
-
-    def add_plan(query: str, relevance_language: str | None):
-        clean_query = " ".join(query.split()).strip()
-        if not clean_query:
-            return
-
-        key = (clean_query.lower(), relevance_language or "")
-        if key in seen:
-            return
-
-        seen.add(key)
-        plans.append(
-            {
-                "query": clean_query,
-                "relevance_language": relevance_language,
-            }
-        )
-
-    add_plan(normalized, requested_language)
-
-    if language == "ar":
-        add_plan(normalized, None)
-
-        english_fallback = build_search_tag(normalized, "en")
-        if has_arabic_query and english_fallback.lower() != normalized.lower():
-            add_plan(english_fallback, "en")
-
-    return plans
-
-
 async def process_single_tag(
     session, sio, socket_id, tag, language, max_results, precomputed_scope=None
 ):
@@ -232,7 +77,7 @@ async def process_single_tag(
         print(f"    [Cache Hit] YouTube: {tag} ({language})")
         return tag, cached_result
 
-    search_plans = build_search_plans(tag, language)
+    search_plans = QueryPlanner.build_search_plans(tag, language)
     primary_search_tag = search_plans[0]["query"] if search_plans else tag
 
     # ── Try yt-dlp scraper first (no API quota cost) ──
@@ -259,7 +104,7 @@ async def process_single_tag(
             f"\n--- Processing: {tag} (Attempt {attempt_index}/{len(search_plans)}: {plan_label}, query: {search_tag}) ---"
         )
 
-        queries_to_try = build_smart_queries(search_tag)
+        queries_to_try = QueryPlanner.build_smart_queries(search_tag)
 
         for q_playlist, q_video in queries_to_try:
             if len(candidates) >= 10:
@@ -805,7 +650,7 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=
     original_tags = []  # Keep original for scope_cache lookup
     for t in tags:
         original_tags.append(t)
-        normalized_tags.append(normalize_search_tag(t))
+        normalized_tags.append(QueryPlanner.normalize_search_tag(t))
 
     async with aiohttp.ClientSession() as session:
         tasks = []

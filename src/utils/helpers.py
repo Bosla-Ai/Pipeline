@@ -167,7 +167,7 @@ class InferenceBatcher:
 
         real_results = []
         for r in results:
-            if isinstance(r, Exception):
+            if isinstance(r, BaseException):
                 raise r
             real_results.append(r)
         return real_results
