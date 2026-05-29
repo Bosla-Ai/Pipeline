@@ -1,0 +1,34 @@
+appsec:
+  prerequisites: [testing]
+secure coding:
+  prerequisites: [oop]
+owasp top 10:
+  prerequisites: [secure coding]
+xss:
+  prerequisites: [owasp top 10]
+csrf:
+  prerequisites: [owasp top 10]
+sqli:
+  prerequisites: [owasp top 10]
+ssrf:
+  prerequisites: [owasp top 10]
+idor:
+  prerequisites: [owasp top 10]
+threat modeling:
+  prerequisites: [secure coding]
+secrets management:
+  prerequisites: []
+vault:
+  prerequisites: [secrets management]
+devsecops:
+  prerequisites: [ci/cd]
+supply chain security:
+  prerequisites: [devsecops]
+dependency scanning:
+  prerequisites: [devsecops]
+container security:
+  prerequisites: [docker, devsecops]
+cloud security:
+  prerequisites: [cloud deployment, devsecops]
+sbom:
+  prerequisites: [supply chain security]

@@ -19,3 +19,31 @@ asp.net core: asp.net
 .net core: .net
 entity framework core: ef core
 object oriented programming: oop
+gen ai: generative ai
+genai: generative ai
+llm: llms
+large language models: llms
+large language model: llms
+vector db: vector databases
+vector database: vector databases
+vector dbs: vector databases
+otel: opentelemetry
+open telemetry: opentelemetry
+prom: prometheus
+kube: kubernetes
+docker compose: docker
+tf: tensorflow
+huggingface: hugging face
+hf: hugging face
+openai: openai api
+anthropic: anthropic api
+gemini: gemini api
+react query: tanstack query
+shadcn ui: shadcn
+radix: radix ui
+headless: headless ui
+drizzle orm: drizzle
+rsc: react server components
+opensearch: elasticsearch
+valkey: redis
+cloud run: google cloud run

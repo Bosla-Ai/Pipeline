@@ -84,3 +84,55 @@ def test_yaml_overrides(monkeypatch):
 
 def test_empty_tags():
     assert generate_learning_path([]) == {}
+
+
+def test_new_coverage_aliases():
+    # Test new aliases resolution
+    assert _normalize_tag("llm") == "llms"
+    assert _normalize_tag("genai") == "generative ai"
+    assert _normalize_tag("otel") == "opentelemetry"
+    assert _normalize_tag("vector db") == "vector databases"
+    assert _normalize_tag("k8s") == "kubernetes"
+
+
+def test_new_coverage_nodes():
+    # Verify new nodes are loaded in the graph
+    nodes = ["rag", "vector databases", "langchain", "opentelemetry", "cilium", "bun", "astro", "duckdb", "clickhouse", "dbt"]
+    for node in nodes:
+        assert node in PREREQUISITE_GRAPH
+
+
+def test_new_coverage_topological_sort():
+    # Verify topological order for new terms
+    # 1. llms + vector databases before rag
+    lp1 = generate_learning_path(["rag", "llms", "vector databases"])
+    phase_tags1 = [t["tag"] for p in lp1["phases"] for t in p["tags"]]
+    assert phase_tags1.index("llms") < phase_tags1.index("rag")
+    assert phase_tags1.index("vector databases") < phase_tags1.index("rag")
+
+    # 2. observability before opentelemetry
+    lp2 = generate_learning_path(["opentelemetry", "observability"])
+    phase_tags2 = [t["tag"] for p in lp2["phases"] for t in p["tags"]]
+    assert phase_tags2.index("observability") < phase_tags2.index("opentelemetry")
+
+    # 3. kubernetes before cilium
+    lp3 = generate_learning_path(["cilium", "kubernetes"])
+    phase_tags3 = [t["tag"] for p in lp3["phases"] for t in p["tags"]]
+    assert phase_tags3.index("kubernetes") < phase_tags3.index("cilium")
+
+
+def test_existing_behavior_remains():
+    # html -> css -> javascript -> react
+    lp = generate_learning_path(["react", "javascript", "css", "html"])
+    tags = [t["tag"] for p in lp["phases"] for t in p["tags"]]
+    assert tags.index("html") < tags.index("css")
+    assert tags.index("css") < tags.index("javascript")
+    assert tags.index("javascript") < tags.index("react")
+
+    # python -> numpy -> machine learning -> deep learning
+    lp_ds = generate_learning_path(["deep learning", "machine learning", "numpy", "python"])
+    tags_ds = [t["tag"] for p in lp_ds["phases"] for t in p["tags"]]
+    assert tags_ds.index("python") < tags_ds.index("numpy")
+    assert tags_ds.index("numpy") < tags_ds.index("machine learning")
+    assert tags_ds.index("machine learning") < tags_ds.index("deep learning")
+

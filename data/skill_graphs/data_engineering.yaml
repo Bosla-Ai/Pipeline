@@ -1,0 +1,40 @@
+duckdb:
+  prerequisites: [sql]
+clickhouse:
+  prerequisites: [sql]
+snowflake:
+  prerequisites: [sql]
+databricks:
+  prerequisites: [spark]
+dbt:
+  prerequisites: [sql]
+airflow:
+  prerequisites: [python]
+dagster:
+  prerequisites: [python]
+kafka:
+  prerequisites: []
+flink:
+  prerequisites: [java]
+data warehouse:
+  prerequisites: [sql]
+data lake:
+  prerequisites: []
+lakehouse:
+  prerequisites: [data warehouse]
+etl:
+  prerequisites: [sql]
+elt:
+  prerequisites: [sql]
+polars:
+  prerequisites: [python]
+ray:
+  prerequisites: [python]
+mlops:
+  prerequisites: [machine learning]
+feature stores:
+  prerequisites: [mlops]
+model deployment:
+  prerequisites: [mlops]
+model monitoring:
+  prerequisites: [mlops]

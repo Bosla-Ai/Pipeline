@@ -1,0 +1,36 @@
+astro:
+  prerequisites: [javascript]
+remix:
+  prerequisites: [react]
+tanstack query:
+  prerequisites: [react]
+tanstack router:
+  prerequisites: [react]
+shadcn:
+  prerequisites: [react, tailwind]
+radix ui:
+  prerequisites: [react]
+headless ui:
+  prerequisites: [react]
+turborepo:
+  prerequisites: [javascript]
+monorepo:
+  prerequisites: []
+pnpm:
+  prerequisites: [javascript]
+bun:
+  prerequisites: [javascript]
+deno:
+  prerequisites: [javascript]
+hono:
+  prerequisites: [typescript]
+drizzle:
+  prerequisites: [typescript]
+zod:
+  prerequisites: [typescript]
+react server components:
+  prerequisites: [react]
+server actions:
+  prerequisites: [react]
+storybook:
+  prerequisites: [react]

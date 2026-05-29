@@ -1,0 +1,58 @@
+generative ai:
+  prerequisites: []
+llms:
+  prerequisites: [generative ai]
+prompt engineering:
+  prerequisites: [llms]
+vector databases:
+  prerequisites: []
+rag:
+  prerequisites: [llms, vector databases]
+embeddings:
+  prerequisites: [machine learning]
+semantic search:
+  prerequisites: [embeddings]
+ai agents:
+  prerequisites: [llms]
+agentic workflows:
+  prerequisites: [ai agents]
+tool calling:
+  prerequisites: [ai agents]
+function calling:
+  prerequisites: [ai agents]
+mcp:
+  prerequisites: [ai agents]
+model context protocol:
+  prerequisites: [ai agents]
+langchain:
+  prerequisites: [llms, python]
+langgraph:
+  prerequisites: [llms, langchain]
+llamaindex:
+  prerequisites: [llms, python]
+openai api:
+  prerequisites: [llms]
+anthropic api:
+  prerequisites: [llms]
+gemini api:
+  prerequisites: [llms]
+hugging face:
+  prerequisites: [machine learning]
+transformers:
+  prerequisites: [deep learning]
+fine tuning:
+  prerequisites: [deep learning]
+lora:
+  prerequisites: [fine tuning]
+qlora:
+  prerequisites: [lora]
+quantization:
+  prerequisites: [deep learning]
+vllm:
+  prerequisites: [llms]
+ollama:
+  prerequisites: [llms]
+llama.cpp:
+  prerequisites: [llms]
+diffusion models:
+  prerequisites: [deep learning]

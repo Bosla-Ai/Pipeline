@@ -1,0 +1,108 @@
+message queues:
+  prerequisites: []
+rabbitmq:
+  prerequisites: [message queues]
+nats:
+  prerequisites: [message queues]
+event sourcing:
+  prerequisites: [system design]
+cqrs:
+  prerequisites: [system design]
+distributed systems:
+  prerequisites: [system design]
+caching:
+  prerequisites: []
+reverse proxy:
+  prerequisites: []
+rate limiting:
+  prerequisites: [reverse proxy]
+load balancing:
+  prerequisites: [reverse proxy]
+api gateway:
+  prerequisites: [reverse proxy]
+nginx:
+  prerequisites: [reverse proxy]
+envoy:
+  prerequisites: [reverse proxy]
+protobuf:
+  prerequisites: []
+openapi:
+  prerequisites: []
+swagger:
+  prerequisites: [openapi]
+trpc:
+  prerequisites: [typescript]
+graphql federation:
+  prerequisites: [graphql]
+background jobs:
+  prerequisites: []
+cron jobs:
+  prerequisites: [linux]
+celery:
+  prerequisites: [python, message queues]
+bullmq:
+  prerequisites: [javascript, redis]
+temporal:
+  prerequisites: [distributed systems]
+observability:
+  prerequisites: []
+opentelemetry:
+  prerequisites: [observability]
+prometheus:
+  prerequisites: [observability]
+grafana:
+  prerequisites: [prometheus]
+loki:
+  prerequisites: [observability]
+tempo:
+  prerequisites: [observability]
+jaeger:
+  prerequisites: [observability]
+datadog:
+  prerequisites: [observability]
+splunk:
+  prerequisites: [observability]
+new relic:
+  prerequisites: [observability]
+podman:
+  prerequisites: [linux]
+helm:
+  prerequisites: [kubernetes]
+gitops:
+  prerequisites: [git]
+argocd:
+  prerequisites: [kubernetes, gitops]
+fluxcd:
+  prerequisites: [kubernetes, gitops]
+cilium:
+  prerequisites: [kubernetes, networking]
+istio:
+  prerequisites: [kubernetes]
+linkerd:
+  prerequisites: [kubernetes]
+keda:
+  prerequisites: [kubernetes]
+serverless:
+  prerequisites: [cloud deployment]
+cloudflare workers:
+  prerequisites: [serverless]
+aws lambda:
+  prerequisites: [serverless, aws]
+azure functions:
+  prerequisites: [serverless, azure]
+google cloud run:
+  prerequisites: [docker, gcp]
+cloud run:
+  prerequisites: [docker, gcp]
+ecs:
+  prerequisites: [docker, aws]
+eks:
+  prerequisites: [kubernetes, aws]
+aks:
+  prerequisites: [kubernetes, azure]
+gke:
+  prerequisites: [kubernetes, gcp]
+iam:
+  prerequisites: []
+sops:
+  prerequisites: [git]
