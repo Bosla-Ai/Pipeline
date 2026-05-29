@@ -1,18 +1,22 @@
 """
 Pipeline Event Log — in-memory structured event store with 24h auto-cleanup.
+Optionally persists logs to Redis if available.
 
 Usage:
     from src.utils.event_log import event_log
 
     event_log.log("info", "system", "Driver initialized")
     event_log.log("error", "fetcher", "YouTube timeout", job_id="abc123")
-    logs = event_log.get_logs(level="error", limit=50)
+    logs = await event_log.get_logs(level="error", limit=50)
 """
 
 import asyncio
+import os
+import json
 import uuid
 from collections import deque
 from datetime import datetime, timezone, timedelta
+import redis.asyncio as redis
 
 LEVELS = {"info", "warn", "error", "success"}
 CATEGORIES = {"system", "socket", "job", "fetcher", "cache", "driver"}
@@ -20,6 +24,9 @@ CATEGORIES = {"system", "socket", "job", "fetcher", "cache", "driver"}
 MAX_ENTRIES = 2000
 CLEANUP_INTERVAL_SECONDS = 3600  # 1 hour
 LOG_TTL_HOURS = 24
+
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
 # Emoji map for console output
 _EMOJI = {
@@ -31,12 +38,33 @@ _EMOJI = {
 
 
 class EventLog:
-    """Thread-safe (GIL-protected) in-memory event log with TTL cleanup."""
+    """Thread-safe (GIL-protected) in-memory event log with TTL cleanup, optionally Redis-backed."""
 
     def __init__(self, max_entries: int = MAX_ENTRIES):
         self._entries: deque[dict] = deque(maxlen=max_entries)
         self._cleanup_task: asyncio.Task | None = None
         self._broadcast_fn = None  # set by socket_server for real-time streaming
+        self._redis_client: redis.Redis | None = None
+        self._use_redis: bool = False
+
+    async def connect(self):
+        """Initialize Redis connection for event logs."""
+        if self._redis_client is None:
+            try:
+                self._redis_client = redis.Redis(
+                    host=REDIS_HOST,
+                    port=REDIS_PORT,
+                    decode_responses=True,
+                )
+                await self._redis_client.ping()
+                self._use_redis = True
+                print(f"[EventLog] Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
+            except Exception as e:
+                print(
+                    f"[EventLog] Redis unavailable: {e}. Falling back to in-memory logs."
+                )
+                self._redis_client = None
+                self._use_redis = False
 
     def set_broadcast(self, fn):
         """Register an async callback to broadcast new log entries (e.g. via Socket.IO)."""
@@ -76,6 +104,15 @@ class EventLog:
             except RuntimeError:
                 pass  # no running loop yet (startup)
 
+        # Write asynchronously to Redis if active
+        if self._use_redis and self._redis_client:
+            try:
+                loop = asyncio.get_running_loop()
+                if loop.is_running():
+                    loop.create_task(self._write_to_redis(entry))
+            except RuntimeError:
+                pass
+
         # Also print for container logs
         emoji = _EMOJI.get(level, "·")
         tag = f"[{category.upper()}]"
@@ -84,9 +121,28 @@ class EventLog:
 
         return entry
 
+    async def _write_to_redis(self, entry: dict):
+        if not self._redis_client:
+            return
+        try:
+            entry_str = json.dumps(entry)
+            # LPUSH to global logs
+            await self._redis_client.lpush("logs:global", entry_str)
+            await self._redis_client.ltrim("logs:global", 0, MAX_ENTRIES - 1)
+            await self._redis_client.expire("logs:global", LOG_TTL_HOURS * 3600)
+
+            # If job_id is provided, RPUSH to job logs (timeline order)
+            if entry.get("job_id"):
+                job_key = f"logs:job:{entry['job_id']}"
+                await self._redis_client.rpush(job_key, entry_str)
+                await self._redis_client.expire(job_key, LOG_TTL_HOURS * 3600)
+        except Exception as e:
+            # Fall back to standard print to avoid infinite recursion
+            print(f"[EventLog] Error writing to Redis: {e}", flush=True)
+
     # ── Retrieval ───────────────────────────────────────────
 
-    def get_logs(
+    async def get_logs(
         self,
         *,
         since: str | None = None,
@@ -96,7 +152,23 @@ class EventLog:
         limit: int = 200,
     ) -> list[dict]:
         """Return logs filtered by optional criteria, newest first."""
-        entries = list(self._entries)
+        if self._use_redis and self._redis_client:
+            try:
+                if job_id:
+                    key = f"logs:job:{job_id}"
+                    raw_entries = await self._redis_client.lrange(key, 0, -1)
+                    # Reverse because RPUSH order is oldest first, but get_logs returns newest first
+                    entries = [json.loads(e) for e in reversed(raw_entries)]
+                else:
+                    raw_entries = await self._redis_client.lrange(
+                        "logs:global", 0, limit * 2
+                    )
+                    entries = [json.loads(e) for e in raw_entries]
+            except Exception as e:
+                print(f"[EventLog] Error getting logs from Redis: {e}", flush=True)
+                entries = [json.loads(json.dumps(e)) for e in reversed(self._entries)]
+        else:
+            entries = [json.loads(json.dumps(e)) for e in reversed(self._entries)]
 
         if since:
             try:
@@ -115,14 +187,23 @@ class EventLog:
         if category and category in CATEGORIES:
             entries = [e for e in entries if e["category"] == category]
 
-        if job_id:
+        if job_id and not (self._use_redis and self._redis_client):
             entries = [e for e in entries if e.get("job_id") == job_id]
 
-        # Newest first, limited
-        return list(reversed(entries))[:limit]
+        return entries[:limit]
 
     @property
     def count(self) -> int:
+        """In-memory log count fallback."""
+        return len(self._entries)
+
+    async def get_count(self) -> int:
+        """Get total logs count from Redis if available, or fallback to in-memory."""
+        if self._use_redis and self._redis_client:
+            try:
+                return await self._redis_client.llen("logs:global")
+            except Exception as e:
+                print(f"[EventLog] Error getting count from Redis: {e}", flush=True)
         return len(self._entries)
 
     def clear(self):
@@ -131,7 +212,7 @@ class EventLog:
     # ── Auto-Cleanup ────────────────────────────────────────
 
     def cleanup_old(self, hours: int = LOG_TTL_HOURS):
-        """Remove entries older than `hours`."""
+        """Remove entries older than `hours` (in memory)."""
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         before = len(self._entries)
 

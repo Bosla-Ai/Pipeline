@@ -79,18 +79,31 @@ class RoadmapEngine:
         tag_checkpoints: Optional[dict] = None,
         job_id: Optional[str] = None,
     ) -> dict[str, Any]:
-        async with runtime_semaphores.jobs:
-            return await asyncio.wait_for(
-                self._generate_impl(
-                    tags=tags,
-                    prefer_paid=prefer_paid,
-                    language=language,
-                    sources=sources,
-                    tag_checkpoints=tag_checkpoints,
-                    job_id=job_id,
-                ),
-                timeout=runtime_limits.full_job_timeout_seconds,
-            )
+        if not job_id:
+            job_id = uuid.uuid4().hex[:12]
+
+        from src.engine.job_store import job_store
+
+        await job_store.start_job(job_id)
+
+        try:
+            async with runtime_semaphores.jobs:
+                result = await asyncio.wait_for(
+                    self._generate_impl(
+                        tags=tags,
+                        prefer_paid=prefer_paid,
+                        language=language,
+                        sources=sources,
+                        tag_checkpoints=tag_checkpoints,
+                        job_id=job_id,
+                    ),
+                    timeout=runtime_limits.full_job_timeout_seconds,
+                )
+            await job_store.complete_job(job_id, result)
+            return result
+        except Exception as e:
+            await job_store.fail_job(job_id, str(e))
+            raise
 
     async def _generate_impl(
         self,

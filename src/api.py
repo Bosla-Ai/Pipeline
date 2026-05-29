@@ -70,7 +70,7 @@ async def stats(_auth: None = Depends(verify_pipeline_secret)):
     """Return connected sockets, active jobs, connection details, and recent error count."""
     base = socket_server.get_stats()
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
-    recent_errors = event_log.get_logs(since=cutoff, level="error", limit=1000)
+    recent_errors = await event_log.get_logs(since=cutoff, level="error", limit=1000)
     base["error_count_5m"] = len(recent_errors)
     return base
 
@@ -88,8 +88,8 @@ async def get_logs(
 ):
     """Return pipeline event logs, newest first. Auto-cleaned after 24h."""
     return {
-        "total": event_log.count,
-        "logs": event_log.get_logs(
+        "total": await event_log.get_count(),
+        "logs": await event_log.get_logs(
             since=since, level=level, category=category, job_id=job_id, limit=limit
         ),
     }
@@ -102,7 +102,7 @@ async def get_job_logs(
     _auth: None = Depends(verify_pipeline_secret),
 ):
     """Return all log entries for a specific job, chronologically (oldest first)."""
-    entries = event_log.get_logs(job_id=job_id, limit=limit)
+    entries = await event_log.get_logs(job_id=job_id, limit=limit)
     # get_logs returns newest first; reverse for timeline order
     return {"job_id": job_id, "total": len(entries), "logs": list(reversed(entries))}
 
@@ -118,7 +118,7 @@ async def export_logs(
     _auth: None = Depends(verify_pipeline_secret),
 ):
     """Export logs as a downloadable JSON or CSV file."""
-    entries = event_log.get_logs(
+    entries = await event_log.get_logs(
         since=since, level=level, category=category, job_id=job_id, limit=limit
     )
 
@@ -167,6 +167,12 @@ DRIVER_LOCK = asyncio.Lock()
 @app.on_event("startup")
 async def startup_event():
     global GLOBAL_DRIVER
+
+    # Connect event_log and job_store to Redis
+    await event_log.connect()
+    from src.engine.job_store import job_store
+
+    await job_store.connect()
 
     # Start the 24h log cleanup background task
     event_log.start_cleanup_task()
@@ -360,6 +366,15 @@ async def generate_roadmap(
     job_id = request.job_id or uuid.uuid4().hex[:12]
     event_log.log("info", "job", f"Incoming roadmap request", job_id=job_id)
 
+    from src.engine.job_store import job_store
+
+    await job_store.create_job(
+        job_id=job_id,
+        tags=request.tags,
+        language=request.language,
+        prefer_paid=request.prefer_paid,
+    )
+
     engine = RoadmapEngine(
         sio=sio,
         fetch_youtube=fetch_youtube,
@@ -375,3 +390,17 @@ async def generate_roadmap(
         tag_checkpoints=request.tag_checkpoints,
         job_id=job_id,
     )
+
+
+@app.get("/job/{job_id}")
+async def get_job_status(
+    job_id: str,
+    _auth: None = Depends(verify_pipeline_secret),
+):
+    """Retrieve the status and result/error of a specific job."""
+    from src.engine.job_store import job_store
+
+    job = await job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
