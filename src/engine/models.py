@@ -138,7 +138,11 @@ class Candidate:
             except (ValueError, TypeError):
                 review_count = None
 
-        lecture_count = raw.get("lecture_count") or raw.get("videoCount")
+        lecture_count = (
+            raw.get("lecture_count")
+            or raw.get("lectureCount")
+            or raw.get("videoCount")
+        )
         if lecture_count is not None:
             try:
                 lecture_count = int(lecture_count)

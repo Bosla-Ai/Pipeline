@@ -229,8 +229,13 @@ def calculate_udemy_score(course: dict, tag: str) -> float:
         elif rating < 3.8:
             score -= 15
 
-    # Check lectures under both possible keys: videoCount or lectures
-    lectures_val = course.get("videoCount") or course.get("lectures")
+    # Check lectures under various keys, prioritizing lectureCount/lecture_count
+    lectures_val = (
+        course.get("lectureCount")
+        or course.get("lecture_count")
+        or course.get("lectures")
+        or course.get("videoCount")
+    )
     lectures = _parse_int(lectures_val)
     if lectures:
         if lectures >= 80:

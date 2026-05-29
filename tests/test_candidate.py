@@ -55,9 +55,10 @@ def test_udemy_normalization():
         "url": "https://www.udemy.com/course/python",
         "imageUrl": "https://img.udemy.com/python.jpg",
         "platform": "Udemy",
-        "videoCount": 120,
-        "subscriberCount": 0,
-        "publishedAt": "",
+        "hours": "20 hours",
+        "lectures": "120 lectures",
+        "lectureCount": 120,
+        "lecture_count": 120,
         "score": 85.0,
     }
     candidate = Candidate.from_dict(raw, SourceName.UDEMY, "python")
@@ -73,6 +74,9 @@ def test_udemy_normalization():
     serialized = candidate.to_dict()
     assert serialized["price"] == "$19.99"
     assert serialized["instructor"] == "John Doe"
+    assert "subscriberCount" not in serialized
+    assert "publishedAt" not in serialized
+    assert "videoCount" not in serialized
 
 
 def test_candidate_deduplication():
@@ -185,12 +189,39 @@ def test_udemy_cheap_ranking():
         "price": "$19.99",
         "description": "40 hours | 200 lectures",
         "url": "https://www.udemy.com/course/python",
-        "videoCount": 200,
         "hours": "40 hours",
         "lectures": "200 lectures",
+        "lectureCount": 200,
+        "lecture_count": 200,
         "score": 0.0,
     }
     candidate = Candidate.from_dict(raw, SourceName.UDEMY, "python")
     score = cheap_rank_candidate(candidate, "python")
     assert score > 50.0  # high match score
+
+
+def test_udemy_fetcher_no_fake_youtube_fields():
+    from unittest.mock import MagicMock
+    from src.fetchers.videos.udemy_fetcher import UdemyFetcher
+
+    fetcher = UdemyFetcher(["python"])
+    card = MagicMock()
+
+    selection_mock = MagicMock()
+    link_mock = MagicMock()
+    link_mock.text = "Python Programming"
+    link_mock.attrib = {"href": "/course/python/"}
+
+    selection_mock.first = link_mock
+    selection_mock.__iter__.return_value = []
+    card.css.return_value = selection_mock
+
+    course_data = fetcher._extract_from_card(card, "python")
+    assert course_data is not None
+    assert "subscriberCount" not in course_data
+    assert "publishedAt" not in course_data
+    assert "videoCount" not in course_data
+    assert "hours" in course_data
+    assert "lectures" in course_data
+    assert "lectureCount" in course_data
 

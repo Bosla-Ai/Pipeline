@@ -194,11 +194,10 @@ class UdemyFetcher:
             "url": url,
             "imageUrl": image_url,
             "platform": "Udemy",
-            "videoCount": lecture_count,
-            "subscriberCount": 0,
-            "publishedAt": "",
             "hours": hours,
             "lectures": lectures,
+            "lectureCount": lecture_count,
+            "lecture_count": lecture_count,
         }
 
         course_data["score"] = calculate_udemy_score(course_data, tag)
