@@ -19,7 +19,17 @@ from datetime import datetime, timezone, timedelta
 import redis.asyncio as redis
 
 LEVELS = {"info", "warn", "error", "success"}
-CATEGORIES = {"system", "socket", "job", "fetcher", "cache", "driver"}
+CATEGORIES = {
+    "system",
+    "socket",
+    "job",
+    "fetcher",
+    "cache",
+    "driver",
+    "video_search",
+    "playlist_proxy",
+    "resource_audit",
+}
 
 MAX_ENTRIES = 2000
 CLEANUP_INTERVAL_SECONDS = 3600  # 1 hour
@@ -28,12 +38,12 @@ LOG_TTL_HOURS = 24
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
-# Emoji map for console output
-_EMOJI = {
-    "info": "🔹",
-    "warn": "⚠️",
-    "error": "❌",
-    "success": "✅",
+# Level prefixes for console output
+_LEVEL_PREFIX = {
+    "info": "INFO",
+    "warn": "WARN",
+    "error": "ERROR",
+    "success": "SUCCESS",
 }
 
 
@@ -114,10 +124,10 @@ class EventLog:
                 pass
 
         # Also print for container logs
-        emoji = _EMOJI.get(level, "·")
+        prefix = _LEVEL_PREFIX.get(level, "INFO")
         tag = f"[{category.upper()}]"
         jid = f" [JOB {job_id[:8]}]" if job_id else ""
-        print(f"{emoji} {tag}{jid} {message}", flush=True)
+        print(f"[{prefix}] {tag}{jid} {message}", flush=True)
 
         return entry
 
@@ -160,8 +170,9 @@ class EventLog:
                     # Reverse because RPUSH order is oldest first, but get_logs returns newest first
                     entries = [json.loads(e) for e in reversed(raw_entries)]
                 else:
+                    scan_limit = min(MAX_ENTRIES, max(limit * 10, 500))
                     raw_entries = await self._redis_client.lrange(
-                        "logs:global", 0, limit * 2
+                        "logs:global", 0, scan_limit - 1
                     )
                     entries = [json.loads(e) for e in raw_entries]
             except Exception as e:

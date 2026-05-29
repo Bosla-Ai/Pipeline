@@ -98,3 +98,49 @@ async def test_event_log_async_write_queue(clean_log):
     # Verify write was triggered in Redis
     mock_redis.lpush.assert_called_once()
     mock_redis.rpush.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_event_log_non_core_categories(clean_log):
+    # Test that non-core categories are not normalized to system
+    entry1 = clean_log.log("info", "video_search", "Searching Python videos")
+    entry2 = clean_log.log("info", "resource_audit", "Auditing resources")
+    entry3 = clean_log.log("info", "playlist_proxy", "Proxying playlist")
+    entry4 = clean_log.log("info", "unknown_category", "Unknown log")
+
+    assert entry1["category"] == "video_search"
+    assert entry2["category"] == "resource_audit"
+    assert entry3["category"] == "playlist_proxy"
+    assert entry4["category"] == "system"  # Unknown still falls back to system
+
+
+@pytest.mark.anyio
+async def test_event_log_redis_scan_window(clean_log):
+    mock_redis = mock.AsyncMock()
+    clean_log._redis_client = mock_redis
+    clean_log._use_redis = True
+
+    # Generate mock logs and place target log at the end
+    mock_entries = [
+        {
+            "id": f"log{i}",
+            "level": "info",
+            "category": "system",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        for i in range(10)
+    ]
+    mock_entries.append(
+        {
+            "id": "log_target",
+            "level": "error",
+            "category": "fetcher",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+    mock_redis.lrange.return_value = [json.dumps(e) for e in mock_entries]
+
+    logs = await clean_log.get_logs(level="error", limit=1)
+    assert len(logs) == 1
+    assert logs[0]["id"] == "log_target"

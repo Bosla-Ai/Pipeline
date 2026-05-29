@@ -84,6 +84,14 @@ class RoadmapEngine:
 
         from src.engine.job_store import job_store
 
+        existing = await job_store.get_job(job_id)
+        if not existing:
+            await job_store.create_job(
+                job_id=job_id,
+                tags=tags,
+                language=language,
+                prefer_paid=prefer_paid,
+            )
         await job_store.start_job(job_id)
 
         try:

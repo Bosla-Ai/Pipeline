@@ -76,3 +76,45 @@ async def test_job_store_redis_connected(clean_store):
     assert retrieved["job_id"] == "test_redis"
     assert retrieved["status"] == "completed"
     mock_redis.get.assert_called_with("job:test_redis")
+
+
+@pytest.mark.anyio
+async def test_roadmap_engine_creates_missing_job(clean_store):
+    from src.engine.roadmap_engine import RoadmapEngine
+
+    mock_sio = mock.AsyncMock()
+    mock_fetch_yt = mock.AsyncMock()
+    mock_fetch_coursera = mock.AsyncMock()
+    mock_get_driver = mock.Mock()
+
+    engine = RoadmapEngine(
+        sio=mock_sio,
+        fetch_youtube=mock_fetch_yt,
+        fetch_coursera=mock_fetch_coursera,
+        get_global_driver=mock_get_driver,
+    )
+
+    with mock.patch.object(
+        engine, "_generate_impl", new_callable=mock.AsyncMock
+    ) as mock_impl:
+        mock_impl.return_value = {"status": "success", "roadmap": []}
+
+        # Clear active singleton state
+        from src.engine.job_store import job_store
+
+        job_store._in_memory_jobs.clear()
+        job_store._client = None
+
+        res = await engine.generate(
+            tags=["django"],
+            prefer_paid=False,
+            language="en",
+            job_id="missing_job_123",
+        )
+
+        job = await job_store.get_job("missing_job_123")
+        assert job is not None
+        assert job["job_id"] == "missing_job_123"
+        assert job["status"] == "completed"
+        assert job["tags"] == ["django"]
+        assert job["result"] == {"status": "success", "roadmap": []}
