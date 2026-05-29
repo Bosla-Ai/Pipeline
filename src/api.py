@@ -65,6 +65,12 @@ class RoadmapRequest(BaseModel):
     job_id: Optional[str] = None
 
 
+@app.get("/health")
+async def health():
+    """Public healthcheck endpoint returning simple status and service availability."""
+    return {"status": "healthy"}
+
+
 @app.get("/stats")
 async def stats(_auth: None = Depends(verify_pipeline_secret)):
     """Return connected sockets, active jobs, connection details, and recent error count."""

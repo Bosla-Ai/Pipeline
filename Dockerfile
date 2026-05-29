@@ -13,7 +13,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget gnupg2 curl ca-certificates apt-transport-https software-properties-common \
     xauth unzip libgconf-2-4 libnss3 libxss1 libasound2 fonts-liberation \
-    libgbm1 libu2f-udev xdg-utils redis-server \
+    libgbm1 libu2f-udev xdg-utils redis-server xvfb x11-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome (Run as Root)
@@ -61,8 +61,15 @@ COPY --chown=user . .
 # Create Redis data directory for non-root user
 RUN mkdir -p $HOME/redis-data
 
+# Make sure start.sh is executable
+RUN chmod +x start.sh
+
 # Change Port to 7860 (Hugging Face Requirement)
 EXPOSE 7860
 
-# Start command: Redis (user-mode) + Xvfb + Uvicorn (Updated port to 7860 for HF)
-CMD ["sh", "-c", "redis-server --daemonize yes --dir /home/user/redis-data --bind 127.0.0.1 --port 6379 && Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && export DISPLAY=:99 && uvicorn src.main:combined_app --host 0.0.0.0 --port 7860"]
+# Add healthcheck to monitor application health status
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:7860/health')" || exit 1
+
+# Start command: Execute start.sh which safely orchestrates Redis, Xvfb, and Uvicorn
+CMD ["./start.sh"]

@@ -56,3 +56,8 @@ async def test_auth_validation_on_all_endpoints(monkeypatch):
 
         r = await ac.get("/logs/job/testjob", headers=headers)
         assert r.status_code == 200
+
+        # Public /health check should return 200 without authentication headers
+        r = await ac.get("/health")
+        assert r.status_code == 200
+        assert r.json() == {"status": "healthy"}
