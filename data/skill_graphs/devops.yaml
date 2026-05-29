@@ -8,8 +8,6 @@ docker:
   prerequisites: [linux]
 kubernetes:
   prerequisites: [docker]
-k8s:
-  prerequisites: [docker]
 ci/cd:
   prerequisites: [git]
 github actions:

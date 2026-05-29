@@ -92,8 +92,6 @@ azure functions:
   prerequisites: [serverless, azure]
 google cloud run:
   prerequisites: [docker, gcp]
-cloud run:
-  prerequisites: [docker, gcp]
 ecs:
   prerequisites: [docker, aws]
 eks:

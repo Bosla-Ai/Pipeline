@@ -89,7 +89,8 @@ src/**/__pycache__/**.png
 src/.cookies/
 
 # Scripts with secrets
-scripts/
+scripts/*
+!scripts/validate_graph.py
 
 # Pipeline output files
 result.txt

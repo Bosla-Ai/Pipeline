@@ -13,7 +13,6 @@ vue js: vue
 golang: go
 k8s: kubernetes
 postgres: postgresql
-react native: react native
 ruby on rails: rails
 asp.net core: asp.net
 .net core: .net
