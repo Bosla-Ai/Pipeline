@@ -4,9 +4,8 @@ set -euo pipefail
 # 1. Clean up any leftover lock files for Xvfb to prevent lock issues on reboot/container restart
 echo "[start] Cleaning up stale locks..."
 rm -f /tmp/.X99-lock || true
-rm -rf /tmp/.X11-unix || true
-mkdir -p /tmp/.X11-unix
-chmod 1777 /tmp/.X11-unix
+mkdir -p /tmp/.X11-unix || true
+chmod 1777 /tmp/.X11-unix 2>/dev/null || true
 
 # 2. Start Redis in daemonized mode with safe maxmemory constraints inside a single container environment.
 # Setting a conservative limit like 1024mb (or configurable via REDIS_MAXMEMORY) and volatile-ttl maxmemory policy prevents container OOM.
