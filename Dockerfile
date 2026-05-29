@@ -50,7 +50,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright system deps as root (requires apt-get), then switch back
 USER root
-RUN pip install --no-cache-dir playwright && python3 -m playwright install-deps chromium
+RUN pip install --no-cache-dir --constraint requirements.txt playwright && python3 -m playwright install-deps chromium
 USER user
 
 # Install Scrapling browser binaries + Playwright browsers as user
