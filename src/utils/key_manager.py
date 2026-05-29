@@ -13,7 +13,7 @@ except ImportError:
         YOUTUBE_API_KEYS = []
 
     if not YOUTUBE_API_KEYS:
-        print("⚠️ Warning: No API Keys found in settings.py or Environment Variables.")
+        print("Warning: No API Keys found in settings.py or Environment Variables.")
 
 
 class KeyManager:
@@ -35,10 +35,10 @@ class KeyManager:
 
         # Optional: Prevent infinite loops if all keys are dead
         if next_index == 0:
-            print("    ⚠️ All API Keys have been exhausted!")
+            print("    [KeyManager] All API Keys have been exhausted!")
 
         self.current_index = next_index
-        print(f"    🔄 Switching to API Key #{self.current_index + 1}...")
+        print(f"    [KeyManager] Switching to API Key #{self.current_index + 1}...")
         return self.keys[self.current_index]
 
 

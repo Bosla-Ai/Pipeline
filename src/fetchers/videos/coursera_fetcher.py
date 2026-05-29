@@ -25,7 +25,7 @@ async def fetch_coursera(
         cache_key = generate_cache_key("coursera", tag, language)
         cached_result = await cache.get(cache_key)
         if cached_result:
-            print(f"    ✅ [Cache Hit] Coursera: {tag} ({language})")
+            print(f"    [Cache Hit] Coursera: {tag} ({language})")
             final_roadmap[tag] = cached_result
         else:
             tags_to_fetch.append(tag)
@@ -46,20 +46,14 @@ async def fetch_coursera(
         # Normalization, Deduplication, and Cheap Ranking (Phase 6, 7, 8)
         from src.engine.models import Candidate, SourceName
         from src.engine.runtime import runtime_limits
+        from src.ranking.dedupe import dedupe_candidates
+        from src.ranking.cheap_ranker import cheap_rank
 
         candidate_objs = [
             Candidate.from_dict(c, SourceName.COURSERA, tag) for c in candidates
         ]
-
-        seen_urls = set()
-        deduped_objs = []
-        for c in candidate_objs:
-            url_norm = c.url.strip().lower()
-            if url_norm not in seen_urls:
-                seen_urls.add(url_norm)
-                deduped_objs.append(c)
-
-        ranked_objs = sorted(deduped_objs, key=lambda x: x.raw_score, reverse=True)[
+        deduped_objs = dedupe_candidates(candidate_objs)
+        ranked_objs = cheap_rank(deduped_objs, tag)[
             : runtime_limits.cheap_rank_limit_per_tag
         ]
 
@@ -123,7 +117,7 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
             options.add_argument("--blink-settings=imagesEnabled=false")
             driver = uc.Chrome(options=options)
         else:
-            print("    ♻️ Reusing Global Coursera Driver")
+            print("    [Coursera] Reusing Global Coursera Driver")
 
         for tag in tags:
             print(f"\n--- Scraping Coursera: {tag} ({lang_param}) ---")
@@ -131,7 +125,7 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
 
             encoded_tag = urllib.parse.quote_plus(tag)
             url = f"https://www.coursera.org/search?query={encoded_tag}&language={lang_param}"
-            print(f"    🌍 Visiting: {url}")
+            print(f"    [Coursera] Visiting: {url}")
             driver.get(url)
 
             candidates = []
@@ -144,10 +138,7 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                 )
 
                 all_links = driver.find_elements(By.TAG_NAME, "a")
-                # print(f"    🔎 Scanning {len(all_links)} total links on page...")
-                print(
-                    f"    🔎 [Coursera] Scanning {len(all_links)} links for '{tag}'..."
-                )
+                print(f"    [Coursera] Scanning {len(all_links)} links for '{tag}'...")
 
                 count = 0
                 for link in all_links:
@@ -196,28 +187,31 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                             "description": "Coursera Content",
                             "imageUrl": "",
                             "platform": "Coursera",
-                            "videoCount": 40,
-                            "subscriberCount": 500000,
-                            "publishedAt": "2024-01-01T00:00:00Z",
                             "is_native_arabic": has_arabic_char,
+                            "search_position": count,
                         }
 
-                        from src.utils.scoring import calculate_playlist_score
+                        from src.ranking.cheap_ranker import calculate_coursera_score
 
-                        data["score"] = calculate_playlist_score(data)
+                        data["score"] = calculate_coursera_score(
+                            title=title,
+                            tag=tag,
+                            url=href,
+                            search_position=count,
+                            is_native_arabic=has_arabic_char,
+                        )
 
                         candidates.append(data)
                         seen_urls.add(href)
                         count += 1
-                        # print(f"    ✔ Found: {title[:30]}...")
 
                     except Exception as inner_e:
                         continue
 
-                print(f"    ✔ [Coursera] Found {len(candidates)} valid candidates.")
+                print(f"    [Coursera] Found {len(candidates)} valid candidates.")
 
             except Exception as e:
-                print(f"    ❌ [Coursera] Error: {e}")
+                print(f"    [Coursera] Error: {e}")
 
             if language == "ar" and candidates:
                 candidates.sort(key=lambda x: x["is_native_arabic"], reverse=True)
@@ -225,11 +219,11 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
             if candidates:
                 candidates_map[tag] = candidates
             else:
-                print(f"    ⚠️ [Coursera] No results for '{tag}'")
+                print(f"    [Coursera] No results for '{tag}'")
                 candidates_map[tag] = []
 
     except Exception as e:
-        print(f"    ❌ [Coursera] Critical Error: {e}")
+        print(f"    [Coursera] Critical Error: {e}")
 
     finally:
         if driver and local_driver:

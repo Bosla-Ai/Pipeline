@@ -147,6 +147,10 @@ class Candidate:
 
         published_at = raw.get("published_at") or raw.get("publishedAt")
         raw_score = raw.get("raw_score") or raw.get("score", 0.0)
+        try:
+            raw_score = float(raw_score)
+        except (ValueError, TypeError):
+            raw_score = 0.0
 
         return cls(
             source=source_enum,

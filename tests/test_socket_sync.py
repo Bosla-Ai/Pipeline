@@ -13,7 +13,11 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, patch
 
-from src.api import app, wait_for_socket
+import importlib
+import src.api as api_mod
+
+importlib.reload(api_mod)
+from src.api import app, wait_for_socket, verify_pipeline_secret
 import src.socket_server as ss
 
 # ── Helpers ───────────────────────────────────────────────────
@@ -28,9 +32,11 @@ def _reset_registry():
 
 @pytest.fixture(autouse=True)
 def clean_state():
+    app.dependency_overrides[verify_pipeline_secret] = lambda: None
     _reset_registry()
     yield
     _reset_registry()
+    app.dependency_overrides.clear()
 
 
 # ═════════════════════════════════════════════════════════════

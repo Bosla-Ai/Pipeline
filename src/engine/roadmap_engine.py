@@ -306,6 +306,8 @@ class RoadmapEngine:
 
                                     from src.engine.models import Candidate, SourceName
                                     from src.engine.runtime import runtime_limits
+                                    from src.ranking.dedupe import dedupe_candidates
+                                    from src.ranking.cheap_ranker import cheap_rank
 
                                     pool_candidates = candidates[
                                         : runtime_limits.candidate_pool_limit_per_tag
@@ -315,19 +317,10 @@ class RoadmapEngine:
                                         for c in pool_candidates
                                     ]
 
-                                    seen_urls = set()
-                                    deduped_objs = []
-                                    for c in candidate_objs:
-                                        url_norm = c.url.strip().lower()
-                                        if url_norm not in seen_urls:
-                                            seen_urls.add(url_norm)
-                                            deduped_objs.append(c)
-
-                                    ranked_objs = sorted(
-                                        deduped_objs,
-                                        key=lambda x: x.raw_score,
-                                        reverse=True,
-                                    )[: runtime_limits.cheap_rank_limit_per_tag]
+                                    deduped_objs = dedupe_candidates(candidate_objs)
+                                    ranked_objs = cheap_rank(deduped_objs, tag)[
+                                        : runtime_limits.cheap_rank_limit_per_tag
+                                    ]
 
                                     ranked_dicts = [c.to_dict() for c in ranked_objs]
 

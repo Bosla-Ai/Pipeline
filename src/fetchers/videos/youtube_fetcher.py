@@ -62,25 +62,27 @@ async def fetch_youtube_data(session, url, params):
                     error_msg = await response.text()
                     if "quota" in error_msg.lower():
                         print(
-                            f"    ❌ Quota Exceeded for Key #{key_manager.current_index + 1}. Rotating..."
+                            f"    [YouTube] Quota Exceeded for Key #{key_manager.current_index + 1}. Rotating..."
                         )
                         key_manager.rotate()
                         attempts += 1
                         continue
                     else:
-                        print(f"    ❌ API Error 403 (Not Quota): {error_msg[:100]}")
+                        print(
+                            f"    [YouTube] API Error 403 (Not Quota): {error_msg[:100]}"
+                        )
                         return {}
 
                 # Other Errors
                 return {}
 
         except Exception as e:
-            print(f"    ❌ Network Error: {e}")
+            print(f"    [YouTube] Network Error: {e}")
             return {}
 
     global _api_exhausted
     _api_exhausted = True
-    print("    💀 Fatal: All API Keys exhausted.")
+    print("    [YouTube] Fatal: All API Keys exhausted.")
     return {}
 
 
@@ -227,23 +229,23 @@ async def process_single_tag(
     cache_key = generate_cache_key("youtube", tag, language)
     cached_result = await cache.get(cache_key)
     if cached_result:
-        print(f"    ✅ [Cache Hit] YouTube: {tag} ({language})")
+        print(f"    [Cache Hit] YouTube: {tag} ({language})")
         return tag, cached_result
 
     search_plans = build_search_plans(tag, language)
     primary_search_tag = search_plans[0]["query"] if search_plans else tag
 
     # ── Try yt-dlp scraper first (no API quota cost) ──
-    print(f"    🔍 [yt-dlp] Trying scraper first for '{primary_search_tag}'...")
+    print(f"    [yt-dlp] Trying scraper first for '{primary_search_tag}'...")
     scraper_result = await emergency_fetch(primary_search_tag, language)
     if scraper_result:
         print(
-            f"    ✅ [yt-dlp] Found result for '{tag}': {scraper_result.get('title', '')[:50]}"
+            f"    [yt-dlp] Found result for '{tag}': {scraper_result.get('title', '')[:50]}"
         )
         await cache.set(cache_key, scraper_result)
         return tag, scraper_result
 
-    print(f"    ⚠️ [yt-dlp] No results for '{tag}'. Falling back to YouTube API...")
+    print(f"    [yt-dlp] No results for '{tag}'. Falling back to YouTube API...")
 
     candidates = []
 
@@ -586,6 +588,8 @@ async def process_single_tag(
 
     from src.engine.models import Candidate, SourceName
     from src.engine.runtime import runtime_limits
+    from src.ranking.dedupe import dedupe_candidates
+    from src.ranking.cheap_ranker import cheap_rank
 
     # Phase 6: Limit candidate pool and normalize
     pool_candidates = candidates[: runtime_limits.candidate_pool_limit_per_tag]
@@ -594,25 +598,18 @@ async def process_single_tag(
     ]
 
     # Phase 7: Deduplicate
-    seen_urls = set()
-    deduped_objs = []
-    for c in candidate_objs:
-        url_norm = c.url.strip().lower()
-        if url_norm not in seen_urls:
-            seen_urls.add(url_norm)
-            deduped_objs.append(c)
+    deduped_objs = dedupe_candidates(candidate_objs)
 
     # Phase 8: Cheap Ranker / Pruning
+    ranked_objs = cheap_rank(deduped_objs, tag)
     if scope == "Broad":
         ranked_objs = sorted(
-            deduped_objs,
+            ranked_objs,
             key=lambda x: (x.metadata.get("contentType") == "Playlist", x.raw_score),
             reverse=True,
-        )[: runtime_limits.cheap_rank_limit_per_tag]
-    else:
-        ranked_objs = sorted(deduped_objs, key=lambda x: x.raw_score, reverse=True)[
-            : runtime_limits.cheap_rank_limit_per_tag
-        ]
+        )
+
+    ranked_objs = ranked_objs[: runtime_limits.cheap_rank_limit_per_tag]
 
     top_candidates = [c.to_dict() for c in ranked_objs]
 
@@ -831,9 +828,8 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=
             res = _ensure_url(res)
             if res is not None:
                 final_roadmap[original_key] = res
-            else:
                 print(
-                    f"    ⚠️ [YouTube] No result for tag '{original_key}' — skipped in roadmap."
+                    f"    [YouTube] No result for tag '{original_key}' — skipped in roadmap."
                 )
 
     return final_roadmap

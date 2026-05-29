@@ -212,8 +212,8 @@ async def analyze_topic_scope(sio, socket_id, tag):
     except Exception as e:
         import traceback
 
-        print(f"⚠️ Scope Analysis Failed: {type(e).__name__}: {e}")
-        print(f"    📋 Traceback: {traceback.format_exc()}")
+        print(f"    [Scope] Scope Analysis Failed: {type(e).__name__}: {e}")
+        print(f"    Traceback: {traceback.format_exc()}")
         return "Broad"
 
 
@@ -222,7 +222,7 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
         return []
 
     if not socket_id:
-        print(f"⚠️ No Client. Skipping AI Classification for: {tag}")
+        print(f"    [AI] No Client. Skipping AI Classification for: {tag}")
         return candidates
 
     # Labels: Integrity vs Distractors
@@ -249,7 +249,7 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
         formatted_candidates.append(c)
 
     print(
-        f"📡 Sending {len(formatted_candidates)} items to Frontend for NLI (Tag: {tag})..."
+        f"    [AI] Sending {len(formatted_candidates)} items to Frontend for NLI (Tag: {tag})..."
     )
 
     try:
@@ -334,13 +334,13 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
             else:
                 reason = "low margin" if not has_margin else "title mismatch"
                 print(
-                    f"    ❌ Rejected '{item['title'][:30]}...' ({reason}, Label: {max_label})"
+                    f"    [AI] Rejected '{item['title'][:30]}...' ({reason}, Label: {max_label})"
                 )
 
         return valid_items
 
     except Exception as e:
-        print(f"❌ Error during classification: {e}")
+        print(f"    [AI] Error during classification: {e}")
         return []
 
 

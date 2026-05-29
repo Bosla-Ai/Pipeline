@@ -63,10 +63,10 @@ def load_cookies(site_name: str) -> list:
         if cookie_file.exists():
             with open(cookie_file, "r") as f:
                 cookies = json.load(f)
-            print(f"    🍪 [{site_name}] Loaded {len(cookies)} saved cookies")
+            print(f"    [Cookies] [{site_name}] Loaded {len(cookies)} saved cookies")
             return cookies
     except Exception as e:
-        print(f"    ⚠️ [{site_name}] Failed to load cookies: {e}")
+        print(f"    [Cookies] [{site_name}] Failed to load cookies: {e}")
     return []
 
 
@@ -77,9 +77,9 @@ def save_cookies(site_name: str, cookies: list):
         COOKIE_DIR.mkdir(parents=True, exist_ok=True)
         with open(cookie_file, "w") as f:
             json.dump(cookies, f, indent=2)
-        print(f"    🍪 [{site_name}] Saved {len(cookies)} cookies for next run")
+        print(f"    [Cookies] [{site_name}] Saved {len(cookies)} cookies for next run")
     except Exception as e:
-        print(f"    ⚠️ [{site_name}] Failed to save cookies: {e}")
+        print(f"    [Cookies] [{site_name}] Failed to save cookies: {e}")
 
 
 # ─── CDP Stealth Script ───

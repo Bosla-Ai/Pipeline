@@ -29,7 +29,7 @@ def _trip_scraper_circuit(message: str) -> None:
 
     _scraper_disabled_until = time.monotonic() + _SCRAPER_COOLDOWN_SECONDS
     print(
-        "    ⚠️ [Scraper] Temporarily disabled after repeated SSL/network failures. "
+        "    [Scraper] Temporarily disabled after repeated SSL/network failures. "
         f"Cooldown: {_SCRAPER_COOLDOWN_SECONDS}s"
     )
 
@@ -38,13 +38,13 @@ async def scrape_youtube_search(
     tag: str, language: str = "en", max_results: int = 10
 ) -> list[dict]:
     if _scraper_circuit_open():
-        print("    ⚠️ [Scraper] Circuit open. Skipping yt-dlp search.")
+        print("    [Scraper] Circuit open. Skipping yt-dlp search.")
         return []
 
     try:
         import yt_dlp
     except ImportError:
-        print("    ❌ [Scraper] yt-dlp not installed. Fallback unavailable.")
+        print("    [Scraper] yt-dlp not installed. Fallback unavailable.")
         return []
 
     search_queries = [
@@ -97,7 +97,7 @@ def _extract_search_results(query: str, language: str) -> list[dict]:
             if result and "entries" in result:
                 return [e for e in result["entries"] if e is not None]
     except Exception as e:
-        print(f"    ⚠️ [Scraper] yt-dlp search error: {e}")
+        print(f"    [Scraper] yt-dlp search error: {e}")
         _trip_scraper_circuit(str(e))
 
     return []
@@ -195,28 +195,26 @@ def _parse_entry(entry: dict, tag: str, language: str) -> Optional[dict]:
 async def emergency_fetch(
     tag: str, language: str = "en", max_results: int = 5
 ) -> Optional[dict]:
-    print(
-        f"    🆘 [Emergency Scraper] Searching YouTube for '{tag}' without API keys..."
-    )
+    print(f"    [Emergency Scraper] Searching YouTube for '{tag}' without API keys...")
 
     candidates = await scrape_youtube_search(tag, language, max_results=max_results * 2)
 
     if not candidates:
         core_tag = _extract_core_topic(tag)
         if core_tag != tag:
-            print(f"    🔄 [Emergency Scraper] Retrying with core topic: '{core_tag}'")
+            print(f"    [Emergency Scraper] Retrying with core topic: '{core_tag}'")
             candidates = await scrape_youtube_search(
                 core_tag, language, max_results=max_results * 2
             )
 
     if not candidates:
-        print(f"    💀 [Emergency Scraper] No results found for '{tag}'")
+        print(f"    [Emergency Scraper] No results found for '{tag}'")
         return None
 
     candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
     winner = candidates[0]
     print(
-        f"    🏆 [Emergency Scraper] Found: {winner['title'][:50]}... (Score: {winner['score']:.1f})"
+        f"    [Emergency Scraper] Found: {winner['title'][:50]}... (Score: {winner['score']:.1f})"
     )
     return winner
 
