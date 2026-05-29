@@ -5,6 +5,7 @@ import socketio
 from src.utils.event_log import event_log
 
 import os
+from src.engine.runtime import runtime_limits
 
 ALLOWED_SOCKET_ORIGINS = [
     origin.strip()
@@ -29,8 +30,7 @@ connected_clients: dict[str, dict] = {}
 
 _job_ready_events: dict[str, asyncio.Event] = {}
 
-MAX_CONCURRENT_JOBS = 3
-job_semaphore = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
+MAX_CONCURRENT_JOBS = runtime_limits.max_concurrent_jobs
 
 
 def register_job_waiter(job_id: str) -> asyncio.Event:

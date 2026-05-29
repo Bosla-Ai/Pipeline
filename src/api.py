@@ -15,10 +15,8 @@ from src.socket_server import sio
 
 from src.fetchers.videos.youtube_fetcher import fetch as fetch_youtube
 from src.fetchers.videos.coursera_fetcher import fetch_coursera
-from src.fetchers.videos.udemy_fetcher import UdemyFetcher
-from src.utils.cache import cache, generate_cache_key
-from src.utils.learning_path import generate_learning_path
 from src.utils.event_log import event_log
+from src.engine.models import CourseSource
 
 from src.config.settings import PIPELINE_SHARED_SECRET
 import os
@@ -57,31 +55,6 @@ async def verify_pipeline_secret(
         return
     if x_pipeline_secret != PIPELINE_SHARED_SECRET:
         raise HTTPException(status_code=401, detail="Invalid pipeline secret")
-
-
-def preprocess_tags(tags: list[str]) -> list[str]:
-    """
-    Cleans and normalizes tags from the API before passing to fetchers.
-    Handles rich descriptive tags like 'Automated Testing with Jest'.
-    """
-    cleaned = []
-    seen = set()
-    for tag in tags:
-        t = tag.strip()
-        if not t:
-            continue
-        t = " ".join(t.split())
-        key = t.lower()
-        if key not in seen:
-            seen.add(key)
-            cleaned.append(t)
-    return cleaned
-
-
-class CourseSource(str, Enum):
-    YOUTUBE = "youtube"
-    UDEMY = "udemy"
-    COURSERA = "coursera"
 
 
 class RoadmapRequest(BaseModel):
@@ -124,7 +97,11 @@ async def get_logs(
 
 
 @app.get("/logs/job/{job_id}")
-async def get_job_logs(job_id: str, limit: int = Query(500, ge=1, le=2000)):
+async def get_job_logs(
+    job_id: str,
+    limit: int = Query(500, ge=1, le=2000),
+    _auth: None = Depends(verify_pipeline_secret),
+):
     """Return all log entries for a specific job, chronologically (oldest first)."""
     entries = event_log.get_logs(job_id=job_id, limit=limit)
     # get_logs returns newest first; reverse for timeline order
@@ -139,6 +116,7 @@ async def export_logs(
     category: Optional[str] = Query(None),
     job_id: Optional[str] = Query(None),
     limit: int = Query(1000, ge=1, le=5000),
+    _auth: None = Depends(verify_pipeline_secret),
 ):
     """Export logs as a downloadable JSON or CSV file."""
     entries = event_log.get_logs(
@@ -178,7 +156,7 @@ from src.engine.roadmap_engine import RoadmapEngine
 async def wait_for_socket(job_id: str) -> str | None:
     from src.engine.roadmap_engine import wait_for_socket as _wait_for_socket
 
-    return await _wait_for_socket(job_id)
+    return await _wait_for_socket(job_id, timeout=SOCKET_WAIT_TIMEOUT)
 
 
 GLOBAL_DRIVER = None
@@ -227,6 +205,10 @@ async def startup_event():
             f"Udemy fetcher: NOT READY — missing modules: {', '.join(missing) if missing else 'import chain broken'}. "
             f"Try: pip install 'scrapling[fetchers]'",
         )
+
+    if os.getenv("SKIP_GLOBAL_DRIVER_INIT") == "true":
+        event_log.log("warn", "driver", "Skipping driver init in test mode")
+        return
 
     try:
         import subprocess
@@ -290,6 +272,7 @@ def shutdown_event():
 async def search_embeddable_video_endpoint(
     q: str = Query(..., description="Search query for the video"),
     lang: str = Query("en", description="Language preference: en or ar"),
+    _auth: None = Depends(verify_pipeline_secret),
 ):
     """
     Search YouTube for an embeddable video matching the query.
@@ -321,6 +304,7 @@ PLAYLIST_ITEMS_URL = "https://www.googleapis.com/youtube/v3/playlistItems"
 async def youtube_playlist_items(
     playlistId: str = Query(..., description="YouTube playlist ID"),
     maxResults: int = Query(50, ge=1, le=50, description="Max items to return"),
+    _auth: None = Depends(verify_pipeline_secret),
 ):
     """
     Returns the list of videos in a playlist.
@@ -377,7 +361,13 @@ async def generate_roadmap(
     job_id = request.job_id or uuid.uuid4().hex[:12]
     event_log.log("info", "job", f"Incoming roadmap request", job_id=job_id)
 
-    engine = RoadmapEngine(sio)
+    engine = RoadmapEngine(
+        sio=sio,
+        fetch_youtube=fetch_youtube,
+        fetch_coursera=fetch_coursera,
+        get_global_driver=lambda: GLOBAL_DRIVER,
+        socket_wait_timeout=SOCKET_WAIT_TIMEOUT,
+    )
     return await engine.generate(
         tags=request.tags,
         prefer_paid=request.prefer_paid,

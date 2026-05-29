@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import uuid
 from typing import Any, List, Optional
-from enum import Enum
 
 import src.socket_server as socket_server
 from src.socket_server import sio
@@ -13,12 +12,7 @@ from src.utils.cache import cache, generate_cache_key
 from src.utils.learning_path import generate_learning_path
 from src.utils.event_log import event_log
 from src.engine.runtime import runtime_limits, runtime_semaphores
-
-
-class CourseSource(str, Enum):
-    YOUTUBE = "youtube"
-    UDEMY = "udemy"
-    COURSERA = "coursera"
+from src.engine.models import CourseSource
 
 
 def preprocess_tags(tags: list[str]) -> list[str]:
@@ -40,18 +34,13 @@ def preprocess_tags(tags: list[str]) -> list[str]:
     return cleaned
 
 
-async def wait_for_socket(job_id: str) -> str | None:
+async def wait_for_socket(job_id: str, timeout: float) -> str | None:
     """Block until the frontend connects with this job_id, or timeout."""
-    import src.api as api
-
     existing = socket_server.get_socket_for_job(job_id)
     if existing:
         return existing
 
     evt = socket_server.register_job_waiter(job_id)
-    timeout = getattr(
-        api, "SOCKET_WAIT_TIMEOUT", runtime_limits.socket_wait_timeout_seconds
-    )
     try:
         await asyncio.wait_for(evt.wait(), timeout=timeout)
         return socket_server.get_socket_for_job(job_id)
@@ -68,8 +57,19 @@ async def wait_for_socket(job_id: str) -> str | None:
 
 
 class RoadmapEngine:
-    def __init__(self, sio):
+    def __init__(
+        self,
+        sio,
+        fetch_youtube,
+        fetch_coursera,
+        get_global_driver,
+        socket_wait_timeout: float | None = None,
+    ):
         self.sio = sio
+        self.fetch_youtube = fetch_youtube
+        self.fetch_coursera = fetch_coursera
+        self.get_global_driver = get_global_driver
+        self.socket_wait_timeout = socket_wait_timeout
 
     async def generate(
         self,
@@ -102,10 +102,8 @@ class RoadmapEngine:
         tag_checkpoints: Optional[dict] = None,
         job_id: Optional[str] = None,
     ) -> dict[str, Any]:
-        import src.api as api  # Local import to break circular reference for GLOBAL_DRIVER
-
-        fetch_youtube = getattr(api, "fetch_youtube")
-        fetch_coursera = getattr(api, "fetch_coursera")
+        fetch_youtube = self.fetch_youtube
+        fetch_coursera = self.fetch_coursera
 
         if not job_id:
             job_id = uuid.uuid4().hex[:12]
@@ -120,7 +118,12 @@ class RoadmapEngine:
         )
         event_log.log("info", "job", "Waiting for frontend socket…", job_id=job_id)
 
-        current_sid = await wait_for_socket(job_id)
+        timeout = (
+            self.socket_wait_timeout
+            if self.socket_wait_timeout is not None
+            else runtime_limits.socket_wait_timeout_seconds
+        )
+        current_sid = await wait_for_socket(job_id, timeout=timeout)
 
         if current_sid:
             event_log.log(
@@ -228,7 +231,7 @@ class RoadmapEngine:
                                 current_sid,
                                 broad_tags,
                                 language,
-                                driver=api.GLOBAL_DRIVER,
+                                driver=self.get_global_driver(),
                             )
                             roadmap_result["coursera"] = data
                         except Exception as e:

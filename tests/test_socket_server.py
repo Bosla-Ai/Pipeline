@@ -10,6 +10,7 @@ import pytest
 from unittest.mock import AsyncMock, patch
 
 import src.socket_server as ss
+from src.engine.runtime import runtime_semaphores
 
 # ── Helpers ───────────────────────────────────────────────────
 
@@ -265,7 +266,7 @@ class TestSemaphore:
 
         async def fake_job(job_id: str):
             nonlocal concurrent_count, max_seen
-            async with ss.job_semaphore:
+            async with runtime_semaphores.jobs:
                 concurrent_count += 1
                 max_seen = max(max_seen, concurrent_count)
                 await asyncio.sleep(0.05)
