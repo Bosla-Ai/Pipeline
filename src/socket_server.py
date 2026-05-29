@@ -4,16 +4,24 @@ from datetime import datetime, timezone
 import socketio
 from src.utils.event_log import event_log
 
+import os
+
+ALLOWED_SOCKET_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_SOCKET_ORIGINS",
+        "https://bosla.me,https://front.bosla.almiraj.xyz,http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=[
-        "https://bosla.me",
-        "https://front.bosla.almiraj.xyz",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "*",
-    ],
+    cors_allowed_origins=ALLOWED_SOCKET_ORIGINS,
+    logger=False,
+    engineio_logger=False,
 )
+
 
 job_sockets: dict[str, str] = {}
 socket_jobs: dict[str, str] = {}
