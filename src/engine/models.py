@@ -93,7 +93,7 @@ class Candidate:
             elif source_enum == SourceName.UDEMY:
                 channel_or_provider = raw.get("instructor")
             elif source_enum == SourceName.COURSERA:
-                channel_or_provider = raw.get("platform", "Coursera")
+                channel_or_provider = raw.get("provider") or raw.get("platform", "Coursera")
 
         language = raw.get("language") or raw.get("defaultLanguage")
 

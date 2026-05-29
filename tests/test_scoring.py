@@ -242,3 +242,38 @@ def test_search_fallback_trigger_logic_placeholder():
     Just a placeholder to remind valid scope.
     """
     pass
+
+
+def test_udemy_scoring():
+    from src.utils.scoring import calculate_udemy_score
+
+    # Exact tag match in title: +40
+    # Overlap "python": length 6 > 2 -> +25 * 1.0 = 25
+    # Rating 4.8: +20
+    # Lectures 120: +12
+    # Hours 20: +10
+    # Total: 40 + 25 + 20 + 12 + 10 = 107
+    course_good = {
+        "title": "Python Programming Masterclass",
+        "rating": "4.8",
+        "lectures": "120 lectures",
+        "hours": "20 total hours",
+    }
+    score_good = calculate_udemy_score(course_good, "python")
+    assert score_good == 107.0
+
+    # Low rating penalty, low lectures penalty, low hours penalty
+    # No tag match
+    # Rating 3.5: -15
+    # Lectures 5: -8
+    # Hours 0.5: -10
+    # Total: 0 - 15 - 8 - 10 = -33 -> max(score, 0.0) = 0.0
+    course_bad = {
+        "title": "Learn Java",
+        "rating": "3.5",
+        "lectures": "5 lectures",
+        "hours": "0.5 hours",
+    }
+    score_bad = calculate_udemy_score(course_bad, "python")
+    assert score_bad == 0.0
+

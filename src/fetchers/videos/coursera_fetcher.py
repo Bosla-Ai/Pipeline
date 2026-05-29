@@ -291,7 +291,24 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
 
                         has_arabic_char = bool(re.search(r"[\u0600-\u06FF]", title))
 
+                        # Try to detect provider/partner name from link text split by newlines
+                        detected_provider = "Coursera"
+                        try:
+                            link_text = link.text or ""
+                            lines = [line.strip() for line in link_text.split("\n") if line.strip()]
+                            for line in lines:
+                                if (
+                                    line.lower() not in {"course", "specialization", "professional certificate", "guided project", "degree", "unknown"}
+                                    and line != title
+                                ):
+                                    detected_provider = line
+                                    break
+                        except:
+                            pass
+
                         # Default metadata for scoring
+                        from src.ranking.cheap_ranker import calculate_coursera_score, detect_coursera_type
+
                         data = {
                             "contentType": "Course",
                             "contentId": href,
@@ -301,22 +318,23 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                             "imageUrl": "",
                             "platform": "Coursera",
                             "is_native_arabic": has_arabic_char,
-                            "search_position": count,
+                            "sourceType": detect_coursera_type(href),
+                            "searchPosition": count,
+                            "provider": detected_provider,
+                            "channel_or_provider": detected_provider,
                         }
-
-                        from src.ranking.cheap_ranker import calculate_coursera_score
 
                         data["score"] = calculate_coursera_score(
                             title=title,
                             tag=tag,
                             url=href,
                             search_position=count,
-                            is_native_arabic=has_arabic_char,
                         )
 
                         candidates.append(data)
                         seen_urls.add(href)
                         count += 1
+
 
                     except Exception as inner_e:
                         continue

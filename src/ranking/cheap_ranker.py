@@ -1,55 +1,58 @@
 from src.engine.models import Candidate, SourceName
 
 
+def detect_coursera_type(url: str) -> str:
+    url_lower = url.lower()
+    if "/professional-certificates/" in url_lower or "/professional-certificate/" in url_lower:
+        return "professional_certificate"
+    if "/specializations/" in url_lower or "/specialization/" in url_lower:
+        return "specialization"
+    if "/projects/" in url_lower or "/project/" in url_lower:
+        return "project"
+    if "/learn/" in url_lower or "/course/" in url_lower:
+        return "course"
+    return "unknown"
+
+
 def calculate_coursera_score(
     title: str,
     tag: str,
     url: str,
     search_position: int,
-    is_native_arabic: bool = False,
-    platform: str = "Coursera",
 ) -> float:
     """Calculate a source-specific score for Coursera candidates without using fake metadata."""
-    # Base score from search position (lower position = better/more relevant)
-    position_score = max(5.0, 20.0 - (search_position * 2.0))
-
     title_lower = title.lower()
     tag_lower = tag.lower()
 
-    # Title relevance
-    if tag_lower in title_lower:
-        relevance_boost = 15.0
-    else:
-        # Word overlap
-        tag_words = set(tag_lower.split())
-        title_words = set(title_lower.split())
-        overlap = len(tag_words.intersection(title_words))
-        relevance_boost = overlap * 4.0
+    score = 0.0
 
-    # URL type scoring
-    url_lower = url.lower()
-    url_type_score = 10.0  # default for course/learn
-    if "professional-certificates" in url_lower:
-        url_type_score = 25.0
-    elif "specializations" in url_lower:
-        url_type_score = 20.0
-    elif "projects" in url_lower:
-        url_type_score = 5.0
+    if tag_lower in title_lower:
+        score += 50
+
+    tag_words = [word for word in tag_lower.split() if len(word) > 2]
+    if tag_words:
+        matched = sum(1 for word in tag_words if word in title_lower)
+        score += 30 * (matched / len(tag_words))
+
+    source_type = detect_coursera_type(url)
+
+    if source_type == "professional_certificate":
+        score += 12
+    elif source_type == "specialization":
+        score += 10
+    elif source_type == "course":
+        score += 8
+    elif source_type == "project":
+        score += 5
+
+    score += max(0, 10 - search_position)
 
     # Native Arabic bonus
-    arabic_bonus = 15.0 if is_native_arabic else 0.0
+    has_arabic_char = any(ord(char) >= 0x0600 and ord(char) <= 0x06FF for char in title)
+    if has_arabic_char:
+        score += 15.0
 
-    # Negative keywords penalty
-    negative_keywords = ["review", "scam", "intro only", "trailer", "syllabus"]
-    penalty = 1.0
-    for kw in negative_keywords:
-        if kw in title_lower:
-            penalty *= 0.5
-
-    final_score = (
-        position_score + relevance_boost + url_type_score + arabic_bonus
-    ) * penalty
-    return final_score
+    return score
 
 
 def cheap_rank_candidate(candidate: Candidate, tag: str) -> float:
@@ -58,19 +61,23 @@ def cheap_rank_candidate(candidate: Candidate, tag: str) -> float:
     tag_lower = tag.lower()
 
     if candidate.source == SourceName.COURSERA:
-        search_position = candidate.metadata.get("search_position", 0)
-        is_native_arabic = candidate.metadata.get("is_native_arabic", False)
+        search_position = candidate.metadata.get("searchPosition")
+        if search_position is None:
+            search_position = candidate.metadata.get("search_position", 0)
         return calculate_coursera_score(
             title=candidate.title,
             tag=tag,
             url=candidate.url,
             search_position=search_position,
-            is_native_arabic=is_native_arabic,
-            platform=candidate.channel_or_provider or "Coursera",
         )
 
-    # Baseline score for YouTube/Udemy is their raw_score
+    if candidate.source == SourceName.UDEMY:
+        from src.utils.scoring import calculate_udemy_score
+        return calculate_udemy_score(candidate.metadata, tag)
+
+    # Baseline score for YouTube is its raw_score
     base_score = candidate.raw_score
+
 
     # Tag-word match boost
     tag_words = set(tag_lower.split())

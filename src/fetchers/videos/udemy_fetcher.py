@@ -7,7 +7,7 @@ import json
 import re as _re
 import urllib.parse
 
-from src.utils.scoring import calculate_playlist_score
+from src.utils.scoring import calculate_udemy_score
 
 _MAX_CONCURRENT_TAGS = 4
 
@@ -114,7 +114,7 @@ class UdemyFetcher:
 
         tag_results = []
         for card in cards[: self.limit]:
-            course = self._extract_from_card(card)
+            course = self._extract_from_card(card, tag)
             if course:
                 tag_results.append(course)
 
@@ -123,7 +123,7 @@ class UdemyFetcher:
 
     # ── Search Card Extraction (no course page visit needed) ──
 
-    def _extract_from_card(self, card):
+    def _extract_from_card(self, card, tag):
         """Extract all course metadata directly from a search result card."""
 
         # Title + Link
@@ -197,9 +197,11 @@ class UdemyFetcher:
             "videoCount": lecture_count,
             "subscriberCount": 0,
             "publishedAt": "",
+            "hours": hours,
+            "lectures": lectures,
         }
 
-        course_data["score"] = calculate_playlist_score(course_data)
+        course_data["score"] = calculate_udemy_score(course_data, tag)
         return course_data
 
     # ── Utility ──

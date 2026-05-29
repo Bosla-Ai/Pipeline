@@ -158,3 +158,99 @@ def _calculate_soft_freshness(published_at_str, half_life_years):
 
     decay = math.exp(-math.log(2) * (years_old / half_life_years))
     return decay
+
+
+def _parse_float(val) -> float | None:
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    try:
+        import re
+        cleaned = re.sub(r"[^\d.]", "", str(val))
+        return float(cleaned) if cleaned else None
+    except:
+        return None
+
+
+def _parse_int(val) -> int | None:
+    if val is None:
+        return None
+    if isinstance(val, int):
+        return val
+    if isinstance(val, float):
+        return int(val)
+    try:
+        import re
+        cleaned = re.sub(r"[^\d]", "", str(val))
+        return int(cleaned) if cleaned else None
+    except:
+        return None
+
+
+def _parse_duration_hours(val) -> float | None:
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    try:
+        import re
+        m = re.search(r"([\d.]+)", str(val))
+        if m:
+            return float(m.group(1))
+    except:
+        pass
+    return None
+
+
+def calculate_udemy_score(course: dict, tag: str) -> float:
+    """Calculate Udemy-specific quality/relevance score."""
+    title = str(course.get("title", "")).lower()
+    tag_lower = tag.lower()
+
+    score = 0.0
+
+    if tag_lower in title:
+        score += 40
+
+    tag_words = [word for word in tag_lower.split() if len(word) > 2]
+    if tag_words:
+        matched = sum(1 for word in tag_words if word in title)
+        score += 25 * (matched / len(tag_words))
+
+    rating = _parse_float(course.get("rating"))
+    if rating:
+        if rating >= 4.7:
+            score += 20
+        elif rating >= 4.5:
+            score += 15
+        elif rating >= 4.2:
+            score += 8
+        elif rating < 3.8:
+            score -= 15
+
+    # Check lectures under both possible keys: videoCount or lectures
+    lectures_val = course.get("videoCount") or course.get("lectures")
+    lectures = _parse_int(lectures_val)
+    if lectures:
+        if lectures >= 80:
+            score += 12
+        elif lectures >= 30:
+            score += 8
+        elif lectures < 10:
+            score -= 8
+
+    hours = _parse_duration_hours(course.get("hours"))
+    if hours:
+        if 5 <= hours <= 50:
+            score += 10
+        elif hours < 1:
+            score -= 10
+
+    # Native Arabic bonus
+    has_arabic_char = any(ord(char) >= 0x0600 and ord(char) <= 0x06FF for char in title)
+    if has_arabic_char:
+        score += 15.0
+
+    return max(score, 0.0)
+

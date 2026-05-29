@@ -173,3 +173,24 @@ def test_raw_score_float_casting():
         "test",
     )
     assert cand_invalid.raw_score == 0.0
+
+
+def test_udemy_cheap_ranking():
+    # Verify that Udemy candidates are ranked using calculate_udemy_score
+    raw = {
+        "contentType": "Course",
+        "title": "Python Programming Masterclass",
+        "instructor": "Tim Buchalka",
+        "rating": "4.8",
+        "price": "$19.99",
+        "description": "40 hours | 200 lectures",
+        "url": "https://www.udemy.com/course/python",
+        "videoCount": 200,
+        "hours": "40 hours",
+        "lectures": "200 lectures",
+        "score": 0.0,
+    }
+    candidate = Candidate.from_dict(raw, SourceName.UDEMY, "python")
+    score = cheap_rank_candidate(candidate, "python")
+    assert score > 50.0  # high match score
+
