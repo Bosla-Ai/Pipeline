@@ -277,6 +277,20 @@ class TestAnalyzeTopicScope:
         )
 
         mock_sio.call.assert_called_once()
+
+        # Assert outgoing payload contains exactly 2 candidates
+        call_kwargs = mock_sio.call.call_args.kwargs
+        data = call_kwargs.get("data", {})
+        assert len(data.get("candidates", [])) == 2
+        assert (
+            data["candidates"][0]["ai_input_text"]
+            == "The technical topic is some obscure topic one."
+        )
+        assert (
+            data["candidates"][1]["ai_input_text"]
+            == "The technical topic is some obscure topic two."
+        )
+
         assert res1 == "Broad"
         assert res2 == "Atomic"
 

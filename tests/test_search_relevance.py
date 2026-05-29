@@ -171,6 +171,13 @@ async def test_classify_via_frontend_batching(mock_sio):
     # Assert that only ONE call was made to mock_sio.call
     mock_sio.call.assert_called_once()
 
+    # Assert outgoing payload contains exactly 2 candidates
+    call_kwargs = mock_sio.call.call_args.kwargs
+    data = call_kwargs.get("data", {})
+    assert len(data.get("candidates", [])) == 2
+    assert data["candidates"][0]["title"] == "ASP.NET Core Course 1"
+    assert data["candidates"][1]["title"] == "ASP.NET Core Course 2"
+
     # Verify both got their correct results
     assert len(res1) == 1
     assert res1[0]["title"] == "ASP.NET Core Course 1"

@@ -119,6 +119,7 @@ def _parse_positive_int_env(name: str, default: int) -> int:
 
 _FRONTEND_AI_MAX_CONCURRENCY = _parse_positive_int_env("FRONTEND_AI_MAX_CONCURRENCY", 2)
 _FRONTEND_AI_SEMAPHORE = asyncio.Semaphore(_FRONTEND_AI_MAX_CONCURRENCY)
+INFERENCE_BATCH_WINDOW_MS = _parse_positive_int_env("INFERENCE_BATCH_WINDOW_MS", 50)
 
 
 class InferenceBatcher:
@@ -172,44 +173,71 @@ class InferenceBatcher:
         return real_results
 
     async def _run_batch(self, sio, socket_id, group_key):
-        # Wait a brief moment to allow other concurrent calls to queue their candidates
-        await asyncio.sleep(0.05)
-
         key = (socket_id, group_key)
-        items = self._groups.pop(key, [])
-        if not items:
-            return
-
-        _, _, labels, hypothesis_template, timeout = items[0]
-        batch_candidates = [cand for cand, _, _, _, _ in items]
-        futures = [fut for _, fut, _, _, _ in items]
-
+        items = []
         try:
-            async with _FRONTEND_AI_SEMAPHORE:
-                response = await sio.call(
-                    event="request_inference",
-                    data={
-                        "candidates": batch_candidates,
-                        "labels": labels,
-                        "hypothesis_template": hypothesis_template,
-                    },
-                    to=socket_id,
-                    timeout=timeout,
-                )
+            # Wait a brief moment to allow other concurrent calls to queue their candidates
+            await asyncio.sleep(INFERENCE_BATCH_WINDOW_MS / 1000.0)
 
-            if not response or not isinstance(response, list):
-                raise ValueError("Invalid or empty response from frontend inference")
+            # We popped the items, so this timer is no longer collecting items for this key.
+            items = self._groups.pop(key, [])
 
-            # Distribute results
-            for i, fut in enumerate(futures):
-                if i < len(response):
-                    fut.set_result(response[i])
-                else:
-                    fut.set_result({})
-        except Exception as e:
+            # Clear the timer reference so that subsequent requests start a new batch.
+            if self._timers.get(key) is asyncio.current_task():
+                self._timers.pop(key, None)
+
+            if not items:
+                return
+
+            _, _, labels, hypothesis_template, timeout = items[0]
+            batch_candidates = [cand for cand, _, _, _, _ in items]
+            futures = [fut for _, fut, _, _, _ in items]
+
+            try:
+                async with _FRONTEND_AI_SEMAPHORE:
+                    response = await sio.call(
+                        event="request_inference",
+                        data={
+                            "candidates": batch_candidates,
+                            "labels": labels,
+                            "hypothesis_template": hypothesis_template,
+                        },
+                        to=socket_id,
+                        timeout=timeout,
+                    )
+
+                if not response or not isinstance(response, list):
+                    raise ValueError(
+                        "Invalid or empty response from frontend inference"
+                    )
+
+                # Distribute results
+                for i, fut in enumerate(futures):
+                    if i < len(response):
+                        fut.set_result(response[i])
+                    else:
+                        fut.set_result({})
+            except Exception as e:
+                for fut in futures:
+                    if not fut.done():
+                        fut.set_exception(e)
+
+        except BaseException as e:
+            # Catch all exceptions, including CancelledError
+            # If items was not popped (e.g. CancelledError during sleep), pop it now
+            if not items:
+                items = self._groups.pop(key, [])
+
+            futures = [fut for _, fut, _, _, _ in items]
             for fut in futures:
                 if not fut.done():
                     fut.set_exception(e)
+            if isinstance(e, asyncio.CancelledError):
+                raise
+        finally:
+            # Clean up the timer reference if it is still pointing to this task
+            if self._timers.get(key) is asyncio.current_task():
+                self._timers.pop(key, None)
 
 
 _inference_batcher = InferenceBatcher()
