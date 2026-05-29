@@ -8,9 +8,9 @@ import json
 import redis.asyncio as redis
 from typing import Optional, Any
 
+from src.engine.runtime import REDIS_HOST, REDIS_PORT
+
 # Configuration
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 DEFAULT_TTL = 60 * 60 * 24  # 24 hours in seconds
 CACHE_VERSION = os.getenv("CACHE_VERSION", "v1")
 

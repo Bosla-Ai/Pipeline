@@ -8,9 +8,8 @@ import json
 import redis.asyncio as redis
 from typing import Optional, Any
 from datetime import datetime, timezone
+from src.engine.runtime import REDIS_HOST, REDIS_PORT
 
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 JOB_TTL = int(os.getenv("JOB_TTL", 86400))  # 24 hours in seconds
 
 

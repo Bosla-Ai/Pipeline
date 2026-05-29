@@ -35,8 +35,7 @@ MAX_ENTRIES = 2000
 CLEANUP_INTERVAL_SECONDS = 3600  # 1 hour
 LOG_TTL_HOURS = 24
 
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+from src.engine.runtime import REDIS_HOST, REDIS_PORT
 
 # Level prefixes for console output
 _LEVEL_PREFIX = {

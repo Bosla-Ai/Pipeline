@@ -62,3 +62,7 @@ class RuntimeSemaphores:
 
 runtime_limits = load_runtime_limits()
 runtime_semaphores = RuntimeSemaphores(runtime_limits)
+
+# Redis Configuration (shared across cache, event_log, and job_store)
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = _int_env("REDIS_PORT", 6379)
