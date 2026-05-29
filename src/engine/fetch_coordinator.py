@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, List, Optional
 
 import src.socket_server as socket_server
-from src.engine.models import CourseSource, Candidate, SourceName
+from src.engine.models import CourseSource
 from src.engine.runtime import runtime_limits, runtime_semaphores
 from src.fetchers.videos.udemy_fetcher import UdemyFetcher
 from src.utils.cache import cache, generate_cache_key
@@ -21,13 +20,11 @@ class FetchCoordinator:
         fetch_youtube,
         fetch_coursera,
         get_global_driver,
-        socket_wait_timeout: float | None = None,
     ):
         self.sio = sio
         self.fetch_youtube = fetch_youtube
         self.fetch_coursera = fetch_coursera
         self.get_global_driver = get_global_driver
-        self.socket_wait_timeout = socket_wait_timeout
 
     async def fetch_resources(
         self,
@@ -97,59 +94,111 @@ class FetchCoordinator:
                 if CourseSource.COURSERA in active_sources:
 
                     async def fetch_coursera_task():
-                        coursera_data = await self._fetch_coursera_with_limit(
-                            tags=broad_tags,
-                            language=language,
-                            current_sid=current_sid,
-                            job_id=job_id,
-                        )
-                        roadmap_result["coursera"].update(coursera_data)
+                        try:
+                            coursera_data = await self._fetch_coursera_with_limit(
+                                tags=broad_tags,
+                                language=language,
+                                current_sid=current_sid,
+                                job_id=job_id,
+                            )
+                            roadmap_result["coursera"].update(coursera_data)
+                        except Exception as e:
+                            event_log.log(
+                                "error",
+                                "fetcher",
+                                f"Coursera task unexpected failure: {e}",
+                                job_id=job_id,
+                            )
 
                     fetch_tasks.append(fetch_coursera_task())
 
                 if CourseSource.UDEMY in active_sources:
 
                     async def fetch_udemy_task():
-                        # Check cache first to avoid Turnstile scraping if possible
-                        udemy_cached = {}
-                        udemy_tags_to_fetch = []
-                        await cache.connect()
-                        for tag in broad_tags:
-                            cache_key = generate_cache_key("udemy", tag, language)
-                            cached_result = await cache.get(cache_key)
-                            if cached_result:
+                        try:
+                            udemy_cached = {}
+                            udemy_tags_to_fetch = []
+                            try:
+                                await cache.connect()
+                                for tag in broad_tags:
+                                    cache_key = generate_cache_key(
+                                        "udemy", tag, language
+                                    )
+                                    try:
+                                        cached_result = await cache.get(cache_key)
+                                    except Exception as ce:
+                                        event_log.log(
+                                            "error",
+                                            "fetcher",
+                                            f"Udemy Cache Get Error for tag '{tag}': {ce}",
+                                            job_id=job_id,
+                                        )
+                                        cached_result = None
+
+                                    if cached_result:
+                                        event_log.log(
+                                            "success",
+                                            "cache",
+                                            f"Cache Hit - Udemy: {tag}",
+                                            job_id=job_id,
+                                        )
+                                        udemy_cached[tag] = cached_result
+                                    else:
+                                        udemy_tags_to_fetch.append(tag)
+                            except Exception as ce:
+                                event_log.log(
+                                    "error",
+                                    "fetcher",
+                                    f"Udemy Cache Connect/Lookup Error: {ce}",
+                                    job_id=job_id,
+                                )
+                                udemy_tags_to_fetch = list(broad_tags)
+
+                            roadmap_result["udemy"].update(udemy_cached)
+
+                            if not udemy_tags_to_fetch:
                                 event_log.log(
                                     "success",
                                     "cache",
-                                    f"Cache Hit - Udemy: {tag}",
+                                    "Udemy: All tags cached",
                                     job_id=job_id,
                                 )
-                                udemy_cached[tag] = cached_result
                             else:
-                                udemy_tags_to_fetch.append(tag)
-
-                        roadmap_result["udemy"].update(udemy_cached)
-
-                        if not udemy_tags_to_fetch:
+                                try:
+                                    udemy_data = await self._fetch_udemy_with_limit(
+                                        tags=udemy_tags_to_fetch,
+                                        language=language,
+                                        current_sid=current_sid,
+                                        job_id=job_id,
+                                    )
+                                    roadmap_result["udemy"].update(udemy_data)
+                                except Exception as ue:
+                                    event_log.log(
+                                        "error",
+                                        "fetcher",
+                                        f"Udemy limit-fetching unexpected error: {ue}",
+                                        job_id=job_id,
+                                    )
+                        except Exception as e:
                             event_log.log(
-                                "success",
-                                "cache",
-                                "Udemy: All tags cached",
+                                "error",
+                                "fetcher",
+                                f"Udemy task overall unexpected failure: {e}",
                                 job_id=job_id,
                             )
-                        else:
-                            udemy_data = await self._fetch_udemy_with_limit(
-                                tags=udemy_tags_to_fetch,
-                                language=language,
-                                current_sid=current_sid,
-                                job_id=job_id,
-                            )
-                            roadmap_result["udemy"].update(udemy_data)
 
                     fetch_tasks.append(fetch_udemy_task())
 
                 if fetch_tasks:
-                    await asyncio.gather(*fetch_tasks)
+                    results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
+                    for res_item in results:
+                        if isinstance(res_item, Exception):
+                            event_log.log(
+                                "error",
+                                "fetcher",
+                                f"Provider task failed with exception: {res_item}",
+                                job_id=job_id,
+                            )
 
             if atomic_tags:
                 # Always fall back to YouTube for atomic tags

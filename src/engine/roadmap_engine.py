@@ -74,7 +74,6 @@ class RoadmapEngine:
             fetch_youtube=fetch_youtube,
             fetch_coursera=fetch_coursera,
             get_global_driver=get_global_driver,
-            socket_wait_timeout=socket_wait_timeout,
         )
 
     async def generate(
