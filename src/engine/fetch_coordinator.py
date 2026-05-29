@@ -72,9 +72,17 @@ class FetchCoordinator:
             # Refresh sid in case the socket reconnected
             current_sid = socket_server.get_socket_for_job(job_id) or current_sid
 
-            broad_tags, atomic_tags, scope_cache = await SourcePlanner.plan_tag_scopes(
-                self.sio, current_sid, tags
-            )
+            try:
+                broad_tags, atomic_tags, scope_cache = await SourcePlanner.plan_tag_scopes(
+                    self.sio,
+                    current_sid,
+                    tags,
+                    job_id=job_id,
+                )
+            except TypeError:
+                broad_tags, atomic_tags, scope_cache = await SourcePlanner.plan_tag_scopes(
+                    self.sio, current_sid, tags
+                )
 
             event_log.log(
                 "info",

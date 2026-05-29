@@ -61,7 +61,8 @@ async def test_fetch_coordinator_paid_mode_success():
     )
 
     # Mock tag scope analysis: "react" is Broad (so it goes to paid), no atomic tags
-    async def mock_plan_tag_scopes(sio, sid, tags):
+    async def mock_plan_tag_scopes(sio, sid, tags, job_id=None):
+        assert job_id == "job123"
         return ["react"], [], {}
 
     # Mock UdemyFetcher
@@ -136,7 +137,8 @@ async def test_fetch_coordinator_atomic_fallback():
     )
 
     # "hooks" is planned as Atomic, no broad tags
-    async def mock_plan_tag_scopes(sio, sid, tags):
+    async def mock_plan_tag_scopes(sio, sid, tags, job_id=None):
+        assert job_id == "job123"
         return [], ["hooks"], {}
 
     with patch(
@@ -174,7 +176,8 @@ async def test_fetch_coordinator_broad_fallback_when_paid_empty():
         get_global_driver=lambda: mock_driver,
     )
 
-    async def mock_plan_tag_scopes(sio, sid, tags):
+    async def mock_plan_tag_scopes(sio, sid, tags, job_id=None):
+        assert job_id == "job123"
         return ["react"], [], {}
 
     mock_udemy_fetcher = MagicMock()
@@ -268,7 +271,8 @@ async def test_fetch_coordinator_cache_connect_failure():
         get_global_driver=lambda: mock_driver,
     )
 
-    async def mock_plan_tag_scopes(sio, sid, tags):
+    async def mock_plan_tag_scopes(sio, sid, tags, job_id=None):
+        assert job_id == "job123"
         return ["react"], [], {}
 
     # Mock cache.connect to fail
@@ -314,7 +318,8 @@ async def test_fetch_coordinator_cache_get_failure():
         get_global_driver=lambda: mock_driver,
     )
 
-    async def mock_plan_tag_scopes(sio, sid, tags):
+    async def mock_plan_tag_scopes(sio, sid, tags, job_id=None):
+        assert job_id == "job123"
         return ["react"], [], {}
 
     with patch(
@@ -356,7 +361,8 @@ async def test_fetch_coordinator_one_provider_task_raises():
         get_global_driver=lambda: mock_driver,
     )
 
-    async def mock_plan_tag_scopes(sio, sid, tags):
+    async def mock_plan_tag_scopes(sio, sid, tags, job_id=None):
+        assert job_id == "job123"
         return ["react"], [], {}
 
     mock_udemy_fetcher = MagicMock()
