@@ -584,14 +584,45 @@ async def process_single_tag(
     else:
         scope = await analyze_topic_scope(sio, socket_id, tag)
 
-    if scope == "Broad":
-        candidates.sort(
-            key=lambda x: (x["contentType"] == "Playlist", x["score"]), reverse=True
-        )
-    else:
-        candidates.sort(key=lambda x: x["score"], reverse=True)
+    from src.engine.models import Candidate, SourceName
+    from src.engine.runtime import runtime_limits
 
-    top_candidates = candidates[:2]
+    # Phase 6: Limit candidate pool and normalize
+    pool_candidates = candidates[:runtime_limits.candidate_pool_limit_per_tag]
+    candidate_objs = [
+        Candidate.from_dict(c, SourceName.YOUTUBE, tag)
+        for c in pool_candidates
+    ]
+
+    # Phase 7: Deduplicate
+    seen_urls = set()
+    deduped_objs = []
+    for c in candidate_objs:
+        url_norm = c.url.strip().lower()
+        if url_norm not in seen_urls:
+            seen_urls.add(url_norm)
+            deduped_objs.append(c)
+
+    # Phase 8: Cheap Ranker / Pruning
+    if scope == "Broad":
+        ranked_objs = sorted(
+            deduped_objs,
+            key=lambda x: (x.metadata.get("contentType") == "Playlist", x.raw_score),
+            reverse=True
+        )[:runtime_limits.cheap_rank_limit_per_tag]
+    else:
+        ranked_objs = sorted(
+            deduped_objs,
+            key=lambda x: x.raw_score,
+            reverse=True
+        )[:runtime_limits.cheap_rank_limit_per_tag]
+
+    top_candidates = [c.to_dict() for c in ranked_objs]
+    
+    if not top_candidates:
+        print(f"    💀 No candidates remaining after normalization and deduplication for '{tag}'.")
+        return tag, None
+
     math_winner = top_candidates[0]
     strict_candidates = [
         {

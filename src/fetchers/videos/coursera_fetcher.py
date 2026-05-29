@@ -43,12 +43,39 @@ async def fetch_coursera(
             final_roadmap[tag] = None
             continue
 
+        # Normalization, Deduplication, and Cheap Ranking (Phase 6, 7, 8)
+        from src.engine.models import Candidate, SourceName
+        from src.engine.runtime import runtime_limits
+
+        candidate_objs = [
+            Candidate.from_dict(c, SourceName.COURSERA, tag)
+            for c in candidates
+        ]
+
+        seen_urls = set()
+        deduped_objs = []
+        for c in candidate_objs:
+            url_norm = c.url.strip().lower()
+            if url_norm not in seen_urls:
+                seen_urls.add(url_norm)
+                deduped_objs.append(c)
+
+        ranked_objs = sorted(
+            deduped_objs, key=lambda x: x.raw_score, reverse=True
+        )[:runtime_limits.cheap_rank_limit_per_tag]
+
+        ranked_dicts = [c.to_dict() for c in ranked_objs]
+
+        if not ranked_dicts:
+            final_roadmap[tag] = None
+            continue
+
         print(
-            f"    🤖 AI Analyzing {len(candidates)} Coursera Candidates for '{tag}'..."
+            f"    🤖 AI Analyzing {len(ranked_dicts)} Coursera Candidates for '{tag}'..."
         )
 
         # Apply AI Classification using the job-scoped socket_id
-        valid_items = await classify_via_frontend(sio, socket_id, tag, candidates)
+        valid_items = await classify_via_frontend(sio, socket_id, tag, ranked_dicts)
 
         if valid_items:
             # Sort by Native Arabic first if needed
@@ -65,12 +92,12 @@ async def fetch_coursera(
                 f"    ⚠️ AI rejected all Coursera items (or frontend error). Using Safety Net."
             )
             # Fallback to the first candidate (which is usually the most relevant from search)
-            winner = candidates[0]
+            winner = ranked_dicts[0]
             final_roadmap[tag] = winner
             # Ensure native arabic sort applies to fallback too if needed
             if language == "ar":
-                candidates.sort(key=lambda x: x["is_native_arabic"], reverse=True)
-                final_roadmap[tag] = candidates[0]
+                ranked_dicts.sort(key=lambda x: x["is_native_arabic"], reverse=True)
+                final_roadmap[tag] = ranked_dicts[0]
             cache_key = generate_cache_key("coursera", tag, language)
             await cache.set(cache_key, final_roadmap[tag])
 

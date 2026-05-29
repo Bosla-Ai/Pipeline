@@ -304,12 +304,38 @@ class RoadmapEngine:
                                     if not candidates:
                                         continue
 
+                                    from src.engine.models import Candidate, SourceName
+                                    from src.engine.runtime import runtime_limits
+
+                                    pool_candidates = candidates[:runtime_limits.candidate_pool_limit_per_tag]
+                                    candidate_objs = [
+                                        Candidate.from_dict(c, SourceName.UDEMY, tag)
+                                        for c in pool_candidates
+                                    ]
+
+                                    seen_urls = set()
+                                    deduped_objs = []
+                                    for c in candidate_objs:
+                                        url_norm = c.url.strip().lower()
+                                        if url_norm not in seen_urls:
+                                            seen_urls.add(url_norm)
+                                            deduped_objs.append(c)
+
+                                    ranked_objs = sorted(
+                                        deduped_objs, key=lambda x: x.raw_score, reverse=True
+                                    )[:runtime_limits.cheap_rank_limit_per_tag]
+
+                                    ranked_dicts = [c.to_dict() for c in ranked_objs]
+
+                                    if not ranked_dicts:
+                                        continue
+
                                     sid = (
                                         socket_server.get_socket_for_job(job_id)
                                         or current_sid
                                     )
                                     valid_udemy = await classify_via_frontend(
-                                        self.sio, sid, tag, candidates
+                                        self.sio, sid, tag, ranked_dicts
                                     )
 
                                     if not valid_udemy:
@@ -319,7 +345,7 @@ class RoadmapEngine:
                                             f"No AI selection for '{tag}', using fallback.",
                                             job_id=job_id,
                                         )
-                                        valid_udemy = candidates
+                                        valid_udemy = ranked_dicts
 
                                     if valid_udemy:
                                         valid_udemy.sort(

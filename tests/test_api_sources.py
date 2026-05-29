@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock
 @pytest.mark.asyncio
 async def test_prefer_paid_false_defaults_to_youtube(mocker):
     """Test that prefer_paid=False without explicit sources defaults to YouTube."""
-    mock_youtube = mocker.patch("src.api.fetch_youtube", return_value={"video": "data"})
-    mock_coursera = mocker.patch("src.api.fetch_coursera")
+    mock_youtube = mocker.patch("src.api.fetch_youtube", new_callable=AsyncMock, return_value={"video": "data"})
+    mock_coursera = mocker.patch("src.api.fetch_coursera", new_callable=AsyncMock)
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
 
@@ -39,9 +39,9 @@ async def test_prefer_paid_false_defaults_to_youtube(mocker):
 @pytest.mark.asyncio
 async def test_explicit_sources_override_prefer_paid(mocker):
     """Test that explicit sources take priority even when prefer_paid=False."""
-    mock_youtube = mocker.patch("src.api.fetch_youtube")
+    mock_youtube = mocker.patch("src.api.fetch_youtube", new_callable=AsyncMock)
     mock_coursera = mocker.patch(
-        "src.api.fetch_coursera", return_value={"python": {"title": "Coursera Python"}}
+        "src.api.fetch_coursera", new_callable=AsyncMock, return_value={"python": {"title": "Coursera Python"}}
     )
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
@@ -70,8 +70,8 @@ async def test_explicit_sources_override_prefer_paid(mocker):
 @pytest.mark.asyncio
 async def test_prefer_paid_strips_youtube_from_sources(mocker):
     """Test that prefer_paid=True strips YouTube from explicit sources."""
-    mock_youtube = mocker.patch("src.api.fetch_youtube")
-    mock_coursera = mocker.patch("src.api.fetch_coursera")
+    mock_youtube = mocker.patch("src.api.fetch_youtube", new_callable=AsyncMock, return_value={})
+    mock_coursera = mocker.patch("src.api.fetch_coursera", new_callable=AsyncMock)
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
 
@@ -99,9 +99,9 @@ async def test_prefer_paid_strips_youtube_from_sources(mocker):
 async def test_prefer_paid_true_default_sources(mocker):
     """Test default behavior for prefer_paid=True (should be Udemy, then YouTube fallback if empty)."""
     mock_youtube = mocker.patch(
-        "src.api.fetch_youtube", return_value={"python": {"title": "fallback"}}
+        "src.api.fetch_youtube", new_callable=AsyncMock, return_value={"python": {"title": "fallback"}}
     )
-    mock_coursera = mocker.patch("src.api.fetch_coursera")
+    mock_coursera = mocker.patch("src.api.fetch_coursera", new_callable=AsyncMock)
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
 
@@ -128,10 +128,10 @@ async def test_prefer_paid_true_default_sources(mocker):
 async def test_prefer_paid_true_specific_source_coursera(mocker):
     """Test requesting ONLY Coursera — YouTube fallback if Coursera returns nothing for a tag."""
     mock_youtube = mocker.patch(
-        "src.api.fetch_youtube", return_value={"python": {"title": "fallback"}}
+        "src.api.fetch_youtube", new_callable=AsyncMock, return_value={"python": {"title": "fallback"}}
     )
     mock_coursera = mocker.patch(
-        "src.api.fetch_coursera", return_value={"python": {"title": "Coursera Python"}}
+        "src.api.fetch_coursera", new_callable=AsyncMock, return_value={"python": {"title": "Coursera Python"}}
     )
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
@@ -159,7 +159,7 @@ async def test_prefer_paid_true_specific_source_coursera(mocker):
 @pytest.mark.asyncio
 async def test_prefer_paid_true_specific_source_udemy(mocker):
     """Test requesting ONLY Udemy."""
-    mock_coursera = mocker.patch("src.api.fetch_coursera")
+    mock_coursera = mocker.patch("src.api.fetch_coursera", new_callable=AsyncMock)
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
 
     transport = ASGITransport(app=app)
@@ -181,8 +181,8 @@ async def test_prefer_paid_true_specific_source_udemy(mocker):
 @pytest.mark.asyncio
 async def test_mixed_sources(mocker):
     """Test requesting a mix: Udemy + Youtube."""
-    mock_youtube = mocker.patch("src.api.fetch_youtube", return_value={"y": "data"})
-    mock_coursera = mocker.patch("src.api.fetch_coursera")
+    mock_youtube = mocker.patch("src.api.fetch_youtube", new_callable=AsyncMock, return_value={"y": "data"})
+    mock_coursera = mocker.patch("src.api.fetch_coursera", new_callable=AsyncMock)
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
 

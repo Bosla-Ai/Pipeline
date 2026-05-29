@@ -12,6 +12,7 @@ from typing import Optional, Any
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 DEFAULT_TTL = 60 * 60 * 24  # 24 hours in seconds
+CACHE_VERSION = os.getenv("CACHE_VERSION", "v1")
 
 
 class RedisCache:
@@ -73,12 +74,14 @@ class RedisCache:
 def generate_cache_key(platform: str, tag: str, language: str) -> str:
     """
     Generate a cache key from platform, tag, and language.
-    Example: "youtube:python:en"
+    Example: "v1:youtube:python:en"
     """
     # Normalize: lowercase, strip whitespace
     normalized_tag = tag.lower().strip().replace(" ", "_")
-    return f"{platform}:{normalized_tag}:{language}"
+    prefix = f"{CACHE_VERSION}:" if CACHE_VERSION else ""
+    return f"{prefix}{platform}:{normalized_tag}:{language}"
 
 
 # Singleton instance
 cache = RedisCache()
+
