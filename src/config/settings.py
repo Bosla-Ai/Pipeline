@@ -30,3 +30,6 @@ DB_CONNECTION_STRING = os.getenv("DB_CONNECTION_STRING", "")
 
 MAX_FETCH_RESULTS = int(os.getenv("MAX_FETCH_RESULTS", 10))
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en")
+
+# Pipeline shared secret for API authentication
+PIPELINE_SHARED_SECRET = os.getenv("PIPELINE_SHARED_SECRET")
