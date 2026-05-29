@@ -588,10 +588,9 @@ async def process_single_tag(
     from src.engine.runtime import runtime_limits
 
     # Phase 6: Limit candidate pool and normalize
-    pool_candidates = candidates[:runtime_limits.candidate_pool_limit_per_tag]
+    pool_candidates = candidates[: runtime_limits.candidate_pool_limit_per_tag]
     candidate_objs = [
-        Candidate.from_dict(c, SourceName.YOUTUBE, tag)
-        for c in pool_candidates
+        Candidate.from_dict(c, SourceName.YOUTUBE, tag) for c in pool_candidates
     ]
 
     # Phase 7: Deduplicate
@@ -608,19 +607,19 @@ async def process_single_tag(
         ranked_objs = sorted(
             deduped_objs,
             key=lambda x: (x.metadata.get("contentType") == "Playlist", x.raw_score),
-            reverse=True
-        )[:runtime_limits.cheap_rank_limit_per_tag]
+            reverse=True,
+        )[: runtime_limits.cheap_rank_limit_per_tag]
     else:
-        ranked_objs = sorted(
-            deduped_objs,
-            key=lambda x: x.raw_score,
-            reverse=True
-        )[:runtime_limits.cheap_rank_limit_per_tag]
+        ranked_objs = sorted(deduped_objs, key=lambda x: x.raw_score, reverse=True)[
+            : runtime_limits.cheap_rank_limit_per_tag
+        ]
 
     top_candidates = [c.to_dict() for c in ranked_objs]
-    
+
     if not top_candidates:
-        print(f"    💀 No candidates remaining after normalization and deduplication for '{tag}'.")
+        print(
+            f"    [YouTube] No candidates remaining after normalization and deduplication for '{tag}'."
+        )
         return tag, None
 
     math_winner = top_candidates[0]
@@ -648,13 +647,13 @@ async def process_single_tag(
         if not socket_id or best_strict["_strict_score"] >= 0.9 or lead_margin >= 0.2:
             result = {k: v for k, v in best_strict.items() if k != "_strict_score"}
             print(
-                f"    ✅ Strict local match accepted: {result['title'][:40]}... "
+                f"    [YouTube] Strict local match accepted: {result['title'][:40]}... "
                 f"(strict={best_strict['_strict_score']:.2f}, score={result['score']:.1f})"
             )
             await cache.set(cache_key, result)
             return tag, result
 
-    print(f"    🤖 AI Analyzing Top {len(top_candidates)} Candidates...")
+    print(f"    [YouTube] AI Analyzing Top {len(top_candidates)} Candidates...")
     valid_items = await classify_via_frontend(sio, socket_id, tag, top_candidates)
 
     if valid_items:
@@ -667,7 +666,7 @@ async def process_single_tag(
 
         result = valid_items[0]
         print(
-            f"    🏆 AI Selected: {result['title'][:40]}... (Score: {result['score']:.1f})"
+            f"    [YouTube] AI Selected: {result['title'][:40]}... (Score: {result['score']:.1f})"
         )
         await cache.set(cache_key, result)
         return tag, result
@@ -677,13 +676,15 @@ async def process_single_tag(
                 k: v for k, v in strict_candidates[0].items() if k != "_strict_score"
             }
             print(
-                f"    ⚠️ AI unavailable/rejected. Using strict local candidate: "
+                f"    [YouTube] AI unavailable/rejected. Using strict local candidate: "
                 f"{result['title'][:40]}..."
             )
             await cache.set(cache_key, result)
             return tag, result
 
-        print(f"    ⚠️ AI rejected all and no strict local candidate matched '{tag}'.")
+        print(
+            f"    [YouTube] AI rejected all and no strict local candidate matched '{tag}'."
+        )
         return tag, None
 
 

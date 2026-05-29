@@ -36,9 +36,9 @@ class RedisCache:
                     decode_responses=True,
                 )
                 await self._client.ping()
-                print(f"✅ [Cache] Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
+                print(f"[Cache] Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
             except Exception as e:
-                print(f"⚠️ [Cache] Redis unavailable: {e}. Caching disabled.")
+                print(f"[Cache] Redis unavailable: {e}. Caching disabled.")
                 self._client = None
 
     async def get(self, key: str) -> Optional[Any]:
@@ -50,7 +50,7 @@ class RedisCache:
             if value:
                 return json.loads(value)
         except Exception as e:
-            print(f"⚠️ [Cache] Get error: {e}")
+            print(f"[Cache] Get error: {e}")
         return None
 
     async def set(self, key: str, value: Any, ttl: int = DEFAULT_TTL) -> bool:
@@ -61,7 +61,7 @@ class RedisCache:
             await self._client.set(key, json.dumps(value), ex=ttl)
             return True
         except Exception as e:
-            print(f"⚠️ [Cache] Set error: {e}")
+            print(f"[Cache] Set error: {e}")
             return False
 
     async def close(self):
@@ -84,4 +84,3 @@ def generate_cache_key(platform: str, tag: str, language: str) -> str:
 
 # Singleton instance
 cache = RedisCache()
-

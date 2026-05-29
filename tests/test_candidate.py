@@ -73,7 +73,11 @@ def test_candidate_deduplication():
     # Simulate duplicate URLs
     raw_list = [
         {"title": "Intro to Go", "url": "https://go.dev/doc/tutorial", "score": 10.0},
-        {"title": "Go Tutorial", "url": "https://go.dev/DOC/tutorial ", "score": 12.0},  # Case & whitespace diff
+        {
+            "title": "Go Tutorial",
+            "url": "https://go.dev/DOC/tutorial ",
+            "score": 12.0,
+        },  # Case & whitespace diff
         {"title": "Learn Go Programming", "url": "https://go.dev/learn", "score": 15.0},
     ]
     candidates = [Candidate.from_dict(r, SourceName.COURSERA, "go") for r in raw_list]

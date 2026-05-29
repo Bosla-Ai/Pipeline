@@ -77,13 +77,15 @@ class Candidate:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any], source: SourceName | str, tag: str) -> Candidate:
+    def from_dict(
+        cls, raw: dict[str, Any], source: SourceName | str, tag: str
+    ) -> Candidate:
         source_enum = SourceName(source) if isinstance(source, str) else source
         title = raw.get("title", "")
         url = raw.get("url", "")
         content_id = raw.get("contentId")
         description = raw.get("description")
-        
+
         channel_or_provider = raw.get("channel_or_provider")
         if not channel_or_provider:
             if source_enum == SourceName.YOUTUBE:
@@ -94,7 +96,7 @@ class Candidate:
                 channel_or_provider = raw.get("platform", "Coursera")
 
         language = raw.get("language") or raw.get("defaultLanguage")
-        
+
         duration_minutes = raw.get("duration_minutes") or raw.get("duration_mins")
         if duration_minutes is not None:
             try:
@@ -102,14 +104,18 @@ class Candidate:
             except (ValueError, TypeError):
                 duration_minutes = None
 
-        view_count = raw.get("view_count") or raw.get("viewCount") or raw.get("avg_views")
+        view_count = (
+            raw.get("view_count") or raw.get("viewCount") or raw.get("avg_views")
+        )
         if view_count is not None:
             try:
                 view_count = int(view_count)
             except (ValueError, TypeError):
                 view_count = None
 
-        like_count = raw.get("like_count") or raw.get("likeCount") or raw.get("avg_likes")
+        like_count = (
+            raw.get("like_count") or raw.get("likeCount") or raw.get("avg_likes")
+        )
         if like_count is not None:
             try:
                 like_count = int(like_count)
@@ -123,7 +129,9 @@ class Candidate:
             except (ValueError, TypeError):
                 rating = None
 
-        review_count = raw.get("review_count") or raw.get("reviewCount") or raw.get("avg_comments")
+        review_count = (
+            raw.get("review_count") or raw.get("reviewCount") or raw.get("avg_comments")
+        )
         if review_count is not None:
             try:
                 review_count = int(review_count)
@@ -162,11 +170,13 @@ class Candidate:
 
     def to_dict(self) -> dict[str, Any]:
         res = dict(self.metadata)
-        res.update({
-            "title": self.title,
-            "url": self.url,
-            "score": self.raw_score,
-        })
+        res.update(
+            {
+                "title": self.title,
+                "url": self.url,
+                "score": self.raw_score,
+            }
+        )
         if self.content_id is not None:
             res["contentId"] = self.content_id
         if self.description is not None:

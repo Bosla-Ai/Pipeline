@@ -307,7 +307,9 @@ class RoadmapEngine:
                                     from src.engine.models import Candidate, SourceName
                                     from src.engine.runtime import runtime_limits
 
-                                    pool_candidates = candidates[:runtime_limits.candidate_pool_limit_per_tag]
+                                    pool_candidates = candidates[
+                                        : runtime_limits.candidate_pool_limit_per_tag
+                                    ]
                                     candidate_objs = [
                                         Candidate.from_dict(c, SourceName.UDEMY, tag)
                                         for c in pool_candidates
@@ -322,8 +324,10 @@ class RoadmapEngine:
                                             deduped_objs.append(c)
 
                                     ranked_objs = sorted(
-                                        deduped_objs, key=lambda x: x.raw_score, reverse=True
-                                    )[:runtime_limits.cheap_rank_limit_per_tag]
+                                        deduped_objs,
+                                        key=lambda x: x.raw_score,
+                                        reverse=True,
+                                    )[: runtime_limits.cheap_rank_limit_per_tag]
 
                                     ranked_dicts = [c.to_dict() for c in ranked_objs]
 

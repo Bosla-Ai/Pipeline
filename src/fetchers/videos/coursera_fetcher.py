@@ -33,7 +33,7 @@ async def fetch_coursera(
     if not tags_to_fetch:
         return final_roadmap
 
-    print(f"⏳ Starting Coursera Scraper for tags: {tags_to_fetch}...")
+    print(f"[Coursera] Starting Coursera Scraper for tags: {tags_to_fetch}...")
     candidates_map = await asyncio.to_thread(
         scrape_coursera_sync, sio, tags_to_fetch, language, max_results, driver
     )
@@ -48,8 +48,7 @@ async def fetch_coursera(
         from src.engine.runtime import runtime_limits
 
         candidate_objs = [
-            Candidate.from_dict(c, SourceName.COURSERA, tag)
-            for c in candidates
+            Candidate.from_dict(c, SourceName.COURSERA, tag) for c in candidates
         ]
 
         seen_urls = set()
@@ -60,9 +59,9 @@ async def fetch_coursera(
                 seen_urls.add(url_norm)
                 deduped_objs.append(c)
 
-        ranked_objs = sorted(
-            deduped_objs, key=lambda x: x.raw_score, reverse=True
-        )[:runtime_limits.cheap_rank_limit_per_tag]
+        ranked_objs = sorted(deduped_objs, key=lambda x: x.raw_score, reverse=True)[
+            : runtime_limits.cheap_rank_limit_per_tag
+        ]
 
         ranked_dicts = [c.to_dict() for c in ranked_objs]
 
@@ -71,7 +70,7 @@ async def fetch_coursera(
             continue
 
         print(
-            f"    🤖 AI Analyzing {len(ranked_dicts)} Coursera Candidates for '{tag}'..."
+            f"    [Coursera] AI Analyzing {len(ranked_dicts)} Coursera Candidates for '{tag}'..."
         )
 
         # Apply AI Classification using the job-scoped socket_id
@@ -83,13 +82,13 @@ async def fetch_coursera(
                 valid_items.sort(key=lambda x: x["is_native_arabic"], reverse=True)
 
             winner = valid_items[0]
-            print(f"    🏆 [AI] Coursera Winner: {winner['title'][:50]}...")
+            print(f"    [Coursera] [AI] Coursera Winner: {winner['title'][:50]}...")
             final_roadmap[tag] = winner
             cache_key = generate_cache_key("coursera", tag, language)
             await cache.set(cache_key, winner)
         else:
             print(
-                f"    ⚠️ AI rejected all Coursera items (or frontend error). Using Safety Net."
+                f"    [Coursera] AI rejected all Coursera items (or frontend error). Using Safety Net."
             )
             # Fallback to the first candidate (which is usually the most relevant from search)
             winner = ranked_dicts[0]
