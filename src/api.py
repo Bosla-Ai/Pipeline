@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-from enum import Enum
+
 import src.socket_server as socket_server
 from src.socket_server import sio
 
@@ -19,7 +19,6 @@ from src.utils.event_log import event_log
 from src.engine.models import CourseSource
 
 from src.config.settings import PIPELINE_SHARED_SECRET
-import os
 
 SOCKET_WAIT_TIMEOUT = int(os.environ.get("SOCKET_WAIT_TIMEOUT", "30"))
 

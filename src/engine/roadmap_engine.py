@@ -5,7 +5,6 @@ import uuid
 from typing import Any, List, Optional
 
 import src.socket_server as socket_server
-from src.socket_server import sio
 
 from src.fetchers.videos.udemy_fetcher import UdemyFetcher
 from src.utils.cache import cache, generate_cache_key
