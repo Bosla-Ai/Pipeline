@@ -277,7 +277,14 @@ def load_skill_graph():
                 with path.open("r", encoding="utf-8") as f:
                     data = yaml.safe_load(f)
                     if data:
-                        graph.update(data)
+                        for k, v in data.items():
+                            if isinstance(v, dict):
+                                v["_source_file"] = path.name
+                            elif v is None:
+                                v = {"prerequisites": [], "_source_file": path.name}
+                            elif isinstance(v, list):
+                                v = {"prerequisites": v, "_source_file": path.name}
+                            graph[k] = v
             except Exception as e:
                 print(f"Error loading skill graph {path}: {e}")
     return graph
@@ -506,77 +513,102 @@ def _detect_domain(tags: list[str], context_tags: set | None = None) -> str:
         context_tags = {t.lower().replace("-", " ").strip() for t in tags}
     normalized = [_normalize_tag(t, context_tags) for t in tags]
 
-    frontend_kw = {
-        "react",
-        "angular",
-        "vue",
-        "svelte",
-        "css",
-        "html",
-        "next.js",
-        "tailwind",
-        "bootstrap",
-        "sass",
-        "nextjs",
-        "nuxt",
-        "gatsby",
-    }
-    backend_kw = {
-        "node",
-        "express",
-        "django",
-        "flask",
-        "fastapi",
-        "spring",
-        "laravel",
-        "asp.net",
-        "nest.js",
-        "rails",
-    }
-    data_kw = {
-        "machine learning",
-        "deep learning",
-        "data science",
-        "pandas",
-        "tensorflow",
-        "pytorch",
-        "ai",
-        "nlp",
-        "computer vision",
-    }
-    devops_kw = {
-        "docker",
-        "kubernetes",
-        "ci/cd",
-        "terraform",
-        "aws",
-        "azure",
-        "gcp",
-        "jenkins",
-        "ansible",
-    }
-    mobile_kw = {
-        "flutter",
-        "react native",
-        "android",
-        "ios",
-        "swiftui",
-        "jetpack compose",
+    # Software Engineering domain mappings for nodes in software_engineering.yaml
+    SOFTWARE_ENG_DOMAINS = {
+        # Frontend
+        "html": "Frontend Development", "css": "Frontend Development", "sass": "Frontend Development",
+        "scss": "Frontend Development", "tailwind": "Frontend Development", "bootstrap": "Frontend Development",
+        "javascript": "Frontend Development", "typescript": "Frontend Development", "dom": "Frontend Development",
+        "react": "Frontend Development", "next.js": "Frontend Development", "gatsby": "Frontend Development",
+        "angular": "Frontend Development", "vue": "Frontend Development", "nuxt": "Frontend Development",
+        "svelte": "Frontend Development", "sveltekit": "Frontend Development", "redux": "Frontend Development",
+        "zustand": "Frontend Development", "mobx": "Frontend Development", "pinia": "Frontend Development",
+        "vuex": "Frontend Development", "ngrx": "Frontend Development", "rxjs": "Frontend Development",
+        "styled-components": "Frontend Development", "emotion": "Frontend Development", "webpack": "Frontend Development",
+        "vite": "Frontend Development", "rollup": "Frontend Development",
+
+        # Backend
+        "node": "Backend Development", "express": "Backend Development", "nestjs": "Backend Development",
+        "fastify": "Backend Development", "python": "Backend Development", "flask": "Backend Development",
+        "django": "Backend Development", "fastapi": "Backend Development", "java": "Backend Development",
+        "spring": "Backend Development", "spring boot": "Backend Development", "c#": "Backend Development",
+        "linq": "Backend Development", "ef core": "Backend Development", "asp.net": "Backend Development",
+        ".net": "Backend Development", "blazor": "Backend Development", "signalr": "Backend Development",
+        "php": "Backend Development", "laravel": "Backend Development", "ruby": "Backend Development",
+        "rails": "Backend Development", "go": "Backend Development", "rust": "Backend Development",
+        "kotlin": "Backend Development", "scala": "Backend Development", "elixir": "Backend Development",
+        "sql": "Backend Development", "mysql": "Backend Development", "postgresql": "Backend Development",
+        "sqlite": "Backend Development", "mongodb": "Backend Development", "redis": "Backend Development",
+        "dynamodb": "Backend Development", "cassandra": "Backend Development", "neo4j": "Backend Development",
+        "elasticsearch": "Backend Development", "prisma": "Backend Development", "sequelize": "Backend Development",
+        "sqlalchemy": "Backend Development", "rest api": "Backend Development", "graphql": "Backend Development",
+        "grpc": "Backend Development", "websocket": "Backend Development", "api design": "Backend Development",
+        "jwt": "Backend Development", "oauth": "Backend Development", "authentication": "Backend Development",
+        "authorization": "Backend Development", "unit testing": "Backend Development", "pytest": "Backend Development",
+        "mocha": "Backend Development", "testing": "Backend Development", "cypress": "Backend Development",
+        "selenium": "Backend Development", "vitest": "Backend Development",
+
+        # Mobile
+        "android": "Mobile Development", "jetpack compose": "Mobile Development", "ios": "Mobile Development",
+        "swiftui": "Mobile Development", "flutter": "Mobile Development", "react native": "Mobile Development",
+        "swift": "Mobile Development", "dart": "Mobile Development",
+
+        # Cybersecurity & Networking -> DevOps
+        "cybersecurity": "DevOps & Cloud", "ethical hacking": "DevOps & Cloud", "penetration testing": "DevOps & Cloud",
+        "network security": "DevOps & Cloud", "cryptography": "DevOps & Cloud", "networking": "DevOps & Cloud",
     }
 
+    # Initialize domain scores
     scores = {
-        "Frontend Development": sum(1 for t in normalized if t in frontend_kw),
-        "Backend Development": sum(1 for t in normalized if t in backend_kw),
-        "Full-Stack Development": 0,
-        "Data Science & AI": sum(1 for t in normalized if t in data_kw),
-        "DevOps & Cloud": sum(1 for t in normalized if t in devops_kw),
-        "Mobile Development": sum(1 for t in normalized if t in mobile_kw),
+        "Frontend Development": 0.0,
+        "Backend Development": 0.0,
+        "Full-Stack Development": 0.0,
+        "Data Science & AI": 0.0,
+        "DevOps & Cloud": 0.0,
+        "Mobile Development": 0.0,
     }
 
-    if scores["Frontend Development"] > 0 and scores["Backend Development"] > 0:
-        scores["Full-Stack Development"] = (
-            scores["Frontend Development"] + scores["Backend Development"]
-        )
+    for tag in normalized:
+        domain = None
+        node_data = _graph_data.get(tag)
+        if node_data and isinstance(node_data, dict):
+            source_file = node_data.get("_source_file", "")
+            if source_file == "frontend_modern.yaml":
+                domain = "Frontend Development"
+            elif source_file in ("devops.yaml", "cloud_native.yaml", "security.yaml"):
+                domain = "DevOps & Cloud"
+            elif source_file in ("data_ai.yaml", "ai_agents.yaml", "data_engineering.yaml"):
+                domain = "Data Science & AI"
+            elif source_file == "software_engineering.yaml":
+                domain = SOFTWARE_ENG_DOMAINS.get(tag)
+
+        # Fallback to hardcoded/explicit checks if not found dynamically or not in software_engineering map
+        if not domain:
+            if tag in SOFTWARE_ENG_DOMAINS:
+                domain = SOFTWARE_ENG_DOMAINS[tag]
+            elif any(kw in tag for kw in ("react", "angular", "vue", "svelte", "css", "html", "next.js", "tailwind", "bootstrap", "sass", "nextjs", "nuxt", "gatsby")):
+                domain = "Frontend Development"
+            elif any(kw in tag for kw in ("node", "express", "django", "flask", "fastapi", "spring", "laravel", "asp.net", "nestjs", "rails")):
+                domain = "Backend Development"
+            elif any(kw in tag for kw in ("machine learning", "deep learning", "data science", "pandas", "tensorflow", "pytorch", "ai", "nlp", "computer vision", "generative ai", "llms", "rag")):
+                domain = "Data Science & AI"
+            elif any(kw in tag for kw in ("docker", "kubernetes", "ci/cd", "terraform", "aws", "azure", "gcp", "jenkins", "ansible")):
+                domain = "DevOps & Cloud"
+            elif any(kw in tag for kw in ("flutter", "react native", "android", "ios", "swiftui", "jetpack compose")):
+                domain = "Mobile Development"
+
+        if domain:
+            scores[domain] += 1.0
+
+    # Classify as Full-Stack only if BOTH Frontend and Backend are present,
+    # and the minority score is at least 30% of the majority score.
+    fe_score = scores["Frontend Development"]
+    be_score = scores["Backend Development"]
+    if fe_score > 0 and be_score > 0:
+        majority = max(fe_score, be_score)
+        minority = min(fe_score, be_score)
+        if minority >= 0.3 * majority:
+            scores["Full-Stack Development"] = fe_score + be_score
 
     best = max(scores, key=scores.get)
     if scores[best] == 0:

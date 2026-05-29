@@ -45,3 +45,10 @@ rsc: react server components
 opensearch: elasticsearch
 valkey: redis
 cloud run: google cloud run
+tw: tailwind
+tailwind css: tailwind
+tailwind-css: tailwind
+ml: machine learning
+dl: deep learning
+auth: authentication
+

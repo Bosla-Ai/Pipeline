@@ -236,3 +236,46 @@ def test_tf_difficulty_and_hours_varies_by_context():
     assert diff_ml == "Advanced"
     assert hours_devops < hours_ml
 
+
+def test_new_context_aliases_resolution():
+    # net resolves to .net in .net context
+    dotnet_ctx = {"c#", "asp.net", "ef core"}
+    assert _normalize_tag("net", dotnet_ctx) == ".net"
+
+    # net resolves to networking in networking context
+    network_ctx = {"cybersecurity", "network security", "ethical hacking"}
+    assert _normalize_tag("net", network_ctx) == "networking"
+
+    # net defaults to .net
+    assert _normalize_tag("net") == ".net"
+
+    # cloud resolves to cloud deployment in devops context
+    cloud_devops_ctx = {"docker", "kubernetes", "ci/cd"}
+    assert _normalize_tag("cloud", cloud_devops_ctx) == "cloud deployment"
+
+    # cloud resolves to cloud security in security context
+    cloud_sec_ctx = {"cybersecurity", "vault", "devsecops"}
+    assert _normalize_tag("cloud", cloud_sec_ctx) == "cloud security"
+
+    # cloud defaults to cloud deployment
+    assert _normalize_tag("cloud") == "cloud deployment"
+
+
+def test_normalized_domain_scoring_fullstack_threshold():
+    # 1 FE + 1 BE -> Full-Stack (balanced, minority 1.0 >= 0.3 * majority 1.0)
+    lp1 = generate_learning_path(["react", "node"])
+    assert lp1["domain"] == "Full-Stack Development"
+
+    # 4 FE + 1 BE -> Frontend (highly unbalanced, minority 1.0 < 0.3 * majority 4.0)
+    lp2 = generate_learning_path(["react", "html", "css", "tailwind", "node"])
+    assert lp2["domain"] == "Frontend Development"
+
+    # 3 FE + 1 BE -> Full-Stack (balanced, minority 1.0 >= 0.3 * majority 3.0)
+    lp3 = generate_learning_path(["react", "html", "css", "node"])
+    assert lp3["domain"] == "Full-Stack Development"
+
+    # 5 BE + 1 FE -> Backend (highly unbalanced, minority 1.0 < 0.3 * majority 5.0)
+    lp4 = generate_learning_path(["node", "express", "nestjs", "fastify", "postgres", "react"])
+    assert lp4["domain"] == "Backend Development"
+
+

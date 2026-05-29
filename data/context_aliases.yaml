@@ -39,3 +39,51 @@ tf:
       - argocd
       - helm
       - iac
+
+net:
+  - target: .net
+    default: true
+    context:
+      - c#
+      - linq
+      - ef core
+      - asp.net
+      - blazor
+      - signalr
+      - dotnet
+      - .net core
+  - target: networking
+    context:
+      - networking
+      - cybersecurity
+      - ethical hacking
+      - penetration testing
+      - network security
+      - routing
+      - tcp
+      - ip
+      - dns
+
+cloud:
+  - target: cloud deployment
+    default: true
+    context:
+      - devops
+      - docker
+      - kubernetes
+      - terraform
+      - ansible
+      - aws
+      - azure
+      - gcp
+      - ci/cd
+  - target: cloud security
+    context:
+      - cybersecurity
+      - appsec
+      - container security
+      - vault
+      - devsecops
+      - iam
+      - sops
+
