@@ -9,12 +9,13 @@ from src.utils.cache import cache, generate_cache_key
 
 
 async def fetch_coursera(
-    sio, socket_id, tags, language="en", max_results=5, driver=None
+    sio, socket_id, tags, language="en", max_results=5, driver=None, job_id=None
 ):
     if not tags:
         return {}
 
     from src.utils.helpers import classify_via_frontend
+    from src.utils.event_log import event_log
 
     await cache.connect()
 
@@ -26,8 +27,30 @@ async def fetch_coursera(
         cached_result = await cache.get(cache_key)
         if cached_result:
             print(f"    [Cache Hit] Coursera: {tag} ({language})")
+            event_log.log(
+                "success",
+                "cache",
+                "cache_hit",
+                job_id=job_id,
+                metadata={
+                    "source": "coursera",
+                    "tag": tag,
+                    "language": language,
+                }
+            )
             final_roadmap[tag] = cached_result
         else:
+            event_log.log(
+                "info",
+                "cache",
+                "cache_miss",
+                job_id=job_id,
+                metadata={
+                    "source": "coursera",
+                    "tag": tag,
+                    "language": language,
+                }
+            )
             tags_to_fetch.append(tag)
 
     if not tags_to_fetch:
@@ -59,6 +82,19 @@ async def fetch_coursera(
 
         ranked_dicts = [c.to_dict() for c in ranked_objs]
 
+        event_log.log(
+            "success",
+            "job",
+            "cheap_rank_completed",
+            job_id=job_id,
+            metadata={
+                "source": "coursera",
+                "tag": tag,
+                "candidate_pool_size": len(candidates),
+                "ranked_count": len(ranked_dicts),
+            }
+        )
+
         if not ranked_dicts:
             final_roadmap[tag] = None
             continue
@@ -68,7 +104,7 @@ async def fetch_coursera(
         )
 
         # Apply AI Classification using the job-scoped socket_id
-        valid_items = await classify_via_frontend(sio, socket_id, tag, ranked_dicts)
+        valid_items = await classify_via_frontend(sio, socket_id, tag, ranked_dicts, job_id=job_id)
 
         if valid_items:
             # Sort by Native Arabic first if needed

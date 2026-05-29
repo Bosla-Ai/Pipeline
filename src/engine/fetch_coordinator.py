@@ -139,11 +139,27 @@ class FetchCoordinator:
                                         event_log.log(
                                             "success",
                                             "cache",
-                                            f"Cache Hit - Udemy: {tag}",
+                                            "cache_hit",
                                             job_id=job_id,
+                                            metadata={
+                                                "source": "udemy",
+                                                "tag": tag,
+                                                "language": language,
+                                            }
                                         )
                                         udemy_cached[tag] = cached_result
                                     else:
+                                        event_log.log(
+                                            "info",
+                                            "cache",
+                                            "cache_miss",
+                                            job_id=job_id,
+                                            metadata={
+                                                "source": "udemy",
+                                                "tag": tag,
+                                                "language": language,
+                                            }
+                                        )
                                         udemy_tags_to_fetch.append(tag)
                             except Exception as ce:
                                 event_log.log(
@@ -302,19 +318,55 @@ class FetchCoordinator:
     ) -> dict:
         if not tags:
             return {}
+        start_time = asyncio.get_running_loop().time()
+        event_log.log(
+            "info",
+            "provider",
+            "provider_fetch_started",
+            job_id=job_id,
+            metadata={
+                "source": "youtube",
+                "tags": tags,
+            }
+        )
         async with runtime_semaphores.youtube_provider:
             try:
-                return await asyncio.wait_for(
+                res = await asyncio.wait_for(
                     self.fetch_youtube(
                         self.sio,
                         current_sid,
                         tags,
                         language,
                         scope_cache=scope_cache,
+                        job_id=job_id,
                     ),
                     timeout=runtime_limits.youtube_provider_timeout_seconds,
                 )
+                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                event_log.log(
+                    "success",
+                    "provider",
+                    "provider_fetch_completed",
+                    job_id=job_id,
+                    metadata={
+                        "source": "youtube",
+                        "duration_ms": duration_ms,
+                        "candidate_count": len(res) if isinstance(res, dict) else 0,
+                    }
+                )
+                return res
             except asyncio.TimeoutError:
+                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                event_log.log(
+                    "error",
+                    "provider",
+                    "provider_fetch_timeout",
+                    job_id=job_id,
+                    metadata={
+                        "source": "youtube",
+                        "duration_ms": duration_ms,
+                    }
+                )
                 event_log.log(
                     "error",
                     "fetcher",
@@ -323,6 +375,18 @@ class FetchCoordinator:
                 )
                 return {}
             except Exception as e:
+                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                event_log.log(
+                    "error",
+                    "provider",
+                    "provider_fetch_failed",
+                    job_id=job_id,
+                    metadata={
+                        "source": "youtube",
+                        "duration_ms": duration_ms,
+                        "error": str(e),
+                    }
+                )
                 event_log.log(
                     "error",
                     "fetcher",
@@ -340,19 +404,55 @@ class FetchCoordinator:
     ) -> dict:
         if not tags:
             return {}
+        start_time = asyncio.get_running_loop().time()
+        event_log.log(
+            "info",
+            "provider",
+            "provider_fetch_started",
+            job_id=job_id,
+            metadata={
+                "source": "coursera",
+                "tags": tags,
+            }
+        )
         async with runtime_semaphores.coursera_provider:
             try:
-                return await asyncio.wait_for(
+                res = await asyncio.wait_for(
                     self.fetch_coursera(
                         self.sio,
                         current_sid,
                         tags,
                         language,
                         driver=self.get_global_driver(),
+                        job_id=job_id,
                     ),
                     timeout=runtime_limits.coursera_provider_timeout_seconds,
                 )
+                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                event_log.log(
+                    "success",
+                    "provider",
+                    "provider_fetch_completed",
+                    job_id=job_id,
+                    metadata={
+                        "source": "coursera",
+                        "duration_ms": duration_ms,
+                        "candidate_count": len(res) if isinstance(res, dict) else 0,
+                    }
+                )
+                return res
             except asyncio.TimeoutError:
+                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                event_log.log(
+                    "error",
+                    "provider",
+                    "provider_fetch_timeout",
+                    job_id=job_id,
+                    metadata={
+                        "source": "coursera",
+                        "duration_ms": duration_ms,
+                    }
+                )
                 event_log.log(
                     "error",
                     "fetcher",
@@ -361,6 +461,18 @@ class FetchCoordinator:
                 )
                 return {}
             except Exception as e:
+                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                event_log.log(
+                    "error",
+                    "provider",
+                    "provider_fetch_failed",
+                    job_id=job_id,
+                    metadata={
+                        "source": "coursera",
+                        "duration_ms": duration_ms,
+                        "error": str(e),
+                    }
+                )
                 event_log.log(
                     "error",
                     "fetcher",
@@ -378,13 +490,48 @@ class FetchCoordinator:
     ) -> dict:
         if not tags:
             return {}
+        start_time = asyncio.get_running_loop().time()
+        event_log.log(
+            "info",
+            "provider",
+            "provider_fetch_started",
+            job_id=job_id,
+            metadata={
+                "source": "udemy",
+                "tags": tags,
+            }
+        )
         async with runtime_semaphores.udemy_provider:
             try:
-                return await asyncio.wait_for(
+                res = await asyncio.wait_for(
                     self._fetch_udemy_impl(tags, language, current_sid, job_id),
                     timeout=runtime_limits.udemy_provider_timeout_seconds,
                 )
+                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                event_log.log(
+                    "success",
+                    "provider",
+                    "provider_fetch_completed",
+                    job_id=job_id,
+                    metadata={
+                        "source": "udemy",
+                        "duration_ms": duration_ms,
+                        "candidate_count": len(res) if isinstance(res, dict) else 0,
+                    }
+                )
+                return res
             except asyncio.TimeoutError:
+                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                event_log.log(
+                    "error",
+                    "provider",
+                    "provider_fetch_timeout",
+                    job_id=job_id,
+                    metadata={
+                        "source": "udemy",
+                        "duration_ms": duration_ms,
+                    }
+                )
                 event_log.log(
                     "error",
                     "fetcher",
@@ -393,6 +540,18 @@ class FetchCoordinator:
                 )
                 return {}
             except Exception as e:
+                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                event_log.log(
+                    "error",
+                    "provider",
+                    "provider_fetch_failed",
+                    job_id=job_id,
+                    metadata={
+                        "source": "udemy",
+                        "duration_ms": duration_ms,
+                        "error": str(e),
+                    }
+                )
                 event_log.log(
                     "error",
                     "fetcher",
@@ -453,11 +612,24 @@ class FetchCoordinator:
 
             ranked_dicts = [c.to_dict() for c in ranked_objs]
 
+            event_log.log(
+                "success",
+                "job",
+                "cheap_rank_completed",
+                job_id=job_id,
+                metadata={
+                    "source": "udemy",
+                    "tag": tag,
+                    "candidate_pool_size": len(pool_candidates),
+                    "ranked_count": len(ranked_dicts),
+                }
+            )
+
             if not ranked_dicts:
                 continue
 
             sid = socket_server.get_socket_for_job(job_id) or current_sid
-            valid_udemy = await classify_via_frontend(self.sio, sid, tag, ranked_dicts)
+            valid_udemy = await classify_via_frontend(self.sio, sid, tag, ranked_dicts, job_id=job_id)
 
             if not valid_udemy:
                 event_log.log(

@@ -99,6 +99,17 @@ class RoadmapEngine:
                 prefer_paid=prefer_paid,
             )
         await job_store.start_job(job_id)
+        event_log.log(
+            "info",
+            "job",
+            "job_started",
+            job_id=job_id,
+            metadata={
+                "tags": tags,
+                "prefer_paid": prefer_paid,
+                "language": language,
+            },
+        )
 
         try:
             async with runtime_semaphores.jobs:
@@ -114,9 +125,27 @@ class RoadmapEngine:
                     timeout=runtime_limits.full_job_timeout_seconds,
                 )
             await job_store.complete_job(job_id, result)
+            event_log.log(
+                "success",
+                "job",
+                "job_completed",
+                job_id=job_id,
+                metadata={
+                    "status": "success",
+                },
+            )
             return result
         except Exception as e:
             await job_store.fail_job(job_id, str(e))
+            event_log.log(
+                "error",
+                "job",
+                "job_failed",
+                job_id=job_id,
+                metadata={
+                    "error": str(e),
+                },
+            )
             raise
 
     async def _generate_impl(
@@ -182,6 +211,17 @@ class RoadmapEngine:
             tags, roadmap_data=roadmap_result, tag_checkpoints=tag_checkpoints
         )
         roadmap_result["learning_path"] = learning_path
+
+        event_log.log(
+            "success",
+            "job",
+            "final_rank_completed",
+            job_id=job_id,
+            metadata={
+                "tag_count": len(tags),
+                "phase_count": len(learning_path.get("phases", [])) if isinstance(learning_path, dict) else 0,
+            },
+        )
 
         event_log.log("success", "job", "Roadmap generation complete.", job_id=job_id)
 

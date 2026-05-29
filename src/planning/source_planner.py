@@ -28,7 +28,7 @@ class SourcePlanner:
 
     @staticmethod
     async def plan_tag_scopes(
-        sio, socket_id: Optional[str], tags: List[str]
+        sio, socket_id: Optional[str], tags: List[str], job_id: Optional[str] = None
     ) -> Tuple[List[str], List[str], Dict[str, str]]:
         """
         Classify tags into Broad and Atomic categories using heuristic and AI fallback.
@@ -38,7 +38,10 @@ class SourcePlanner:
         scope_cache = {}
 
         async def analyze_tag(tag):
-            scope = await analyze_topic_scope(sio, socket_id, tag)
+            try:
+                scope = await analyze_topic_scope(sio, socket_id, tag, job_id=job_id)
+            except TypeError:
+                scope = await analyze_topic_scope(sio, socket_id, tag)
             return tag, scope
 
         scope_results = await asyncio.gather(*(analyze_tag(t) for t in tags))

@@ -275,13 +275,15 @@ def _heuristic_scope(tag: str) -> str | None:
     return None  # Uncertain — defer to AI
 
 
-async def analyze_topic_scope(sio, socket_id, tag):
+async def analyze_topic_scope(sio, socket_id, tag, job_id=None):
     """Classifies topic scope: 'Broad' (Playlist/Course) vs 'Atomic' (Single Video).
 
     Uses a heuristic-first approach for speed and reliability,
     falling back to on-device AI classification when uncertain.
     No static topic list dependency.
     """
+    from src.utils.event_log import event_log
+
     # Fast heuristic pass
     heuristic = _heuristic_scope(tag)
     if heuristic:
@@ -291,12 +293,35 @@ async def analyze_topic_scope(sio, socket_id, tag):
     # No socket → default permissive (Broad is safer — searches wider)
     if not socket_id:
         print(f"    🧩 No socket, defaulting to Broad for '{tag}'")
+        event_log.log(
+            "warn",
+            "job",
+            "edge_classification_fallback",
+            job_id=job_id,
+            metadata={
+                "tag": tag,
+                "task": "scope_analysis",
+                "reason": "no_socket",
+            }
+        )
         return "Broad"
 
     labels = [
         "an entire programming language, framework, or major technology",
         "a specific programming concept, error, or technique",
     ]
+
+    event_log.log(
+        "info",
+        "job",
+        "edge_classification_started",
+        job_id=job_id,
+        metadata={
+            "tag": tag,
+            "task": "scope_analysis",
+        }
+    )
+    start_time = asyncio.get_running_loop().time()
 
     try:
         response = await _inference_batcher.schedule_inference(
@@ -309,7 +334,20 @@ async def analyze_topic_scope(sio, socket_id, tag):
             timeout=4,
         )
 
+        duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+
         if not response:
+            event_log.log(
+                "warn",
+                "job",
+                "edge_classification_fallback",
+                job_id=job_id,
+                metadata={
+                    "tag": tag,
+                    "task": "scope_analysis",
+                    "reason": "empty_response",
+                }
+            )
             return "Broad"
 
         # Map labels to scores
@@ -325,11 +363,49 @@ async def analyze_topic_scope(sio, socket_id, tag):
             f"    🧠 Scope Analysis for '{tag}': Broad={broad_score:.2f}, Atomic={atomic_score:.2f}"
         )
 
-        if broad_score > atomic_score:
-            return "Broad"
-        return "Atomic"
+        scope = "Broad" if broad_score > atomic_score else "Atomic"
+        event_log.log(
+            "success",
+            "job",
+            "edge_classification_completed",
+            job_id=job_id,
+            metadata={
+                "tag": tag,
+                "task": "scope_analysis",
+                "duration_ms": duration_ms,
+                "scope": scope,
+            }
+        )
+        return scope
 
     except Exception as e:
+        duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+        is_timeout = isinstance(e, asyncio.TimeoutError) or "timeout" in str(e).lower()
+        if is_timeout:
+            event_log.log(
+                "error",
+                "job",
+                "edge_classification_timeout",
+                job_id=job_id,
+                metadata={
+                    "tag": tag,
+                    "task": "scope_analysis",
+                    "duration_ms": duration_ms,
+                }
+            )
+        else:
+            event_log.log(
+                "error",
+                "job",
+                "edge_classification_fallback",
+                job_id=job_id,
+                metadata={
+                    "tag": tag,
+                    "task": "scope_analysis",
+                    "reason": "error",
+                    "error": str(e),
+                }
+            )
         import traceback
 
         print(f"    [Scope] Scope Analysis Failed: {type(e).__name__}: {e}")
@@ -337,12 +413,25 @@ async def analyze_topic_scope(sio, socket_id, tag):
         return "Broad"
 
 
-async def classify_via_frontend(sio, socket_id, tag, candidates):
+async def classify_via_frontend(sio, socket_id, tag, candidates, job_id=None):
     if not candidates:
         return []
 
+    from src.utils.event_log import event_log
+
     if not socket_id:
         print(f"    [AI] No Client. Skipping AI Classification for: {tag}")
+        event_log.log(
+            "warn",
+            "job",
+            "edge_classification_fallback",
+            job_id=job_id,
+            metadata={
+                "tag": tag,
+                "task": "candidate_classification",
+                "reason": "no_socket",
+            }
+        )
         return candidates
 
     # Labels: Integrity vs Distractors
@@ -372,6 +461,19 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
         f"    [AI] Sending {len(formatted_candidates)} items to Frontend for NLI (Tag: {tag})..."
     )
 
+    event_log.log(
+        "info",
+        "job",
+        "edge_classification_started",
+        job_id=job_id,
+        metadata={
+            "tag": tag,
+            "task": "candidate_classification",
+            "candidate_count": len(formatted_candidates),
+        }
+    )
+    start_time = asyncio.get_running_loop().time()
+
     try:
         response = await _inference_batcher.schedule_inference(
             sio=sio,
@@ -382,6 +484,8 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
             hypothesis_template="This content is {}.",
             timeout=12,
         )
+
+        duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
 
         valid_items = []
         for item in response:
@@ -455,9 +559,49 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
                     f"    [AI] Rejected '{item['title'][:30]}...' ({reason}, Label: {max_label})"
                 )
 
+        event_log.log(
+            "success",
+            "job",
+            "edge_classification_completed",
+            job_id=job_id,
+            metadata={
+                "tag": tag,
+                "task": "candidate_classification",
+                "duration_ms": duration_ms,
+                "valid_count": len(valid_items),
+            }
+        )
+
         return valid_items
 
     except Exception as e:
+        duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+        is_timeout = isinstance(e, asyncio.TimeoutError) or "timeout" in str(e).lower()
+        if is_timeout:
+            event_log.log(
+                "error",
+                "job",
+                "edge_classification_timeout",
+                job_id=job_id,
+                metadata={
+                    "tag": tag,
+                    "task": "candidate_classification",
+                    "duration_ms": duration_ms,
+                }
+            )
+        else:
+            event_log.log(
+                "error",
+                "job",
+                "edge_classification_fallback",
+                job_id=job_id,
+                metadata={
+                    "tag": tag,
+                    "task": "candidate_classification",
+                    "reason": "error",
+                    "error": str(e),
+                }
+            )
         print(f"    [AI] Error during classification: {e}")
         return []
 

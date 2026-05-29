@@ -427,3 +427,55 @@ def test_positive_int_env_sanitizes_negative_values():
         # Negative and zero values must be sanitized to at least 1
         assert youtube_concurrency == 1
         assert socket_timeout == 1
+
+
+@pytest.mark.asyncio
+async def test_fetch_coordinator_logging_events():
+    mock_youtube = AsyncMock(
+        return_value={
+            "react": {"title": "React Video", "url": "https://youtube.com/react"}
+        }
+    )
+    mock_coursera = AsyncMock(return_value={})
+    mock_driver = MagicMock()
+
+    coordinator = FetchCoordinator(
+        sio=MagicMock(),
+        fetch_youtube=mock_youtube,
+        fetch_coursera=mock_coursera,
+        get_global_driver=lambda: mock_driver,
+    )
+
+    logged_events = []
+    def mock_log(level, category, msg, job_id=None, metadata=None, **kwargs):
+        logged_events.append({
+            "level": level,
+            "category": category,
+            "msg": msg,
+            "job_id": job_id,
+            "metadata": metadata
+        })
+
+    with patch("src.utils.event_log.event_log.log", side_effect=mock_log):
+        res = await coordinator.fetch_resources(
+            tags=["react"],
+            language="en",
+            active_sources=[CourseSource.YOUTUBE],
+            current_sid="sid123",
+            job_id="job-log-test-123",
+        )
+
+    # Check for provider_fetch_started
+    started = [e for e in logged_events if e["msg"] == "provider_fetch_started"]
+    assert len(started) > 0
+    assert started[0]["category"] == "provider"
+    assert started[0]["job_id"] == "job-log-test-123"
+    assert started[0]["metadata"]["source"] == "youtube"
+
+    # Check for provider_fetch_completed
+    completed = [e for e in logged_events if e["msg"] == "provider_fetch_completed"]
+    assert len(completed) > 0
+    assert completed[0]["category"] == "provider"
+    assert completed[0]["job_id"] == "job-log-test-123"
+    assert completed[0]["metadata"]["source"] == "youtube"
+    assert "duration_ms" in completed[0]["metadata"]

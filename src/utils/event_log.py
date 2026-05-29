@@ -29,6 +29,7 @@ CATEGORIES = {
     "video_search",
     "playlist_proxy",
     "resource_audit",
+    "provider",
 }
 
 MAX_ENTRIES = 2000
@@ -89,10 +90,17 @@ class EventLog:
         *,
         job_id: str | None = None,
         details: dict | None = None,
+        metadata: dict | None = None,
     ) -> dict:
         """Store an event and print it to stdout."""
         level = level if level in LEVELS else "info"
         category = category if category in CATEGORIES else "system"
+
+        merged_details = {}
+        if details:
+            merged_details.update(details)
+        if metadata:
+            merged_details.update(metadata)
 
         entry = {
             "id": uuid.uuid4().hex[:12],
@@ -101,7 +109,7 @@ class EventLog:
             "category": category,
             "message": message,
             "job_id": job_id,
-            "details": details,
+            "details": merged_details if merged_details else None,
         }
 
         self._entries.append(entry)
