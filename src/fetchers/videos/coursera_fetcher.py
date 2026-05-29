@@ -135,8 +135,11 @@ async def fetch_coursera(
         cache_key = generate_cache_key("coursera", tag, language)
         token = str(uuid.uuid4())
         acquired = await cache.acquire_lock(cache_key, token, ttl=60)
-        if acquired:
+        if acquired is True:
             locked_tokens[tag] = token
+            tags_to_scrape.append(tag)
+        elif acquired is None:
+            # Cache unavailable/infra failure: scrape immediately
             tags_to_scrape.append(tag)
         else:
             tags_to_wait.append(tag)

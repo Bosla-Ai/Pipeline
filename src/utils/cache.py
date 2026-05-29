@@ -27,6 +27,10 @@ class RedisCache:
             cls._instance = super().__new__(cls)
         return cls._instance
 
+    def is_available(self) -> bool:
+        """Returns True if the Redis client is connected and available."""
+        return self._client is not None
+
     async def connect(self):
         """Initialize Redis connection."""
         if self._client is None:
@@ -65,16 +69,16 @@ class RedisCache:
             print(f"[Cache] Set error: {e}")
             return False
 
-    async def acquire_lock(self, key: str, token: str, ttl: int = 30) -> bool:
-        """Acquire a light Redis lock. Returns True if acquired."""
+    async def acquire_lock(self, key: str, token: str, ttl: int = 30) -> Optional[bool]:
+        """Acquire a light Redis lock. Returns True if acquired, False if lock held, None if Redis unavailable/error."""
         if self._client is None:
-            return False
+            return None
         try:
             acquired = await self._client.set(f"lock:{key}", token, nx=True, ex=ttl)
             return bool(acquired)
         except Exception as e:
             print(f"[Cache] Lock acquisition error for {key}: {e}")
-            return False
+            return None
 
     async def release_lock(self, key: str, token: str) -> bool:
         """Release a light Redis lock if the token matches."""
@@ -133,7 +137,7 @@ class RedisCache:
 
         # Acquire lock
         acquired = await self.acquire_lock(key, token, ttl=30)
-        if acquired:
+        if acquired is True:
             if source and tag and language:
                 event_log.log(
                     "info",
@@ -152,6 +156,9 @@ class RedisCache:
                 return value
             finally:
                 await self.release_lock(key, token)
+        elif acquired is None:
+            # Redis is unavailable or errored: bypass waiting, compute immediately
+            return await factory()
 
         # 3. Someone else is computing it. Wait and check cache.
         if source and tag and language:

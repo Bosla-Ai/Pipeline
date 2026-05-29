@@ -187,7 +187,7 @@ class FetchCoordinator:
                                 cache_key = generate_cache_key("udemy", tag, language)
                                 token = str(uuid.uuid4())
                                 acquired = await cache.acquire_lock(cache_key, token, ttl=60)
-                                if acquired:
+                                if acquired is True:
                                     locked_tokens[tag] = token
                                     tags_to_scrape.append(tag)
                                     event_log.log(
@@ -201,7 +201,11 @@ class FetchCoordinator:
                                             "language": language,
                                         }
                                     )
+                                elif acquired is None:
+                                    # Cache unavailable/infra failure: fetch immediately, do not wait
+                                    tags_to_scrape.append(tag)
                                 else:
+                                    # acquired is False: lock held by another worker, wait
                                     tags_to_wait.append(tag)
 
                             if tags_to_scrape:

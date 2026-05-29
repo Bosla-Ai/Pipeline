@@ -485,3 +485,86 @@ async def test_fetch_coordinator_logging_events():
     assert completed[0]["job_id"] == "job-log-test-123"
     assert completed[0]["metadata"]["source"] == "youtube"
     assert "duration_ms" in completed[0]["metadata"]
+
+
+@pytest.mark.asyncio
+async def test_fetch_coordinator_udemy_lock_unavailable_no_wait():
+    mock_youtube = AsyncMock(return_value={})
+    mock_coursera = AsyncMock(return_value={})
+    mock_driver = MagicMock()
+
+    coordinator = FetchCoordinator(
+        sio=MagicMock(),
+        fetch_youtube=mock_youtube,
+        fetch_coursera=mock_coursera,
+        get_global_driver=lambda: mock_driver,
+    )
+
+    async def mock_plan_tag_scopes(sio, sid, tags, job_id=None):
+        return ["react"], [], {}
+
+    with patch(
+        "src.planning.source_planner.SourcePlanner.plan_tag_scopes",
+        side_effect=mock_plan_tag_scopes,
+    ), patch(
+        "src.utils.cache.cache.acquire_lock", return_value=None  # lock unavailable/infra error
+    ) as mock_acquire, patch(
+        "src.engine.fetch_coordinator.UdemyFetcher"
+    ) as mock_fetcher_cls, patch(
+        "asyncio.sleep"
+    ) as mock_sleep:
+
+        mock_udemy_fetcher = MagicMock()
+        mock_udemy_fetcher.scrape = MagicMock()
+        mock_udemy_fetcher.blocked_tags = []
+        mock_udemy_fetcher.results = {"react": [{"title": "Udemy React", "url": "https://udemy.com/react"}]}
+        mock_fetcher_cls.return_value = mock_udemy_fetcher
+
+        res = await coordinator.fetch_resources(
+            tags=["react"],
+            language="en",
+            active_sources=[CourseSource.UDEMY],
+            current_sid="sid123",
+            job_id="job123",
+        )
+
+        mock_acquire.assert_called_once()
+        mock_fetcher_cls.assert_called_once()
+        mock_sleep.assert_not_called()  # Did not wait!
+
+
+@pytest.mark.asyncio
+async def test_fetch_coordinator_coursera_lock_unavailable_no_wait():
+    from src.fetchers.videos.coursera_fetcher import fetch_coursera
+    
+    mock_sio = MagicMock()
+    mock_driver = MagicMock()
+
+    # Mock cache lookup: connect works, get returns None (miss)
+    with patch(
+        "src.utils.cache.cache.connect", new_callable=AsyncMock
+    ), patch(
+        "src.utils.cache.cache.get", new_callable=AsyncMock, return_value=None
+    ), patch(
+        "src.utils.cache.cache.acquire_lock", return_value=None  # lock unavailable/infra error
+    ) as mock_acquire, patch(
+        "src.fetchers.videos.coursera_fetcher.scrape_coursera_sync", return_value={"react": []}
+    ) as mock_scrape, patch(
+        "asyncio.sleep"
+    ) as mock_sleep:
+
+        res = await fetch_coursera(
+            sio=mock_sio,
+            socket_id="sid123",
+            tags=["react"],
+            language="en",
+            max_results=5,
+            driver=mock_driver,
+            job_id="job123",
+        )
+
+        mock_acquire.assert_called_once()
+        mock_scrape.assert_called_once()
+        mock_sleep.assert_not_called()  # Did not wait!
+
+

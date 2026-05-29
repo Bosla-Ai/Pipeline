@@ -103,3 +103,66 @@ async def test_cache_stampede_protection():
         assert factory_2_called == 0
     finally:
         cache._client = original_client
+
+
+@pytest.mark.asyncio
+async def test_cache_stampede_client_unavailable():
+    # Test that get_or_set_with_lock computes immediately if client is None
+    original_client = cache._client
+    cache._client = None
+
+    factory_called = 0
+    async def factory():
+        nonlocal factory_called
+        factory_called += 1
+        return "immediate_value"
+
+    try:
+        res = await cache.get_or_set_with_lock(
+            key="test_unavailable_key",
+            ttl=30,
+            factory=factory,
+            job_id="job123",
+            source="test_src",
+            tag="test_tag",
+            language="en",
+        )
+        assert res == "immediate_value"
+        assert factory_called == 1
+    finally:
+        cache._client = original_client
+
+
+@pytest.mark.asyncio
+async def test_cache_stampede_lock_raises():
+    # Test that get_or_set_with_lock computes immediately if lock acquisition raises an exception
+    mock_client = mock.MagicMock()
+    # Mock client.get to return None (cache miss)
+    mock_client.get = mock.AsyncMock(return_value=None)
+    # Mock client.set to raise exception for locking
+    mock_client.set = mock.AsyncMock(side_effect=Exception("Redis connection lost during set"))
+
+    original_client = cache._client
+    cache._client = mock_client
+
+    factory_called = 0
+    async def factory():
+        nonlocal factory_called
+        factory_called += 1
+        return "immediate_value_on_exception"
+
+    try:
+        res = await cache.get_or_set_with_lock(
+            key="test_raises_key",
+            ttl=30,
+            factory=factory,
+            job_id="job123",
+            source="test_src",
+            tag="test_tag",
+            language="en",
+        )
+        assert res == "immediate_value_on_exception"
+        assert factory_called == 1
+    finally:
+        cache._client = original_client
+

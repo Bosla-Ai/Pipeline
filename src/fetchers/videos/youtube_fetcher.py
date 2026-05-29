@@ -440,7 +440,7 @@ async def _process_single_tag_impl(
 
     if not candidates:
         print(f"    💀 No results for '{tag}' from either scraper or API.")
-        return tag, None
+        return None
 
     if precomputed_scope:
         scope = precomputed_scope
@@ -491,7 +491,7 @@ async def _process_single_tag_impl(
         print(
             f"    [YouTube] No candidates remaining after normalization and deduplication for '{tag}'."
         )
-        return tag, None
+        return None
 
     math_winner = top_candidates[0]
     strict_candidates = [
