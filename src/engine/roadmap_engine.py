@@ -6,8 +6,7 @@ from typing import Any, List, Optional
 
 import src.socket_server as socket_server
 
-from src.fetchers.videos.udemy_fetcher import UdemyFetcher
-from src.utils.cache import cache, generate_cache_key
+from src.engine.fetch_coordinator import FetchCoordinator
 from src.utils.learning_path import generate_learning_path
 from src.utils.event_log import event_log
 from src.engine.runtime import runtime_limits, runtime_semaphores
@@ -70,6 +69,13 @@ class RoadmapEngine:
         self.fetch_coursera = fetch_coursera
         self.get_global_driver = get_global_driver
         self.socket_wait_timeout = socket_wait_timeout
+        self.fetch_coordinator = FetchCoordinator(
+            sio=sio,
+            fetch_youtube=fetch_youtube,
+            fetch_coursera=fetch_coursera,
+            get_global_driver=get_global_driver,
+            socket_wait_timeout=socket_wait_timeout,
+        )
 
     async def generate(
         self,
@@ -123,9 +129,6 @@ class RoadmapEngine:
         tag_checkpoints: Optional[dict] = None,
         job_id: Optional[str] = None,
     ) -> dict[str, Any]:
-        fetch_youtube = self.fetch_youtube
-        fetch_coursera = self.fetch_coursera
-
         if not job_id:
             job_id = uuid.uuid4().hex[:12]
 
@@ -161,303 +164,17 @@ class RoadmapEngine:
                 job_id=job_id,
             )
 
-        roadmap_result = {"youtube": {}, "coursera": {}, "udemy": {}}
-
         active_sources = SourcePlanner.plan_sources(sources, prefer_paid)
 
         event_log.log("info", "job", f"Active Sources: {active_sources}", job_id=job_id)
 
-        if CourseSource.YOUTUBE in active_sources:
-            try:
-                event_log.log(
-                    "info",
-                    "fetcher",
-                    f"Fetching Free Content (YouTube)... Lang: {language}",
-                    job_id=job_id,
-                )
-                youtube_data = await fetch_youtube(
-                    self.sio, current_sid, tags, language
-                )
-                roadmap_result["youtube"] = youtube_data
-            except Exception as e:
-                event_log.log(
-                    "error", "fetcher", f"YouTube fetcher error: {e}", job_id=job_id
-                )
-
-        paid_sources_requested = any(
-            s in active_sources for s in [CourseSource.COURSERA, CourseSource.UDEMY]
+        roadmap_result = await self.fetch_coordinator.fetch_resources(
+            tags=tags,
+            language=language,
+            active_sources=active_sources,
+            current_sid=current_sid,
+            job_id=job_id,
         )
-
-        if paid_sources_requested:
-            event_log.log(
-                "info",
-                "fetcher",
-                f"Fetching Paid Content | Tags: {tags}",
-                job_id=job_id,
-            )
-
-            # Refresh sid in case the socket reconnected
-            current_sid = socket_server.get_socket_for_job(job_id) or current_sid
-
-            broad_tags, atomic_tags, scope_cache = await SourcePlanner.plan_tag_scopes(
-                self.sio, current_sid, tags
-            )
-
-            event_log.log(
-                "info",
-                "job",
-                f"Scope: Broad={broad_tags}, Atomic={atomic_tags}",
-                job_id=job_id,
-                details={
-                    "broad_tags": broad_tags,
-                    "atomic_tags": atomic_tags,
-                    "method": "heuristic+ai_fallback",
-                },
-            )
-
-            if broad_tags:
-                fetch_tasks = []
-
-                if CourseSource.COURSERA in active_sources:
-
-                    async def fetch_coursera_job():
-                        try:
-                            data = await fetch_coursera(
-                                self.sio,
-                                current_sid,
-                                broad_tags,
-                                language,
-                                driver=self.get_global_driver(),
-                            )
-                            roadmap_result["coursera"] = data
-                        except Exception as e:
-                            event_log.log(
-                                "error",
-                                "fetcher",
-                                f"Coursera Error: {e}",
-                                job_id=job_id,
-                            )
-
-                    fetch_tasks.append(fetch_coursera_job())
-
-                if CourseSource.UDEMY in active_sources:
-
-                    async def fetch_udemy_job():
-                        try:
-                            await cache.connect()
-                            udemy_cached = {}
-                            udemy_tags_to_fetch = []
-
-                            for tag in broad_tags:
-                                cache_key = generate_cache_key("udemy", tag, language)
-                                cached_result = await cache.get(cache_key)
-                                if cached_result:
-                                    event_log.log(
-                                        "success",
-                                        "cache",
-                                        f"Cache Hit - Udemy: {tag}",
-                                        job_id=job_id,
-                                    )
-                                    udemy_cached[tag] = cached_result
-                                else:
-                                    udemy_tags_to_fetch.append(tag)
-
-                            roadmap_result["udemy"] = udemy_cached
-
-                            if not udemy_tags_to_fetch:
-                                event_log.log(
-                                    "success",
-                                    "cache",
-                                    "Udemy: All tags cached",
-                                    job_id=job_id,
-                                )
-                            else:
-                                udemy_fetcher = UdemyFetcher(
-                                    tags=udemy_tags_to_fetch,
-                                    limit=5,
-                                    headless=True,
-                                )
-                                await asyncio.to_thread(udemy_fetcher.scrape)
-
-                                # Log Cloudflare blocks for dashboard visibility
-                                if udemy_fetcher.blocked_tags:
-                                    event_log.log(
-                                        "warn",
-                                        "fetcher",
-                                        f"Cloudflare blocked Udemy for: {udemy_fetcher.blocked_tags}",
-                                        job_id=job_id,
-                                        details={
-                                            "source": "udemy",
-                                            "blocked_tags": udemy_fetcher.blocked_tags,
-                                            "reason": "cloudflare_waf",
-                                        },
-                                    )
-
-                                udemy_results_map = udemy_fetcher.results
-
-                                from src.utils.helpers import classify_via_frontend
-
-                                for tag, candidates in udemy_results_map.items():
-                                    if not candidates:
-                                        continue
-
-                                    from src.engine.models import Candidate, SourceName
-                                    from src.engine.runtime import runtime_limits
-                                    from src.ranking.dedupe import dedupe_candidates
-                                    from src.ranking.cheap_ranker import cheap_rank
-
-                                    pool_candidates = candidates[
-                                        : runtime_limits.candidate_pool_limit_per_tag
-                                    ]
-                                    candidate_objs = [
-                                        Candidate.from_dict(c, SourceName.UDEMY, tag)
-                                        for c in pool_candidates
-                                    ]
-
-                                    deduped_objs = dedupe_candidates(candidate_objs)
-                                    ranked_objs = cheap_rank(deduped_objs, tag)[
-                                        : runtime_limits.cheap_rank_limit_per_tag
-                                    ]
-
-                                    ranked_dicts = [c.to_dict() for c in ranked_objs]
-
-                                    if not ranked_dicts:
-                                        continue
-
-                                    sid = (
-                                        socket_server.get_socket_for_job(job_id)
-                                        or current_sid
-                                    )
-                                    valid_udemy = await classify_via_frontend(
-                                        self.sio, sid, tag, ranked_dicts
-                                    )
-
-                                    if not valid_udemy:
-                                        event_log.log(
-                                            "warn",
-                                            "fetcher",
-                                            f"No AI selection for '{tag}', using fallback.",
-                                            job_id=job_id,
-                                        )
-                                        valid_udemy = ranked_dicts
-
-                                    if valid_udemy:
-                                        valid_udemy.sort(
-                                            key=lambda x: x.get("score", 0),
-                                            reverse=True,
-                                        )
-                                        winner = valid_udemy[0]
-                                        roadmap_result["udemy"][tag] = winner
-                                        cache_key = generate_cache_key(
-                                            "udemy", tag, language
-                                        )
-                                        await cache.set(cache_key, winner)
-                                        event_log.log(
-                                            "success",
-                                            "fetcher",
-                                            f"Udemy Winner: {winner['title'][:50]}...",
-                                            job_id=job_id,
-                                        )
-                        except Exception as e:
-                            event_log.log(
-                                "error", "fetcher", f"Udemy Error: {e}", job_id=job_id
-                            )
-
-                    fetch_tasks.append(fetch_udemy_job())
-
-                if fetch_tasks:
-                    await asyncio.gather(*fetch_tasks)
-
-            if atomic_tags:
-                # Always fall back to YouTube for atomic tags — even in paid mode,
-                # atomic topics (specific concepts) are best served by free videos.
-                try:
-                    event_log.log(
-                        "info",
-                        "fetcher",
-                        f"Fetching YouTube for atomic tags: {atomic_tags}",
-                        job_id=job_id,
-                    )
-                    sid = socket_server.get_socket_for_job(job_id) or current_sid
-                    youtube_data = await fetch_youtube(
-                        self.sio,
-                        sid,
-                        atomic_tags,
-                        language,
-                        scope_cache=scope_cache,
-                    )
-                    roadmap_result["youtube"].update(youtube_data)
-                except Exception as e:
-                    event_log.log(
-                        "error",
-                        "fetcher",
-                        f"YouTube (atomic) Error: {e}",
-                        job_id=job_id,
-                    )
-
-            # ── Fallback: if paid sources returned nothing for broad tags, use YouTube ──
-            if broad_tags:
-                unmatched_broad = [
-                    t
-                    for t in broad_tags
-                    if t not in (roadmap_result.get("udemy") or {})
-                    and t not in (roadmap_result.get("coursera") or {})
-                ]
-                if unmatched_broad:
-                    event_log.log(
-                        "warn",
-                        "fetcher",
-                        f"Paid sources returned nothing for {unmatched_broad}. Falling back to YouTube.",
-                        job_id=job_id,
-                        details={
-                            "fallback": "youtube",
-                            "unmatched_tags": unmatched_broad,
-                            "active_sources": [s.value for s in active_sources],
-                        },
-                    )
-                    try:
-                        sid = socket_server.get_socket_for_job(job_id) or current_sid
-                        youtube_fallback = await fetch_youtube(
-                            self.sio,
-                            sid,
-                            unmatched_broad,
-                            language,
-                            scope_cache=scope_cache,
-                        )
-                        roadmap_result["youtube"].update(youtube_fallback)
-
-                        fb_found = [
-                            t
-                            for t in unmatched_broad
-                            if t in youtube_fallback and youtube_fallback[t]
-                        ]
-                        fb_missed = [t for t in unmatched_broad if t not in fb_found]
-                        if fb_found:
-                            event_log.log(
-                                "success",
-                                "fetcher",
-                                f"YouTube fallback found resources for: {fb_found}",
-                                job_id=job_id,
-                                details={
-                                    "fallback_found": fb_found,
-                                    "fallback_missed": fb_missed,
-                                },
-                            )
-                        if fb_missed:
-                            event_log.log(
-                                "warn",
-                                "fetcher",
-                                f"YouTube fallback found nothing for: {fb_missed}",
-                                job_id=job_id,
-                                details={"fallback_missed": fb_missed},
-                            )
-                    except Exception as e:
-                        event_log.log(
-                            "error",
-                            "fetcher",
-                            f"YouTube fallback Error: {e}",
-                            job_id=job_id,
-                        )
 
         event_log.log(
             "info", "job", "Generating Learning DNA Sequence...", job_id=job_id

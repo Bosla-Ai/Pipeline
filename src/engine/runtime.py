@@ -31,8 +31,17 @@ class RuntimeLimits:
     cheap_rank_limit_per_tag: int
     final_result_limit_per_tag: int
 
+    youtube_provider_timeout_seconds: int
+    coursera_provider_timeout_seconds: int
+    udemy_provider_timeout_seconds: int
+
+    youtube_provider_concurrency: int
+    coursera_provider_concurrency: int
+    udemy_provider_concurrency: int
+
 
 def load_runtime_limits() -> RuntimeLimits:
+    provider_timeout = _int_env("PROVIDER_TIMEOUT", 20)
     return RuntimeLimits(
         max_concurrent_jobs=_int_env("MAX_CONCURRENT_JOBS", 3),
         youtube_api_concurrency=_int_env("YOUTUBE_API_CONCURRENCY", 4),
@@ -42,11 +51,23 @@ def load_runtime_limits() -> RuntimeLimits:
         frontend_ai_concurrency=_int_env("FRONTEND_AI_CONCURRENCY", 2),
         socket_wait_timeout_seconds=_int_env("SOCKET_WAIT_TIMEOUT", 30),
         frontend_ai_timeout_seconds=_int_env("FRONTEND_AI_TIMEOUT", 12),
-        provider_timeout_seconds=_int_env("PROVIDER_TIMEOUT", 20),
+        provider_timeout_seconds=provider_timeout,
         full_job_timeout_seconds=_int_env("FULL_JOB_TIMEOUT", 90),
         candidate_pool_limit_per_tag=_int_env("CANDIDATE_POOL_LIMIT_PER_TAG", 30),
         cheap_rank_limit_per_tag=_int_env("CHEAP_RANK_LIMIT_PER_TAG", 12),
         final_result_limit_per_tag=_int_env("FINAL_RESULT_LIMIT_PER_TAG", 3),
+        youtube_provider_timeout_seconds=_int_env(
+            "YOUTUBE_PROVIDER_TIMEOUT_SECONDS", provider_timeout
+        ),
+        coursera_provider_timeout_seconds=_int_env(
+            "COURSERA_PROVIDER_TIMEOUT_SECONDS", provider_timeout
+        ),
+        udemy_provider_timeout_seconds=_int_env(
+            "UDEMY_PROVIDER_TIMEOUT_SECONDS", provider_timeout
+        ),
+        youtube_provider_concurrency=_int_env("YOUTUBE_PROVIDER_CONCURRENCY", 4),
+        coursera_provider_concurrency=_int_env("COURSERA_PROVIDER_CONCURRENCY", 1),
+        udemy_provider_concurrency=_int_env("UDEMY_PROVIDER_CONCURRENCY", 1),
     )
 
 
@@ -58,6 +79,10 @@ class RuntimeSemaphores:
         self.udemy = asyncio.Semaphore(limits.udemy_concurrency)
         self.coursera = asyncio.Semaphore(limits.coursera_concurrency)
         self.frontend_ai = asyncio.Semaphore(limits.frontend_ai_concurrency)
+
+        self.youtube_provider = asyncio.Semaphore(limits.youtube_provider_concurrency)
+        self.coursera_provider = asyncio.Semaphore(limits.coursera_provider_concurrency)
+        self.udemy_provider = asyncio.Semaphore(limits.udemy_provider_concurrency)
 
 
 runtime_limits = load_runtime_limits()
