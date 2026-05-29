@@ -249,6 +249,37 @@ class TestAnalyzeTopicScope:
         )
         assert result == "Broad"
 
+    @pytest.mark.asyncio
+    async def test_analyze_topic_scope_batching(self, mock_sio):
+        """Concurrent scope analysis calls are batched into a single Socket.IO call."""
+        import asyncio
+
+        mock_sio.call.return_value = [
+            {
+                "labels": [
+                    "an entire programming language, framework, or major technology",
+                    "a specific programming concept, error, or technique",
+                ],
+                "scores": [0.8, 0.2],
+            },
+            {
+                "labels": [
+                    "an entire programming language, framework, or major technology",
+                    "a specific programming concept, error, or technique",
+                ],
+                "scores": [0.3, 0.7],
+            },
+        ]
+
+        res1, res2 = await asyncio.gather(
+            analyze_topic_scope(mock_sio, "valid_socket_id", "some obscure topic one"),
+            analyze_topic_scope(mock_sio, "valid_socket_id", "some obscure topic two"),
+        )
+
+        mock_sio.call.assert_called_once()
+        assert res1 == "Broad"
+        assert res2 == "Atomic"
+
 
 class TestRealWorldTags:
     """Test the originally-failing tags from the deployed pipeline."""

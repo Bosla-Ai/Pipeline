@@ -121,6 +121,100 @@ _FRONTEND_AI_MAX_CONCURRENCY = _parse_positive_int_env("FRONTEND_AI_MAX_CONCURRE
 _FRONTEND_AI_SEMAPHORE = asyncio.Semaphore(_FRONTEND_AI_MAX_CONCURRENCY)
 
 
+class InferenceBatcher:
+    """Aggregates and batches frontend classification and scope analysis requests
+    to reduce network roundtrips over Socket.IO.
+    """
+
+    def __init__(self):
+        self._groups = (
+            {}
+        )  # (socket_id, group_key) -> list of (candidate_dict, future, labels, hypothesis_template, timeout)
+        self._timers = {}  # (socket_id, group_key) -> Task or None
+
+    async def schedule_inference(
+        self,
+        sio,
+        socket_id,
+        group_key,
+        candidates,
+        labels,
+        hypothesis_template,
+        timeout,
+    ):
+        loop = asyncio.get_running_loop()
+        key = (socket_id, group_key)
+
+        futures = [loop.create_future() for _ in candidates]
+
+        if key not in self._groups:
+            self._groups[key] = []
+
+        for cand, fut in zip(candidates, futures):
+            self._groups[key].append((cand, fut, labels, hypothesis_template, timeout))
+
+        if (
+            key not in self._timers
+            or self._timers[key] is None
+            or self._timers[key].done()
+        ):
+            self._timers[key] = asyncio.create_task(
+                self._run_batch(sio, socket_id, group_key)
+            )
+
+        results = await asyncio.gather(*futures, return_exceptions=True)
+
+        real_results = []
+        for r in results:
+            if isinstance(r, Exception):
+                raise r
+            real_results.append(r)
+        return real_results
+
+    async def _run_batch(self, sio, socket_id, group_key):
+        # Wait a brief moment to allow other concurrent calls to queue their candidates
+        await asyncio.sleep(0.05)
+
+        key = (socket_id, group_key)
+        items = self._groups.pop(key, [])
+        if not items:
+            return
+
+        _, _, labels, hypothesis_template, timeout = items[0]
+        batch_candidates = [cand for cand, _, _, _, _ in items]
+        futures = [fut for _, fut, _, _, _ in items]
+
+        try:
+            async with _FRONTEND_AI_SEMAPHORE:
+                response = await sio.call(
+                    event="request_inference",
+                    data={
+                        "candidates": batch_candidates,
+                        "labels": labels,
+                        "hypothesis_template": hypothesis_template,
+                    },
+                    to=socket_id,
+                    timeout=timeout,
+                )
+
+            if not response or not isinstance(response, list):
+                raise ValueError("Invalid or empty response from frontend inference")
+
+            # Distribute results
+            for i, fut in enumerate(futures):
+                if i < len(response):
+                    fut.set_result(response[i])
+                else:
+                    fut.set_result({})
+        except Exception as e:
+            for fut in futures:
+                if not fut.done():
+                    fut.set_exception(e)
+
+
+_inference_batcher = InferenceBatcher()
+
+
 def _heuristic_scope(tag: str) -> str | None:
     """Classify scope using language heuristics. Returns 'Broad', 'Atomic', or None (uncertain)."""
     tag_lower = tag.lower().strip()
@@ -177,17 +271,15 @@ async def analyze_topic_scope(sio, socket_id, tag):
     ]
 
     try:
-        async with _FRONTEND_AI_SEMAPHORE:
-            response = await sio.call(
-                event="request_inference",
-                data={
-                    "candidates": [{"ai_input_text": f"The technical topic is {tag}."}],
-                    "labels": labels,
-                    "hypothesis_template": "{}",
-                },
-                to=socket_id,
-                timeout=4,
-            )
+        response = await _inference_batcher.schedule_inference(
+            sio=sio,
+            socket_id=socket_id,
+            group_key="scope",
+            candidates=[{"ai_input_text": f"The technical topic is {tag}."}],
+            labels=labels,
+            hypothesis_template="{}",
+            timeout=4,
+        )
 
         if not response:
             return "Broad"
@@ -253,17 +345,15 @@ async def classify_via_frontend(sio, socket_id, tag, candidates):
     )
 
     try:
-        async with _FRONTEND_AI_SEMAPHORE:
-            response = await sio.call(
-                event="request_inference",
-                data={
-                    "candidates": formatted_candidates,
-                    "labels": labels,
-                    "hypothesis_template": "This content is {}.",
-                },
-                to=socket_id,
-                timeout=12,
-            )
+        response = await _inference_batcher.schedule_inference(
+            sio=sio,
+            socket_id=socket_id,
+            group_key=f"classify_{tag}",
+            candidates=formatted_candidates,
+            labels=labels,
+            hypothesis_template="This content is {}.",
+            timeout=12,
+        )
 
         valid_items = []
         for item in response:

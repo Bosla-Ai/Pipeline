@@ -112,3 +112,67 @@ async def test_classify_via_frontend_unrelated(mock_sio):
     result = await classify_via_frontend(mock_sio, "sid", "asp.net core", candidates)
 
     assert len(result) == 0
+
+
+@pytest.mark.asyncio
+async def test_classify_via_frontend_batching(mock_sio):
+    """Scenario: Concurrent classification requests for the same tag are batched."""
+    import asyncio
+
+    candidates1 = [
+        {
+            "contentType": "Playlist",
+            "title": "ASP.NET Core Course 1",
+            "description": "Complete Guide 1",
+            "url": "http://youtube.com/1",
+            "score": 10.0,
+        }
+    ]
+    candidates2 = [
+        {
+            "contentType": "Playlist",
+            "title": "ASP.NET Core Course 2",
+            "description": "Complete Guide 2",
+            "url": "http://youtube.com/2",
+            "score": 10.0,
+        }
+    ]
+
+    # The mock Socket.IO call needs to return results for BOTH candidates in the order they are batched
+    mock_sio.call.return_value = [
+        {
+            "contentType": "Playlist",
+            "title": "ASP.NET Core Course 1",
+            "scores": [0.9, 0.05, 0.05],
+            "labels": [
+                "a comprehensive course primarily about asp.net core",
+                "...",
+                "...",
+            ],
+        },
+        {
+            "contentType": "Playlist",
+            "title": "ASP.NET Core Course 2",
+            "scores": [0.8, 0.1, 0.1],
+            "labels": [
+                "a comprehensive course primarily about asp.net core",
+                "...",
+                "...",
+            ],
+        },
+    ]
+
+    # Trigger both concurrently
+    res1, res2 = await asyncio.gather(
+        classify_via_frontend(mock_sio, "sid", "asp.net core", candidates1),
+        classify_via_frontend(mock_sio, "sid", "asp.net core", candidates2),
+    )
+
+    # Assert that only ONE call was made to mock_sio.call
+    mock_sio.call.assert_called_once()
+
+    # Verify both got their correct results
+    assert len(res1) == 1
+    assert res1[0]["title"] == "ASP.NET Core Course 1"
+    assert len(res2) == 1
+    assert res2[0]["title"] == "ASP.NET Core Course 2"
