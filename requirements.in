@@ -1,0 +1,33 @@
+# Core API & Network
+fastapi
+uvicorn
+python-socketio
+python-dotenv
+pydantic
+requests
+aiohttp
+redis
+
+# Scraping & Browser
+beautifulsoup4
+lxml
+selenium
+undetected-chromedriver
+scrapling[fetchers]>=0.4
+playwright
+browserforge>=1.2.4
+
+# Utilities
+isodate
+yt-dlp
+
+# Dev Tools (Formatter & Testing)
+black
+pytest
+pytest-asyncio
+pytest-mock
+pytest-xdist
+httpx
+
+# Compatibility
+setuptools
