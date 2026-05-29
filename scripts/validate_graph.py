@@ -36,6 +36,22 @@ def load_aliases():
     except Exception as e:
         return {}, [f"Failed to parse aliases.yaml: {e}"]
 
+def load_domain_mappings():
+    path = DATA_DIR / "domain_mappings.yaml"
+    if not path.exists():
+        return {}, []
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            if data is None:
+                return {}, []
+            if not isinstance(data, dict):
+                return {}, [f"Domain mappings file must contain a dictionary, got {type(data)}"]
+            return data, []
+    except Exception as e:
+        return {}, [f"Failed to parse domain_mappings.yaml: {e}"]
+
+
 def load_skill_graphs():
     graphs_dir = DATA_DIR / "skill_graphs"
     if not graphs_dir.exists():
@@ -183,12 +199,31 @@ def validate_context_aliases(context_aliases, graph, simple_aliases):
     
     return errors, warnings
 
+def validate_domain_mappings(domain_mappings, graph):
+    errors = []
+    warnings = []
+    valid_domains = {
+        "Frontend Development",
+        "Backend Development",
+        "Full-Stack Development",
+        "Data Science & AI",
+        "DevOps & Cloud",
+        "Mobile Development",
+    }
+    for node, domain in domain_mappings.items():
+        if node not in graph:
+            errors.append(f"Domain mapping node '{node}' does not exist as a canonical node in the graph")
+        if domain not in valid_domains:
+            errors.append(f"Domain mapping node '{node}' maps to invalid domain '{domain}'. Must be one of {valid_domains}")
+    return errors, warnings
+
 def main():
     aliases, alias_errors = load_aliases()
     graph, node_sources, graph_errors = load_skill_graphs()
     context_aliases, ctx_alias_errors = load_context_aliases()
+    domain_mappings, domain_errors = load_domain_mappings()
     
-    all_errors = alias_errors + graph_errors + ctx_alias_errors
+    all_errors = alias_errors + graph_errors + ctx_alias_errors + domain_errors
     all_warnings = []
     
     if not all_errors:
@@ -199,8 +234,12 @@ def main():
         ctx_errors, ctx_warnings = validate_context_aliases(context_aliases, graph, aliases)
         all_errors.extend(ctx_errors)
         all_warnings.extend(ctx_warnings)
+
+        dom_errors, dom_warnings = validate_domain_mappings(domain_mappings, graph)
+        all_errors.extend(dom_errors)
+        all_warnings.extend(dom_warnings)
         
-    print(f"Loaded {len(graph)} canonical nodes, {len(aliases)} aliases, and {len(context_aliases)} context aliases.")
+    print(f"Loaded {len(graph)} canonical nodes, {len(aliases)} aliases, {len(context_aliases)} context aliases, and {len(domain_mappings)} domain mappings.")
     
     if all_warnings:
         print("\n--- WARNINGS ---")

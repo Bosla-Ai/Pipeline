@@ -323,10 +323,27 @@ def load_context_aliases():
     return ctx_aliases
 
 
+def load_domain_mappings():
+    mappings = {}
+    path = DATA_DIR / "domain_mappings.yaml"
+    if path.exists():
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if data and isinstance(data, dict):
+                    mappings.update(data)
+        except Exception as e:
+            print(f"Error loading domain mappings: {e}")
+    return mappings
+
+
 # Load dynamic data
 _graph_data = load_skill_graph()
 _aliases_data = load_aliases()
 _context_aliases_data = load_context_aliases()
+_domain_mappings_data = load_domain_mappings()
+DOMAIN_MAPPINGS = _domain_mappings_data
+
 
 if _graph_data:
     PREREQUISITE_GRAPH = {
@@ -513,51 +530,6 @@ def _detect_domain(tags: list[str], context_tags: set | None = None) -> str:
         context_tags = {t.lower().replace("-", " ").strip() for t in tags}
     normalized = [_normalize_tag(t, context_tags) for t in tags]
 
-    # Software Engineering domain mappings for nodes in software_engineering.yaml
-    SOFTWARE_ENG_DOMAINS = {
-        # Frontend
-        "html": "Frontend Development", "css": "Frontend Development", "sass": "Frontend Development",
-        "scss": "Frontend Development", "tailwind": "Frontend Development", "bootstrap": "Frontend Development",
-        "javascript": "Frontend Development", "typescript": "Frontend Development", "dom": "Frontend Development",
-        "react": "Frontend Development", "next.js": "Frontend Development", "gatsby": "Frontend Development",
-        "angular": "Frontend Development", "vue": "Frontend Development", "nuxt": "Frontend Development",
-        "svelte": "Frontend Development", "sveltekit": "Frontend Development", "redux": "Frontend Development",
-        "zustand": "Frontend Development", "mobx": "Frontend Development", "pinia": "Frontend Development",
-        "vuex": "Frontend Development", "ngrx": "Frontend Development", "rxjs": "Frontend Development",
-        "styled-components": "Frontend Development", "emotion": "Frontend Development", "webpack": "Frontend Development",
-        "vite": "Frontend Development", "rollup": "Frontend Development",
-
-        # Backend
-        "node": "Backend Development", "express": "Backend Development", "nestjs": "Backend Development",
-        "fastify": "Backend Development", "python": "Backend Development", "flask": "Backend Development",
-        "django": "Backend Development", "fastapi": "Backend Development", "java": "Backend Development",
-        "spring": "Backend Development", "spring boot": "Backend Development", "c#": "Backend Development",
-        "linq": "Backend Development", "ef core": "Backend Development", "asp.net": "Backend Development",
-        ".net": "Backend Development", "blazor": "Backend Development", "signalr": "Backend Development",
-        "php": "Backend Development", "laravel": "Backend Development", "ruby": "Backend Development",
-        "rails": "Backend Development", "go": "Backend Development", "rust": "Backend Development",
-        "kotlin": "Backend Development", "scala": "Backend Development", "elixir": "Backend Development",
-        "sql": "Backend Development", "mysql": "Backend Development", "postgresql": "Backend Development",
-        "sqlite": "Backend Development", "mongodb": "Backend Development", "redis": "Backend Development",
-        "dynamodb": "Backend Development", "cassandra": "Backend Development", "neo4j": "Backend Development",
-        "elasticsearch": "Backend Development", "prisma": "Backend Development", "sequelize": "Backend Development",
-        "sqlalchemy": "Backend Development", "rest api": "Backend Development", "graphql": "Backend Development",
-        "grpc": "Backend Development", "websocket": "Backend Development", "api design": "Backend Development",
-        "jwt": "Backend Development", "oauth": "Backend Development", "authentication": "Backend Development",
-        "authorization": "Backend Development", "unit testing": "Backend Development", "pytest": "Backend Development",
-        "mocha": "Backend Development", "testing": "Backend Development", "cypress": "Backend Development",
-        "selenium": "Backend Development", "vitest": "Backend Development",
-
-        # Mobile
-        "android": "Mobile Development", "jetpack compose": "Mobile Development", "ios": "Mobile Development",
-        "swiftui": "Mobile Development", "flutter": "Mobile Development", "react native": "Mobile Development",
-        "swift": "Mobile Development", "dart": "Mobile Development",
-
-        # Cybersecurity & Networking -> DevOps
-        "cybersecurity": "DevOps & Cloud", "ethical hacking": "DevOps & Cloud", "penetration testing": "DevOps & Cloud",
-        "network security": "DevOps & Cloud", "cryptography": "DevOps & Cloud", "networking": "DevOps & Cloud",
-    }
-
     # Initialize domain scores
     scores = {
         "Frontend Development": 0.0,
@@ -580,12 +552,12 @@ def _detect_domain(tags: list[str], context_tags: set | None = None) -> str:
             elif source_file in ("data_ai.yaml", "ai_agents.yaml", "data_engineering.yaml"):
                 domain = "Data Science & AI"
             elif source_file == "software_engineering.yaml":
-                domain = SOFTWARE_ENG_DOMAINS.get(tag)
+                domain = DOMAIN_MAPPINGS.get(tag)
 
-        # Fallback to hardcoded/explicit checks if not found dynamically or not in software_engineering map
+        # Fallback to dynamic DOMAIN_MAPPINGS or keyword checks
         if not domain:
-            if tag in SOFTWARE_ENG_DOMAINS:
-                domain = SOFTWARE_ENG_DOMAINS[tag]
+            if tag in DOMAIN_MAPPINGS:
+                domain = DOMAIN_MAPPINGS[tag]
             elif any(kw in tag for kw in ("react", "angular", "vue", "svelte", "css", "html", "next.js", "tailwind", "bootstrap", "sass", "nextjs", "nuxt", "gatsby")):
                 domain = "Frontend Development"
             elif any(kw in tag for kw in ("node", "express", "django", "flask", "fastapi", "spring", "laravel", "asp.net", "nestjs", "rails")):
@@ -614,6 +586,7 @@ def _detect_domain(tags: list[str], context_tags: set | None = None) -> str:
     if scores[best] == 0:
         return "Software Engineering"
     return best
+
 
 
 def generate_learning_path(
