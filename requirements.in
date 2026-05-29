@@ -20,6 +20,7 @@ browserforge>=1.2.4
 # Utilities
 isodate
 yt-dlp
+pyyaml
 
 # Dev Tools (Formatter & Testing)
 black

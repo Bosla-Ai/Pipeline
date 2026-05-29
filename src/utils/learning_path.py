@@ -11,7 +11,12 @@ Analyzes roadmap tags and generates an intelligent learning path with:
 
 from collections import defaultdict, deque
 
-PREREQUISITE_GRAPH = {
+import yaml
+from pathlib import Path
+
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+
+FALLBACK_PREREQUISITE_GRAPH = {
     # Web Fundamentals
     "html": [],
     "css": ["html"],
@@ -222,8 +227,7 @@ PREREQUISITE_GRAPH = {
     "arduino": [],
 }
 
-# Resolve common aliases so "Node.js", "node js", "node" all match
-TAG_ALIASES = {
+FALLBACK_TAG_ALIASES = {
     "node.js": "node",
     "node js": "node",
     "nodejs": "node",
@@ -262,6 +266,54 @@ PHASE_NAMES = {
     2: "Specialization",
     3: "Mastery",
 }
+
+
+def load_skill_graph():
+    graph = {}
+    base = DATA_DIR / "skill_graphs"
+    if base.exists():
+        for path in base.glob("*.yaml"):
+            try:
+                with path.open("r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
+                    if data:
+                        graph.update(data)
+            except Exception as e:
+                print(f"Error loading skill graph {path}: {e}")
+    return graph
+
+
+def load_aliases():
+    aliases = {}
+    path = DATA_DIR / "aliases.yaml"
+    if path.exists():
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if data:
+                    aliases.update(data)
+        except Exception as e:
+            print(f"Error loading aliases: {e}")
+    return aliases
+
+
+# Load dynamic data
+_graph_data = load_skill_graph()
+_aliases_data = load_aliases()
+
+if _graph_data:
+    PREREQUISITE_GRAPH = {
+        k: v.get("prerequisites", []) if isinstance(v, dict) else (v or [])
+        for k, v in _graph_data.items()
+    }
+else:
+    PREREQUISITE_GRAPH = FALLBACK_PREREQUISITE_GRAPH
+
+if _aliases_data:
+    TAG_ALIASES = _aliases_data
+else:
+    TAG_ALIASES = FALLBACK_TAG_ALIASES
+
 
 
 def _normalize_tag(tag: str) -> str:
@@ -348,6 +400,13 @@ def _estimate_hours(tag: str, resource_data: dict = None) -> float:
             return round((video_count * avg_video_mins) / 60 * 1.5, 1)
 
     normalized = _normalize_tag(tag)
+    if _graph_data:
+        node_data = _graph_data.get(normalized)
+        if isinstance(node_data, dict) and "estimated_hours" in node_data:
+            val = node_data["estimated_hours"]
+            if isinstance(val, (int, float)):
+                return float(val)
+
     depth = _get_depth(normalized)
 
     base_hours = {
@@ -363,8 +422,16 @@ def _estimate_hours(tag: str, resource_data: dict = None) -> float:
 
 def _get_difficulty(tag: str) -> str:
     normalized = _normalize_tag(tag)
+    if _graph_data:
+        node_data = _graph_data.get(normalized)
+        if isinstance(node_data, dict) and "difficulty" in node_data:
+            diff = node_data["difficulty"]
+            if isinstance(diff, str):
+                return diff.capitalize()
+
     depth = _get_depth(normalized)
     return DIFFICULTY_MAP.get(min(depth, 5), "Advanced")
+
 
 
 def _detect_domain(tags: list[str]) -> str:

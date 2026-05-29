@@ -169,6 +169,8 @@ python-socketio==5.16.2
     # via -r requirements.in
 pytokens==0.4.1
     # via black
+pyyaml==6.0.3
+    # via -r requirements.in
 redis==8.0.0
     # via -r requirements.in
 requests==2.34.2

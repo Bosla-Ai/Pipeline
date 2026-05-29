@@ -1,0 +1,278 @@
+html:
+  prerequisites: []
+css:
+  prerequisites: [html]
+sass:
+  prerequisites: [css]
+scss:
+  prerequisites: [css]
+tailwind:
+  prerequisites: [css]
+bootstrap:
+  prerequisites: [css]
+javascript:
+  prerequisites: [html, css]
+typescript:
+  prerequisites: [javascript]
+dom:
+  prerequisites: [javascript]
+react:
+  prerequisites: [javascript]
+react js:
+  prerequisites: [javascript]
+next.js:
+  prerequisites: [react]
+nextjs:
+  prerequisites: [react]
+next js:
+  prerequisites: [react]
+gatsby:
+  prerequisites: [react]
+angular:
+  prerequisites: [typescript]
+vue:
+  prerequisites: [javascript]
+vue.js:
+  prerequisites: [javascript]
+nuxt:
+  prerequisites: [vue]
+nuxt.js:
+  prerequisites: [vue]
+svelte:
+  prerequisites: [javascript]
+sveltekit:
+  prerequisites: [svelte]
+redux:
+  prerequisites: [react]
+zustand:
+  prerequisites: [react]
+mobx:
+  prerequisites: [react]
+pinia:
+  prerequisites: [vue]
+vuex:
+  prerequisites: [vue]
+ngrx:
+  prerequisites: [angular]
+rxjs:
+  prerequisites: [typescript]
+styled-components:
+  prerequisites: [react, css]
+emotion:
+  prerequisites: [react, css]
+node:
+  prerequisites: [javascript]
+node.js:
+  prerequisites: [javascript]
+nodejs:
+  prerequisites: [javascript]
+node js:
+  prerequisites: [javascript]
+express:
+  prerequisites: [node]
+expressjs:
+  prerequisites: [node]
+express.js:
+  prerequisites: [node]
+nest.js:
+  prerequisites: [typescript, node]
+nestjs:
+  prerequisites: [typescript, node]
+fastify:
+  prerequisites: [node]
+python:
+  prerequisites: []
+flask:
+  prerequisites: [python]
+django:
+  prerequisites: [python]
+fastapi:
+  prerequisites: [python]
+java:
+  prerequisites: []
+spring:
+  prerequisites: [java]
+spring boot:
+  prerequisites: [java]
+c#:
+  prerequisites: []
+linq:
+  prerequisites: [c#]
+ef core:
+  prerequisites: [c#, linq]
+entity framework core:
+  prerequisites: [c#, linq]
+asp.net:
+  prerequisites: [c#, linq, ef core]
+asp.net core:
+  prerequisites: [c#, linq, ef core]
+.net:
+  prerequisites: [c#, linq, ef core]
+.net core:
+  prerequisites: [c#, linq, ef core]
+blazor:
+  prerequisites: [c#]
+signalr:
+  prerequisites: [asp.net core]
+php:
+  prerequisites: []
+laravel:
+  prerequisites: [php]
+ruby:
+  prerequisites: []
+rails:
+  prerequisites: [ruby]
+ruby on rails:
+  prerequisites: [ruby]
+go:
+  prerequisites: []
+golang:
+  prerequisites: []
+rust:
+  prerequisites: []
+kotlin:
+  prerequisites: [java]
+scala:
+  prerequisites: [java]
+elixir:
+  prerequisites: []
+swift:
+  prerequisites: []
+dart:
+  prerequisites: []
+android:
+  prerequisites: [java]
+jetpack compose:
+  prerequisites: [kotlin]
+ios:
+  prerequisites: [swift]
+swiftui:
+  prerequisites: [swift]
+flutter:
+  prerequisites: [dart]
+react native:
+  prerequisites: [react]
+sql:
+  prerequisites: []
+mysql:
+  prerequisites: [sql]
+postgresql:
+  prerequisites: [sql]
+postgres:
+  prerequisites: [sql]
+sqlite:
+  prerequisites: [sql]
+mongodb:
+  prerequisites: []
+redis:
+  prerequisites: []
+dynamodb:
+  prerequisites: []
+cassandra:
+  prerequisites: []
+neo4j:
+  prerequisites: []
+elasticsearch:
+  prerequisites: []
+prisma:
+  prerequisites: [typescript]
+sequelize:
+  prerequisites: [node]
+sqlalchemy:
+  prerequisites: [python]
+rest api:
+  prerequisites: [javascript]
+restful api:
+  prerequisites: [javascript]
+graphql:
+  prerequisites: [javascript]
+grpc:
+  prerequisites: []
+websocket:
+  prerequisites: [javascript]
+api design:
+  prerequisites: []
+jwt:
+  prerequisites: [rest api]
+oauth:
+  prerequisites: [rest api]
+authentication:
+  prerequisites: []
+authorization:
+  prerequisites: [authentication]
+testing:
+  prerequisites: []
+unit testing:
+  prerequisites: [testing]
+jest:
+  prerequisites: [javascript]
+pytest:
+  prerequisites: [python]
+cypress:
+  prerequisites: [javascript]
+selenium:
+  prerequisites: []
+mocha:
+  prerequisites: [javascript]
+vitest:
+  prerequisites: [javascript]
+data structures:
+  prerequisites: []
+algorithms:
+  prerequisites: [data structures]
+dsa:
+  prerequisites: []
+oop:
+  prerequisites: []
+object oriented programming:
+  prerequisites: []
+functional programming:
+  prerequisites: []
+design patterns:
+  prerequisites: [oop]
+system design:
+  prerequisites: [design patterns]
+clean code:
+  prerequisites: [oop]
+solid principles:
+  prerequisites: [oop]
+clean architecture:
+  prerequisites: [clean code, solid principles]
+domain driven design:
+  prerequisites: [clean architecture]
+ddd:
+  prerequisites: [clean architecture]
+microservices:
+  prerequisites: [system design, docker]
+event driven architecture:
+  prerequisites: [system design]
+cybersecurity:
+  prerequisites: []
+ethical hacking:
+  prerequisites: [networking]
+penetration testing:
+  prerequisites: [networking]
+network security:
+  prerequisites: [networking]
+cryptography:
+  prerequisites: []
+networking:
+  prerequisites: []
+webpack:
+  prerequisites: [javascript]
+vite:
+  prerequisites: [javascript]
+rollup:
+  prerequisites: [javascript]
+blockchain:
+  prerequisites: []
+web3:
+  prerequisites: [blockchain]
+solidity:
+  prerequisites: [blockchain]
+embedded systems:
+  prerequisites: []
+iot:
+  prerequisites: []
+arduino:
+  prerequisites: []

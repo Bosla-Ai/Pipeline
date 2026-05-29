@@ -1,0 +1,50 @@
+git:
+  prerequisites: []
+github:
+  prerequisites: [git]
+gitlab:
+  prerequisites: [git]
+docker:
+  prerequisites: [linux]
+kubernetes:
+  prerequisites: [docker]
+k8s:
+  prerequisites: [docker]
+ci/cd:
+  prerequisites: [git]
+github actions:
+  prerequisites: [git, ci/cd]
+jenkins:
+  prerequisites: [ci/cd]
+terraform:
+  prerequisites: [cloud deployment]
+ansible:
+  prerequisites: [linux]
+aws:
+  prerequisites: []
+azure:
+  prerequisites: []
+gcp:
+  prerequisites: []
+google cloud:
+  prerequisites: []
+firebase:
+  prerequisites: []
+supabase:
+  prerequisites: []
+cloud deployment:
+  prerequisites: []
+heroku:
+  prerequisites: []
+vercel:
+  prerequisites: [next.js]
+netlify:
+  prerequisites: []
+linux:
+  prerequisites: []
+bash:
+  prerequisites: [linux]
+shell scripting:
+  prerequisites: [linux]
+powershell:
+  prerequisites: []

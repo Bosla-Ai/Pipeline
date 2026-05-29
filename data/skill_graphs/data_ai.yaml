@@ -1,0 +1,40 @@
+data science:
+  prerequisites: [python]
+data analysis:
+  prerequisites: [python]
+pandas:
+  prerequisites: [python]
+numpy:
+  prerequisites: [python]
+matplotlib:
+  prerequisites: [python]
+machine learning:
+  prerequisites: [python, numpy]
+deep learning:
+  prerequisites: [machine learning]
+tensorflow:
+  prerequisites: [deep learning]
+pytorch:
+  prerequisites: [deep learning]
+keras:
+  prerequisites: [deep learning]
+scikit-learn:
+  prerequisites: [machine learning]
+nlp:
+  prerequisites: [machine learning]
+natural language processing:
+  prerequisites: [machine learning]
+computer vision:
+  prerequisites: [deep learning]
+ai:
+  prerequisites: []
+artificial intelligence:
+  prerequisites: []
+spark:
+  prerequisites: [python]
+hadoop:
+  prerequisites: []
+data engineering:
+  prerequisites: [python, sql]
+big data:
+  prerequisites: [python]
