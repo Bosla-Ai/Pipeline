@@ -73,15 +73,17 @@ class FetchCoordinator:
             current_sid = socket_server.get_socket_for_job(job_id) or current_sid
 
             try:
-                broad_tags, atomic_tags, scope_cache = await SourcePlanner.plan_tag_scopes(
-                    self.sio,
-                    current_sid,
-                    tags,
-                    job_id=job_id,
+                broad_tags, atomic_tags, scope_cache = (
+                    await SourcePlanner.plan_tag_scopes(
+                        self.sio,
+                        current_sid,
+                        tags,
+                        job_id=job_id,
+                    )
                 )
             except TypeError:
-                broad_tags, atomic_tags, scope_cache = await SourcePlanner.plan_tag_scopes(
-                    self.sio, current_sid, tags
+                broad_tags, atomic_tags, scope_cache = (
+                    await SourcePlanner.plan_tag_scopes(self.sio, current_sid, tags)
                 )
 
             event_log.log(
@@ -153,7 +155,7 @@ class FetchCoordinator:
                                                 "source": "udemy",
                                                 "tag": tag,
                                                 "language": language,
-                                            }
+                                            },
                                         )
                                         udemy_cached[tag] = cached_result
                                     else:
@@ -179,6 +181,7 @@ class FetchCoordinator:
                                 return
 
                             import uuid
+
                             tags_to_scrape = []
                             tags_to_wait = []
                             locked_tokens = {}
@@ -186,7 +189,9 @@ class FetchCoordinator:
                             for tag in udemy_tags_to_fetch:
                                 cache_key = generate_cache_key("udemy", tag, language)
                                 token = str(uuid.uuid4())
-                                acquired = await cache.acquire_lock(cache_key, token, ttl=60)
+                                acquired = await cache.acquire_lock(
+                                    cache_key, token, ttl=60
+                                )
                                 if acquired is True:
                                     locked_tokens[tag] = token
                                     tags_to_scrape.append(tag)
@@ -199,7 +204,7 @@ class FetchCoordinator:
                                             "source": "udemy",
                                             "tag": tag,
                                             "language": language,
-                                        }
+                                        },
                                     )
                                 elif acquired is None:
                                     # Cache unavailable/infra failure: fetch immediately, do not wait
@@ -226,23 +231,33 @@ class FetchCoordinator:
                                     )
                                 finally:
                                     for tag, token in locked_tokens.items():
-                                        cache_key = generate_cache_key("udemy", tag, language)
+                                        cache_key = generate_cache_key(
+                                            "udemy", tag, language
+                                        )
                                         await cache.release_lock(cache_key, token)
 
                             if tags_to_wait:
-                                print(f"    [Cache Stampede Protection] Waiting for Udemy locks on: {tags_to_wait}...")
+                                print(
+                                    f"    [Cache Stampede Protection] Waiting for Udemy locks on: {tags_to_wait}..."
+                                )
                                 for tag in tags_to_wait:
-                                    cache_key = generate_cache_key("udemy", tag, language)
+                                    cache_key = generate_cache_key(
+                                        "udemy", tag, language
+                                    )
                                     resolved = False
                                     for _ in range(30):  # 15 seconds max wait
                                         await asyncio.sleep(0.5)
                                         try:
                                             cached = await cache.get(cache_key)
                                         except Exception as ce:
-                                            print(f"    [Cache Wait] Error reading cached result for {tag}: {ce}")
+                                            print(
+                                                f"    [Cache Wait] Error reading cached result for {tag}: {ce}"
+                                            )
                                             cached = None
                                         if cached is not None:
-                                            print(f"    [Cache Hit via Lock] Udemy: {tag} ({language})")
+                                            print(
+                                                f"    [Cache Hit via Lock] Udemy: {tag} ({language})"
+                                            )
                                             event_log.log(
                                                 "success",
                                                 "cache",
@@ -253,13 +268,15 @@ class FetchCoordinator:
                                                     "tag": tag,
                                                     "language": language,
                                                     "stampede_protection": True,
-                                                }
+                                                },
                                             )
                                             roadmap_result["udemy"][tag] = cached
                                             resolved = True
                                             break
                                     if not resolved:
-                                        print(f"    [Cache Wait Timeout] Falling back to fetch Udemy for '{tag}' individually...")
+                                        print(
+                                            f"    [Cache Wait Timeout] Falling back to fetch Udemy for '{tag}' individually..."
+                                        )
                                         event_log.log(
                                             "info",
                                             "cache",
@@ -270,14 +287,16 @@ class FetchCoordinator:
                                                 "tag": tag,
                                                 "language": language,
                                                 "reason": "lock_wait_timeout",
-                                            }
+                                            },
                                         )
                                         try:
-                                            udemy_data = await self._fetch_udemy_with_limit(
-                                                tags=[tag],
-                                                language=language,
-                                                current_sid=current_sid,
-                                                job_id=job_id,
+                                            udemy_data = (
+                                                await self._fetch_udemy_with_limit(
+                                                    tags=[tag],
+                                                    language=language,
+                                                    current_sid=current_sid,
+                                                    job_id=job_id,
+                                                )
                                             )
                                             roadmap_result["udemy"].update(udemy_data)
                                         except Exception as ue:
@@ -400,6 +419,147 @@ class FetchCoordinator:
 
         return roadmap_result
 
+    async def _fetch_youtube_ytdlp_pipeline(
+        self,
+        tags: list[str],
+        language: str,
+        current_sid: str | None,
+        job_id: str,
+    ) -> dict:
+        """
+        Runs the explicit v2 pipeline for YouTube candidates:
+        Plan -> Fetch -> Normalize -> Dedupe -> Rank -> Finalize.
+        """
+        from src.engine.stages import (
+            PreparedTag,
+            PlannedSource,
+            PlannedQuery,
+            CandidateBatch,
+            RankedBatch,
+        )
+        from src.engine.models import TopicScope, SourceName, Candidate
+        from src.planning.source_planner import SourcePlanner
+        from src.planning.query_planner import QueryPlanner
+        from src.providers.ytdlp_provider import YtDlpProvider
+        from src.providers.youtube_legacy_adapter import normalize_youtube_candidate
+        from src.ranking.dedupe import dedupe_candidates
+        from src.ranking.cheap_ranker import cheap_rank_candidate
+        from src.ranking.final_ranker import final_rank
+        from src.inference.edge_client import EdgeInferenceClient
+        from src.inference.schemas import ClassificationRequest
+        from src.config.settings import (
+            YT_DLP_MAX_RESULTS,
+            YT_DLP_QUERY_LIMIT_PER_TAG,
+            YT_DLP_HARD_TIMEOUT_SECONDS,
+        )
+        from src.config import runtime_profile
+
+        provider = YtDlpProvider()
+        selected_by_tag = {}
+
+        try:
+            broad_tags, atomic_tags, scope_cache = await SourcePlanner.plan_tag_scopes(
+                self.sio, current_sid, tags, job_id=job_id
+            )
+        except TypeError:
+            broad_tags, atomic_tags, scope_cache = await SourcePlanner.plan_tag_scopes(
+                self.sio, current_sid, tags
+            )
+
+        for tag_str in tags:
+            raw_scope_str = scope_cache.get(tag_str, "unknown")
+            scope_val = raw_scope_str.lower().strip()
+            if "broad" in scope_val:
+                scope = TopicScope.TECHNOLOGY
+            elif "atomic" in scope_val:
+                scope = TopicScope.ATOMIC
+            elif "debugging" in scope_val or "fix" in scope_val or "error" in scope_val:
+                scope = TopicScope.DEBUGGING_QUERY
+            elif (
+                "comparison" in scope_val or "versus" in scope_val or "vs" in scope_val
+            ):
+                scope = TopicScope.COMPARISON_QUERY
+            elif "project" in scope_val:
+                scope = TopicScope.PROJECT_GOAL
+            else:
+                scope = TopicScope.UNKNOWN
+
+            prep_tag = PreparedTag(
+                original=tag_str,
+                normalized=QueryPlanner.normalize_search_tag(tag_str),
+                language=language,
+                scope=scope,
+            )
+
+            planned_sources = SourcePlanner.plan_sources_for_scope(
+                tag=prep_tag,
+                prefer_paid=False,
+                requested_sources=[CourseSource.YOUTUBE],
+                free_hf_mode=runtime_profile.FREE_HF_MODE,
+            )
+
+            planned_queries = QueryPlanner.plan_queries_for_tag(
+                tag=prep_tag,
+                planned_sources=planned_sources,
+                max_results=YT_DLP_MAX_RESULTS,
+                query_limit_per_tag=YT_DLP_QUERY_LIMIT_PER_TAG,
+            )
+
+            candidates_pool = []
+            for pq in planned_queries:
+                cands = await provider.fetch(pq)
+                for c in cands:
+                    raw_dict = c.to_dict() if hasattr(c, "to_dict") else c
+                    candidate_obj = normalize_youtube_candidate(raw_dict, tag_str)
+                    if candidate_obj:
+                        candidates_pool.append(candidate_obj)
+
+            deduped_candidates = dedupe_candidates(candidates_pool)
+
+            if not deduped_candidates:
+                selected_by_tag[tag_str] = {}
+                continue
+
+            cheap_scores = {}
+            for c in deduped_candidates:
+                cheap_scores[c.url] = cheap_rank_candidate(
+                    c, tag_str, scope=prep_tag.scope
+                )
+
+            ai_results = []
+            active_sid = socket_server.get_socket_for_job(job_id) or current_sid
+            if active_sid:
+                try:
+                    req = ClassificationRequest(
+                        job_id=job_id,
+                        tag=tag_str,
+                        candidates=deduped_candidates,
+                        labels=["relevant", "irrelevant"],
+                    )
+                    ai_results = await EdgeInferenceClient.classify(req, timeout=3.0)
+                except Exception as ex:
+                    event_log.log(
+                        "warn",
+                        "inference",
+                        f"Edge classification failed: {ex}",
+                        job_id=job_id,
+                    )
+
+            final_ranked = final_rank(
+                candidates=deduped_candidates,
+                tag=prep_tag,
+                cheap_scores=cheap_scores,
+                ai_results=ai_results,
+            )
+
+            winner = final_ranked[0] if final_ranked else None
+            if winner:
+                selected_by_tag[tag_str] = winner.to_dict()
+            else:
+                selected_by_tag[tag_str] = {}
+
+        return selected_by_tag
+
     async def _fetch_youtube_with_limit(
         self,
         tags: list[str],
@@ -408,8 +568,22 @@ class FetchCoordinator:
         job_id: str,
         scope_cache: dict[str, str] | None = None,
     ) -> dict:
+        from src.config import runtime_profile
+
+        if (
+            runtime_profile.FREE_HF_MODE
+            or runtime_profile.YOUTUBE_FETCH_MODE == "yt_dlp"
+        ):
+            return await self._fetch_youtube_ytdlp_pipeline(
+                tags=tags,
+                language=language,
+                current_sid=current_sid,
+                job_id=job_id,
+            )
+
         if not tags:
             return {}
+
         start_time = asyncio.get_running_loop().time()
         event_log.log(
             "info",
@@ -419,7 +593,7 @@ class FetchCoordinator:
             metadata={
                 "source": "youtube",
                 "tags": tags,
-            }
+            },
         )
         async with runtime_semaphores.youtube_provider:
             try:
@@ -434,7 +608,9 @@ class FetchCoordinator:
                     ),
                     timeout=runtime_limits.youtube_provider_timeout_seconds,
                 )
-                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                duration_ms = int(
+                    (asyncio.get_running_loop().time() - start_time) * 1000
+                )
                 event_log.log(
                     "success",
                     "provider",
@@ -444,11 +620,13 @@ class FetchCoordinator:
                         "source": "youtube",
                         "duration_ms": duration_ms,
                         "candidate_count": len(res) if isinstance(res, dict) else 0,
-                    }
+                    },
                 )
                 return res
             except asyncio.TimeoutError:
-                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                duration_ms = int(
+                    (asyncio.get_running_loop().time() - start_time) * 1000
+                )
                 event_log.log(
                     "error",
                     "provider",
@@ -457,7 +635,7 @@ class FetchCoordinator:
                     metadata={
                         "source": "youtube",
                         "duration_ms": duration_ms,
-                    }
+                    },
                 )
                 event_log.log(
                     "error",
@@ -467,7 +645,9 @@ class FetchCoordinator:
                 )
                 return {}
             except Exception as e:
-                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                duration_ms = int(
+                    (asyncio.get_running_loop().time() - start_time) * 1000
+                )
                 event_log.log(
                     "error",
                     "provider",
@@ -477,7 +657,7 @@ class FetchCoordinator:
                         "source": "youtube",
                         "duration_ms": duration_ms,
                         "error": str(e),
-                    }
+                    },
                 )
                 event_log.log(
                     "error",
@@ -505,7 +685,7 @@ class FetchCoordinator:
             metadata={
                 "source": "coursera",
                 "tags": tags,
-            }
+            },
         )
         async with runtime_semaphores.coursera_provider:
             try:
@@ -520,7 +700,9 @@ class FetchCoordinator:
                     ),
                     timeout=runtime_limits.coursera_provider_timeout_seconds,
                 )
-                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                duration_ms = int(
+                    (asyncio.get_running_loop().time() - start_time) * 1000
+                )
                 event_log.log(
                     "success",
                     "provider",
@@ -530,11 +712,13 @@ class FetchCoordinator:
                         "source": "coursera",
                         "duration_ms": duration_ms,
                         "candidate_count": len(res) if isinstance(res, dict) else 0,
-                    }
+                    },
                 )
                 return res
             except asyncio.TimeoutError:
-                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                duration_ms = int(
+                    (asyncio.get_running_loop().time() - start_time) * 1000
+                )
                 event_log.log(
                     "error",
                     "provider",
@@ -543,7 +727,7 @@ class FetchCoordinator:
                     metadata={
                         "source": "coursera",
                         "duration_ms": duration_ms,
-                    }
+                    },
                 )
                 event_log.log(
                     "error",
@@ -553,7 +737,9 @@ class FetchCoordinator:
                 )
                 return {}
             except Exception as e:
-                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                duration_ms = int(
+                    (asyncio.get_running_loop().time() - start_time) * 1000
+                )
                 event_log.log(
                     "error",
                     "provider",
@@ -563,7 +749,7 @@ class FetchCoordinator:
                         "source": "coursera",
                         "duration_ms": duration_ms,
                         "error": str(e),
-                    }
+                    },
                 )
                 event_log.log(
                     "error",
@@ -591,7 +777,7 @@ class FetchCoordinator:
             metadata={
                 "source": "udemy",
                 "tags": tags,
-            }
+            },
         )
         async with runtime_semaphores.udemy_provider:
             try:
@@ -599,7 +785,9 @@ class FetchCoordinator:
                     self._fetch_udemy_impl(tags, language, current_sid, job_id),
                     timeout=runtime_limits.udemy_provider_timeout_seconds,
                 )
-                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                duration_ms = int(
+                    (asyncio.get_running_loop().time() - start_time) * 1000
+                )
                 event_log.log(
                     "success",
                     "provider",
@@ -609,11 +797,13 @@ class FetchCoordinator:
                         "source": "udemy",
                         "duration_ms": duration_ms,
                         "candidate_count": len(res) if isinstance(res, dict) else 0,
-                    }
+                    },
                 )
                 return res
             except asyncio.TimeoutError:
-                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                duration_ms = int(
+                    (asyncio.get_running_loop().time() - start_time) * 1000
+                )
                 event_log.log(
                     "error",
                     "provider",
@@ -622,7 +812,7 @@ class FetchCoordinator:
                     metadata={
                         "source": "udemy",
                         "duration_ms": duration_ms,
-                    }
+                    },
                 )
                 event_log.log(
                     "error",
@@ -632,7 +822,9 @@ class FetchCoordinator:
                 )
                 return {}
             except Exception as e:
-                duration_ms = int((asyncio.get_running_loop().time() - start_time) * 1000)
+                duration_ms = int(
+                    (asyncio.get_running_loop().time() - start_time) * 1000
+                )
                 event_log.log(
                     "error",
                     "provider",
@@ -642,7 +834,7 @@ class FetchCoordinator:
                         "source": "udemy",
                         "duration_ms": duration_ms,
                         "error": str(e),
-                    }
+                    },
                 )
                 event_log.log(
                     "error",
@@ -714,14 +906,16 @@ class FetchCoordinator:
                     "tag": tag,
                     "candidate_pool_size": len(pool_candidates),
                     "ranked_count": len(ranked_dicts),
-                }
+                },
             )
 
             if not ranked_dicts:
                 continue
 
             sid = socket_server.get_socket_for_job(job_id) or current_sid
-            valid_udemy = await classify_via_frontend(self.sio, sid, tag, ranked_dicts, job_id=job_id)
+            valid_udemy = await classify_via_frontend(
+                self.sio, sid, tag, ranked_dicts, job_id=job_id
+            )
 
             if not valid_udemy:
                 event_log.log(

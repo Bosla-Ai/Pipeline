@@ -219,7 +219,11 @@ class RoadmapEngine:
             job_id=job_id,
             metadata={
                 "tag_count": len(tags),
-                "phase_count": len(learning_path.get("phases", [])) if isinstance(learning_path, dict) else 0,
+                "phase_count": (
+                    len(learning_path.get("phases", []))
+                    if isinstance(learning_path, dict)
+                    else 0
+                ),
             },
         )
 
