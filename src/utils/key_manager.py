@@ -19,6 +19,7 @@ except ImportError:
 import threading
 from typing import Optional
 
+
 class KeyManager:
     def __init__(self):
         self.keys = YOUTUBE_API_KEYS
@@ -37,7 +38,6 @@ class KeyManager:
                 raise Exception("No API Keys provided in settings!")
             return self.keys[self.current_index], self.current_index
 
-
     def rotate(self, failed_key: Optional[str] = None) -> str:
         """Switches to the next key. Returns the new key. Only rotates if failed_key matches the current key."""
         with self._lock:
@@ -46,7 +46,9 @@ class KeyManager:
 
             # If a failed key is provided, check if another task already rotated past it
             if failed_key is not None and failed_key != self.keys[self.current_index]:
-                print(f"    [KeyManager] Key already rotated by another task. Using current key #{self.current_index + 1}.")
+                print(
+                    f"    [KeyManager] Key already rotated by another task. Using current key #{self.current_index + 1}."
+                )
                 return self.keys[self.current_index]
 
             next_index = (self.current_index + 1) % len(self.keys)

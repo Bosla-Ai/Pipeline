@@ -70,16 +70,31 @@ async def fetch_youtube_data(session, url, params):
 
 
 async def process_single_tag(
-    session, sio, socket_id, tag, language, max_results, precomputed_scope=None, job_id=None
+    session,
+    sio,
+    socket_id,
+    tag,
+    language,
+    max_results,
+    precomputed_scope=None,
+    job_id=None,
 ):
     cache_key = generate_cache_key("youtube", tag, language)
 
     async def fetch_factory():
         return await _process_single_tag_impl(
-            session, sio, socket_id, tag, language, max_results, precomputed_scope, job_id
+            session,
+            sio,
+            socket_id,
+            tag,
+            language,
+            max_results,
+            precomputed_scope,
+            job_id,
         )
 
     from src.utils.cache import DEFAULT_TTL
+
     result = await cache.get_or_set_with_lock(
         key=cache_key,
         ttl=DEFAULT_TTL,
@@ -93,7 +108,14 @@ async def process_single_tag(
 
 
 async def _process_single_tag_impl(
-    session, sio, socket_id, tag, language, max_results, precomputed_scope=None, job_id=None
+    session,
+    sio,
+    socket_id,
+    tag,
+    language,
+    max_results,
+    precomputed_scope=None,
+    job_id=None,
 ):
     search_plans = QueryPlanner.build_search_plans(tag, language)
     primary_search_tag = search_plans[0]["query"] if search_plans else tag
@@ -485,7 +507,7 @@ async def _process_single_tag_impl(
             "tag": tag,
             "candidate_pool_size": len(pool_candidates),
             "ranked_count": len(top_candidates),
-        }
+        },
     )
 
     if not top_candidates:
@@ -525,7 +547,9 @@ async def _process_single_tag_impl(
             return result
 
     print(f"    [YouTube] AI Analyzing Top {len(top_candidates)} Candidates...")
-    valid_items = await classify_via_frontend(sio, socket_id, tag, top_candidates, job_id=job_id)
+    valid_items = await classify_via_frontend(
+        sio, socket_id, tag, top_candidates, job_id=job_id
+    )
 
     if valid_items:
         if scope == "Broad":
@@ -662,7 +686,9 @@ async def search_embeddable_video(query: str, language: str = "en") -> dict | No
         }
 
 
-async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=None, job_id=None):
+async def fetch(
+    sio, socket_id, tags, language="en", max_results=5, scope_cache=None, job_id=None
+):
     """
     Fetches content from YouTube.
     Args:
@@ -687,7 +713,14 @@ async def fetch(sio, socket_id, tags, language="en", max_results=5, scope_cache=
             precomputed = scope_cache.get(original) if scope_cache else None
             tasks.append(
                 process_single_tag(
-                    session, sio, socket_id, tag, language, max_results, precomputed, job_id=job_id
+                    session,
+                    sio,
+                    socket_id,
+                    tag,
+                    language,
+                    max_results,
+                    precomputed,
+                    job_id=job_id,
                 )
             )
         results = await asyncio.gather(*tasks)

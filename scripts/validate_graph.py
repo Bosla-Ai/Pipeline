@@ -6,6 +6,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
+
 def load_context_aliases():
     path = DATA_DIR / "context_aliases.yaml"
     if not path.exists():
@@ -16,10 +17,13 @@ def load_context_aliases():
             if data is None:
                 return {}, []
             if not isinstance(data, dict):
-                return {}, [f"Context aliases file must contain a dictionary, got {type(data)}"]
+                return {}, [
+                    f"Context aliases file must contain a dictionary, got {type(data)}"
+                ]
             return data, []
     except Exception as e:
         return {}, [f"Failed to parse context_aliases.yaml: {e}"]
+
 
 def load_aliases():
     path = DATA_DIR / "aliases.yaml"
@@ -36,6 +40,7 @@ def load_aliases():
     except Exception as e:
         return {}, [f"Failed to parse aliases.yaml: {e}"]
 
+
 def load_domain_mappings():
     path = DATA_DIR / "domain_mappings.yaml"
     if not path.exists():
@@ -46,7 +51,9 @@ def load_domain_mappings():
             if data is None:
                 return {}, []
             if not isinstance(data, dict):
-                return {}, [f"Domain mappings file must contain a dictionary, got {type(data)}"]
+                return {}, [
+                    f"Domain mappings file must contain a dictionary, got {type(data)}"
+                ]
             return data, []
     except Exception as e:
         return {}, [f"Failed to parse domain_mappings.yaml: {e}"]
@@ -56,11 +63,11 @@ def load_skill_graphs():
     graphs_dir = DATA_DIR / "skill_graphs"
     if not graphs_dir.exists():
         return {}, {}, [f"Skill graphs directory {graphs_dir} does not exist"]
-    
+
     combined_graph = {}
     node_sources = {}
     errors = []
-    
+
     for path in graphs_dir.glob("*.yaml"):
         try:
             with path.open("r", encoding="utf-8") as f:
@@ -68,23 +75,28 @@ def load_skill_graphs():
                 if data is None:
                     continue
                 if not isinstance(data, dict):
-                    errors.append(f"File {path.name} must contain a dictionary, got {type(data)}")
+                    errors.append(
+                        f"File {path.name} must contain a dictionary, got {type(data)}"
+                    )
                     continue
                 for key, val in data.items():
                     if key in combined_graph:
-                        errors.append(f"Duplicate canonical node key '{key}' found in both {node_sources[key]} and {path.name}")
+                        errors.append(
+                            f"Duplicate canonical node key '{key}' found in both {node_sources[key]} and {path.name}"
+                        )
                     else:
                         combined_graph[key] = val
                         node_sources[key] = path.name
         except Exception as e:
             errors.append(f"Failed to parse {path.name}: {e}")
-            
+
     return combined_graph, node_sources, errors
+
 
 def validate_graph(graph, aliases, node_sources):
     errors = []
     warnings = []
-    
+
     for node, data in graph.items():
         if data is None:
             # Empty dictionary or None
@@ -94,23 +106,29 @@ def validate_graph(graph, aliases, node_sources):
         elif isinstance(data, dict):
             prereqs = data.get("prerequisites", [])
         else:
-            errors.append(f"Node '{node}' in {node_sources.get(node)} has invalid structure: {type(data)}")
+            errors.append(
+                f"Node '{node}' in {node_sources.get(node)} has invalid structure: {type(data)}"
+            )
             continue
-            
+
         if not isinstance(prereqs, list):
-            errors.append(f"Node '{node}' in {node_sources.get(node)} has non-list prerequisites: {type(prereqs)}")
+            errors.append(
+                f"Node '{node}' in {node_sources.get(node)} has non-list prerequisites: {type(prereqs)}"
+            )
             continue
-            
+
         # Check prerequisites exist in graph
         for prereq in prereqs:
             # Normalize prerequisite using aliases
             clean_prereq = prereq.lower().replace("-", " ").strip()
             norm_prereq = aliases.get(clean_prereq, clean_prereq)
             if norm_prereq not in graph:
-                errors.append(f"Node '{node}' in {node_sources.get(node)} has missing/unknown prerequisite '{prereq}' (normalized: '{norm_prereq}')")
+                errors.append(
+                    f"Node '{node}' in {node_sources.get(node)} has missing/unknown prerequisite '{prereq}' (normalized: '{norm_prereq}')"
+                )
 
-    visited = {} # None: unvisited, 1: visiting, 2: visited
-    
+    visited = {}  # None: unvisited, 1: visiting, 2: visited
+
     def get_prereqs(n):
         val = graph.get(n)
         if val is None:
@@ -122,15 +140,15 @@ def validate_graph(graph, aliases, node_sources):
         return []
 
     def dfs(node_name):
-        visited[node_name] = 1 # Visiting
-        
+        visited[node_name] = 1  # Visiting
+
         prereqs = get_prereqs(node_name)
         for prereq in prereqs:
             clean_p = prereq.lower().replace("-", " ").strip()
             norm_p = aliases.get(clean_p, clean_p)
             if norm_p not in graph:
-                continue # Missing prereq check handled in step 1
-                
+                continue  # Missing prereq check handled in step 1
+
             state = visited.get(norm_p, 0)
             if state == 1:
                 return [node_name, norm_p]
@@ -138,8 +156,8 @@ def validate_graph(graph, aliases, node_sources):
                 cycle = dfs(norm_p)
                 if cycle:
                     return [node_name] + cycle
-                    
-        visited[node_name] = 2 # Visited
+
+        visited[node_name] = 2  # Visited
         return None
 
     for node in graph:
@@ -147,57 +165,77 @@ def validate_graph(graph, aliases, node_sources):
             cycle = dfs(node)
             if cycle:
                 errors.append(f"Dependency cycle detected: {' -> '.join(cycle)}")
-                break # Avoid spamming multiple cycles for the same path
+                break  # Avoid spamming multiple cycles for the same path
 
     for alias_key, target in aliases.items():
         if target not in graph:
-            errors.append(f"Alias '{alias_key}' points to target '{target}' which does not exist as a canonical node in the graph")
+            errors.append(
+                f"Alias '{alias_key}' points to target '{target}' which does not exist as a canonical node in the graph"
+            )
 
     # No alias key should exist as a canonical node in the graph
     for alias_key in aliases:
         if alias_key in graph:
-            errors.append(f"Alias key '{alias_key}' is also defined as a canonical node in the graph. This is ambiguous.")
+            errors.append(
+                f"Alias key '{alias_key}' is also defined as a canonical node in the graph. This is ambiguous."
+            )
 
     return errors, warnings
+
 
 def validate_context_aliases(context_aliases, graph, simple_aliases):
     errors = []
     warnings = []
-    
+
     for alias_key, candidates in context_aliases.items():
         if not isinstance(candidates, list):
-            errors.append(f"Context alias '{alias_key}' must map to a list, got {type(candidates)}")
+            errors.append(
+                f"Context alias '{alias_key}' must map to a list, got {type(candidates)}"
+            )
             continue
-        
+
         # Check for conflict with simple aliases
         if alias_key in simple_aliases:
-            errors.append(f"Context alias key '{alias_key}' also exists in simple aliases.yaml. Remove it from aliases.yaml to avoid conflicts.")
-        
+            errors.append(
+                f"Context alias key '{alias_key}' also exists in simple aliases.yaml. Remove it from aliases.yaml to avoid conflicts."
+            )
+
         has_default = False
         for i, candidate in enumerate(candidates):
             if not isinstance(candidate, dict):
-                errors.append(f"Context alias '{alias_key}' entry {i} must be a dict, got {type(candidate)}")
+                errors.append(
+                    f"Context alias '{alias_key}' entry {i} must be a dict, got {type(candidate)}"
+                )
                 continue
-                
+
             target = candidate.get("target")
             if not target:
-                errors.append(f"Context alias '{alias_key}' entry {i} has no 'target' field")
+                errors.append(
+                    f"Context alias '{alias_key}' entry {i} has no 'target' field"
+                )
                 continue
-                
+
             if target not in graph:
-                errors.append(f"Context alias '{alias_key}' target '{target}' does not exist as a canonical node")
-            
+                errors.append(
+                    f"Context alias '{alias_key}' target '{target}' does not exist as a canonical node"
+                )
+
             if candidate.get("default", False):
                 has_default = True
-                
+
             context = candidate.get("context", [])
             if not isinstance(context, list):
-                errors.append(f"Context alias '{alias_key}' entry {i} 'context' must be a list")
-        
+                errors.append(
+                    f"Context alias '{alias_key}' entry {i} 'context' must be a list"
+                )
+
         if not has_default and len(candidates) > 1:
-            warnings.append(f"Context alias '{alias_key}' has {len(candidates)} candidates but no default")
-    
+            warnings.append(
+                f"Context alias '{alias_key}' has {len(candidates)} candidates but no default"
+            )
+
     return errors, warnings
+
 
 def validate_domain_mappings(domain_mappings, graph):
     errors = []
@@ -212,49 +250,63 @@ def validate_domain_mappings(domain_mappings, graph):
     }
     for node, domain in domain_mappings.items():
         if node not in graph:
-            errors.append(f"Domain mapping node '{node}' does not exist as a canonical node in the graph")
+            errors.append(
+                f"Domain mapping node '{node}' does not exist as a canonical node in the graph"
+            )
         if domain not in valid_domains:
-            errors.append(f"Domain mapping node '{node}' maps to invalid domain '{domain}'. Must be one of {valid_domains}")
+            errors.append(
+                f"Domain mapping node '{node}' maps to invalid domain '{domain}'. Must be one of {valid_domains}"
+            )
     return errors, warnings
+
 
 def main():
     aliases, alias_errors = load_aliases()
     graph, node_sources, graph_errors = load_skill_graphs()
     context_aliases, ctx_alias_errors = load_context_aliases()
     domain_mappings, domain_errors = load_domain_mappings()
-    
+
     all_errors = alias_errors + graph_errors + ctx_alias_errors + domain_errors
     all_warnings = []
-    
+
     if not all_errors:
-        validation_errors, validation_warnings = validate_graph(graph, aliases, node_sources)
+        validation_errors, validation_warnings = validate_graph(
+            graph, aliases, node_sources
+        )
         all_errors.extend(validation_errors)
         all_warnings.extend(validation_warnings)
-        
-        ctx_errors, ctx_warnings = validate_context_aliases(context_aliases, graph, aliases)
+
+        ctx_errors, ctx_warnings = validate_context_aliases(
+            context_aliases, graph, aliases
+        )
         all_errors.extend(ctx_errors)
         all_warnings.extend(ctx_warnings)
 
         dom_errors, dom_warnings = validate_domain_mappings(domain_mappings, graph)
         all_errors.extend(dom_errors)
         all_warnings.extend(dom_warnings)
-        
-    print(f"Loaded {len(graph)} canonical nodes, {len(aliases)} aliases, {len(context_aliases)} context aliases, and {len(domain_mappings)} domain mappings.")
-    
+
+    print(
+        f"Loaded {len(graph)} canonical nodes, {len(aliases)} aliases, {len(context_aliases)} context aliases, and {len(domain_mappings)} domain mappings."
+    )
+
     if all_warnings:
         print("\n--- WARNINGS ---")
         for warning in all_warnings:
             print(f"WARNING: {warning}")
-            
+
     if all_errors:
         print("\n--- ERRORS ---")
         for error in all_errors:
             print(f"ERROR: {error}")
-        print(f"\nValidation failed with {len(all_errors)} errors and {len(all_warnings)} warnings.")
+        print(
+            f"\nValidation failed with {len(all_errors)} errors and {len(all_warnings)} warnings."
+        )
         sys.exit(1)
-        
+
     print("\nValidation passed successfully!")
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

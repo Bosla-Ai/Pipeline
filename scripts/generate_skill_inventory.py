@@ -7,9 +7,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.graph_inventory.generate import write_inventories, check_inventories
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Generate or check skill inventory and tag contract JSON contracts.")
-    parser.add_argument("--check", action="store_true", help="Compare current generated files with source YAML files without writing them.")
+    parser = argparse.ArgumentParser(
+        description="Generate or check skill inventory and tag contract JSON contracts."
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Compare current generated files with source YAML files without writing them.",
+    )
     args = parser.parse_args()
 
     if args.check:
@@ -35,6 +42,7 @@ def main():
         except Exception as e:
             print(f"Error generating inventory: {e}", file=sys.stderr)
             sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

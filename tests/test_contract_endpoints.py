@@ -7,6 +7,7 @@ from src.graph_inventory.runtime_contracts import ContractUnavailableError
 # Make sure event_log and redis connections are mocked or not causing issues
 # During test execution under pytest, the tests/conftest.py handles basic bypasses.
 
+
 @pytest.mark.asyncio
 async def test_endpoints_successful_response(monkeypatch):
     # Enable dev bypass
@@ -48,10 +49,14 @@ async def test_endpoints_successful_response(monkeypatch):
 async def test_endpoints_authentication(monkeypatch):
     # Set a test-secret
     monkeypatch.setattr("src.api.PIPELINE_SHARED_SECRET", "test-secret")
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        for path in ["/contracts/tag-contract", "/contracts/skill-inventory", "/contracts/metadata"]:
+        for path in [
+            "/contracts/tag-contract",
+            "/contracts/skill-inventory",
+            "/contracts/metadata",
+        ]:
             # Calling without headers -> 401
             res = await ac.get(path)
             assert res.status_code == 401
@@ -76,7 +81,11 @@ async def test_endpoints_dev_bypass(monkeypatch):
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        for path in ["/contracts/tag-contract", "/contracts/skill-inventory", "/contracts/metadata"]:
+        for path in [
+            "/contracts/tag-contract",
+            "/contracts/skill-inventory",
+            "/contracts/metadata",
+        ]:
             res = await ac.get(path)
             assert res.status_code == 200
 
@@ -86,22 +95,28 @@ async def test_endpoints_error_sanitization(monkeypatch):
     def boom_tag():
         raise ContractUnavailableError(
             "Generated tag contract is unavailable",
-            "/home/medo/Bosla/BoslaPipeline/data/generated/tag_contract.json is missing or corrupted"
+            "/home/medo/Bosla/BoslaPipeline/data/generated/tag_contract.json is missing or corrupted",
         )
+
     def boom_inventory():
         raise ContractUnavailableError(
             "Generated skill inventory is unavailable",
-            "/home/medo/Bosla/BoslaPipeline/data/generated/skill_inventory.json is missing or corrupted"
+            "/home/medo/Bosla/BoslaPipeline/data/generated/skill_inventory.json is missing or corrupted",
         )
+
     def boom_metadata():
         raise ContractUnavailableError(
             "Generated contract metadata is unavailable",
-            "/home/medo/Bosla/BoslaPipeline/data/generated/skill_inventory.json counts mismatched"
+            "/home/medo/Bosla/BoslaPipeline/data/generated/skill_inventory.json counts mismatched",
         )
 
     monkeypatch.setattr("src.api.runtime_contracts.load_tag_contract", boom_tag)
-    monkeypatch.setattr("src.api.runtime_contracts.load_skill_inventory", boom_inventory)
-    monkeypatch.setattr("src.api.runtime_contracts.get_contract_metadata", boom_metadata)
+    monkeypatch.setattr(
+        "src.api.runtime_contracts.load_skill_inventory", boom_inventory
+    )
+    monkeypatch.setattr(
+        "src.api.runtime_contracts.get_contract_metadata", boom_metadata
+    )
 
     # Disable authentication by removing secret
     monkeypatch.setattr("src.api.PIPELINE_SHARED_SECRET", None)

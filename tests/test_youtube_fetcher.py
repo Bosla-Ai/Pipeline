@@ -62,7 +62,7 @@ async def test_fetch_youtube_data_quota_rotation():
     def mock_get(url, params=None):
         if params:
             requested_keys.append(params.get("key"))
-        
+
         # Determine behavior based on number of calls
         call_num = len(requested_keys)
         context_manager = MagicMock()
@@ -123,6 +123,7 @@ def test_key_manager_duplicate_rotation_prevention():
 @pytest.mark.asyncio
 async def test_key_manager_concurrency():
     import asyncio
+
     # Setup key manager
     key_manager.keys = ["KEY_1", "KEY_2", "KEY_3"]
     key_manager.current_index = 0
@@ -139,4 +140,3 @@ async def test_key_manager_concurrency():
     for res in results:
         assert res == "KEY_2"
     assert key_manager.current_index == 1
-

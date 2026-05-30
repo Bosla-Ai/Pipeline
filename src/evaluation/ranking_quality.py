@@ -10,7 +10,7 @@ def cand_dict_to_obj(cand: dict, tag: str) -> Candidate:
     raw["title"] = cand.get("title")
     raw["url"] = cand.get("url")
     raw["source"] = cand.get("source")
-    
+
     if "duration_minutes" in cand:
         raw["duration_minutes"] = cand["duration_minutes"]
     if "rating" in cand:
@@ -37,11 +37,11 @@ def validate_evaluation_case(case: dict):
     case_id = case["id"]
     if not case.get("tag"):
         raise ValueError(f"Case {case_id} is missing tag")
-    
+
     candidates = case.get("candidates")
     if not candidates:
         raise ValueError(f"Case {case_id} must have a non-empty candidates list")
-        
+
     titles = set()
     for cand in candidates:
         if "title" not in cand:
@@ -50,51 +50,63 @@ def validate_evaluation_case(case: dict):
         if title in titles:
             raise ValueError(f"Case {case_id} has duplicate candidate title: {title}")
         titles.add(title)
-        
+
         if "url" not in cand:
             raise ValueError(f"Case {case_id} candidate '{title}' is missing url")
-            
+
         source = cand.get("source")
         if source not in ("coursera", "udemy", "youtube"):
-            raise ValueError(f"Case {case_id} candidate '{title}' has unknown/invalid source: {source}")
-            
+            raise ValueError(
+                f"Case {case_id} candidate '{title}' has unknown/invalid source: {source}"
+            )
+
     expectations = case.get("expectations")
     if not expectations:
         raise ValueError(f"Case {case_id} is missing expectations")
-        
+
     top_sources = expectations.get("top_source_any_of")
     if top_sources:
         for src in top_sources:
             if src not in ("coursera", "udemy", "youtube"):
-                raise ValueError(f"Case {case_id} expectation 'top_source_any_of' contains invalid source: {src}")
-                
+                raise ValueError(
+                    f"Case {case_id} expectation 'top_source_any_of' contains invalid source: {src}"
+                )
+
     must_beat = expectations.get("must_beat")
     if must_beat:
         for pair in must_beat:
             higher = pair.get("higher")
             lower = pair.get("lower")
             if not higher or not lower:
-                raise ValueError(f"Case {case_id} must_beat pair must contain both 'higher' and 'lower' titles")
+                raise ValueError(
+                    f"Case {case_id} must_beat pair must contain both 'higher' and 'lower' titles"
+                )
             if higher not in titles:
-                raise ValueError(f"Case {case_id} must_beat pair specifies missing 'higher' title: {higher}")
+                raise ValueError(
+                    f"Case {case_id} must_beat pair specifies missing 'higher' title: {higher}"
+                )
             if lower not in titles:
-                raise ValueError(f"Case {case_id} must_beat pair specifies missing 'lower' title: {lower}")
-                
+                raise ValueError(
+                    f"Case {case_id} must_beat pair specifies missing 'lower' title: {lower}"
+                )
+
     reason_codes = expectations.get("required_reason_codes_by_title")
     if reason_codes:
         for t in reason_codes:
             if t not in titles:
-                raise ValueError(f"Case {case_id} required_reason_codes_by_title specifies missing title: {t}")
+                raise ValueError(
+                    f"Case {case_id} required_reason_codes_by_title specifies missing title: {t}"
+                )
 
 
 def load_ranking_quality_cases(filepath: str) -> list[dict]:
     """Load and validate all ranking quality cases from a YAML file."""
     with open(filepath, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
-        
+
     if not data or "cases" not in data:
         raise ValueError("Invalid YAML structure: missing 'cases' key")
-        
+
     cases = data["cases"]
     seen_ids = set()
     for case in cases:
@@ -105,7 +117,7 @@ def load_ranking_quality_cases(filepath: str) -> list[dict]:
             raise ValueError(f"Duplicate case id found: {case_id}")
         seen_ids.add(case_id)
         validate_evaluation_case(case)
-        
+
     return cases
 
 
@@ -114,9 +126,9 @@ def run_evaluation_case(case: dict) -> tuple[bool, list[str]]:
     tag = case["tag"]
     candidates_data = case["candidates"]
     expectations = case["expectations"]
-    
+
     candidates = [cand_dict_to_obj(cand, tag) for cand in candidates_data]
-    
+
     # Run cheap_rank with debug mode disabled to get standard scores/order
     old_value = os.environ.get("ENABLE_RANKING_DEBUG")
     try:
@@ -127,18 +139,24 @@ def run_evaluation_case(case: dict) -> tuple[bool, list[str]]:
             os.environ.pop("ENABLE_RANKING_DEBUG", None)
         else:
             os.environ["ENABLE_RANKING_DEBUG"] = old_value
-            
+
     ranked_by_title = {c.title: c for c in ranked}
     failures = []
-    
+
     # Check top source expectation
     top_sources = expectations.get("top_source_any_of")
     if top_sources:
         top_cand = ranked[0]
-        top_source_val = top_cand.source.value if hasattr(top_cand.source, "value") else str(top_cand.source)
+        top_source_val = (
+            top_cand.source.value
+            if hasattr(top_cand.source, "value")
+            else str(top_cand.source)
+        )
         if top_source_val not in top_sources:
-            failures.append(f"Top source '{top_source_val}' is not in expected list: {top_sources}")
-            
+            failures.append(
+                f"Top source '{top_source_val}' is not in expected list: {top_sources}"
+            )
+
     # Check must_beat pairs
     must_beat = expectations.get("must_beat")
     if must_beat:
@@ -152,7 +170,7 @@ def run_evaluation_case(case: dict) -> tuple[bool, list[str]]:
                     f"Candidate '{higher_title}' (score: {higher_cand.raw_score}) failed to beat "
                     f"'{lower_title}' (score: {lower_cand.raw_score})"
                 )
-                
+
     # Check required reason codes
     reason_codes_by_title = expectations.get("required_reason_codes_by_title")
     if reason_codes_by_title:
@@ -168,12 +186,14 @@ def run_evaluation_case(case: dict) -> tuple[bool, list[str]]:
                 os.environ.pop("ENABLE_RANKING_DEBUG", None)
             else:
                 os.environ["ENABLE_RANKING_DEBUG"] = old_value
-                
+
         for title, expected_codes in reason_codes_by_title.items():
             cand = ranked_debug_by_title[title]
             explanation = cand.ranking_explanation
             if not explanation:
-                failures.append(f"Candidate '{title}' is missing ranking explanation in debug mode")
+                failures.append(
+                    f"Candidate '{title}' is missing ranking explanation in debug mode"
+                )
                 continue
             actual_codes = explanation.get("reasonCodes", [])
             for code in expected_codes:
@@ -182,5 +202,5 @@ def run_evaluation_case(case: dict) -> tuple[bool, list[str]]:
                         f"Candidate '{title}' is missing expected reason code '{code}' "
                         f"(actual codes: {actual_codes})"
                     )
-                    
+
     return len(failures) == 0, failures

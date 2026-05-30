@@ -13,6 +13,7 @@ from src.utils.learning_path import (
     CONTEXT_ALIASES,
 )
 
+
 def test_yaml_files_loaded():
     # Verify that the prerequisite graph loaded from YAML has the expected structure and is not empty
     assert len(PREREQUISITE_GRAPH) > 0
@@ -44,23 +45,23 @@ def test_normalize_tag():
 def test_generate_learning_path_basic():
     tags = ["html", "css", "javascript", "react"]
     lp = generate_learning_path(tags)
-    
+
     assert isinstance(lp, dict)
     assert lp["total_tags"] == 4
     assert "phases" in lp
     assert len(lp["phases"]) > 0
-    
+
     # Ensure topological sort order (html -> css -> javascript -> react)
     phase_tags = []
     for phase in lp["phases"]:
         for t in phase["tags"]:
             phase_tags.append(t["tag"])
-            
+
     assert "html" in phase_tags
     assert "css" in phase_tags
     assert "javascript" in phase_tags
     assert "react" in phase_tags
-    
+
     # Check that html comes before css, css before javascript, javascript before react
     assert phase_tags.index("html") < phase_tags.index("css")
     assert phase_tags.index("css") < phase_tags.index("javascript")
@@ -72,14 +73,14 @@ def test_yaml_overrides(monkeypatch):
         "custom tag": {
             "prerequisites": ["html"],
             "difficulty": "expert",
-            "estimated_hours": 99.5
+            "estimated_hours": 99.5,
         }
     }
     monkeypatch.setattr("src.utils.learning_path._graph_data", mock_graph)
-    
+
     # Difficulty should be Capitalized from YAML
     assert _get_difficulty("custom-tag") == "Expert"
-    
+
     # Estimated hours override should be used
     assert _estimate_hours("custom-tag") == 99.5
 
@@ -99,7 +100,18 @@ def test_new_coverage_aliases():
 
 def test_new_coverage_nodes():
     # Verify new nodes are loaded in the graph
-    nodes = ["rag", "vector databases", "langchain", "opentelemetry", "cilium", "bun", "astro", "duckdb", "clickhouse", "dbt"]
+    nodes = [
+        "rag",
+        "vector databases",
+        "langchain",
+        "opentelemetry",
+        "cilium",
+        "bun",
+        "astro",
+        "duckdb",
+        "clickhouse",
+        "dbt",
+    ]
     for node in nodes:
         assert node in PREREQUISITE_GRAPH
 
@@ -132,7 +144,9 @@ def test_existing_behavior_remains():
     assert tags.index("javascript") < tags.index("react")
 
     # python -> numpy -> machine learning -> deep learning
-    lp_ds = generate_learning_path(["deep learning", "machine learning", "numpy", "python"])
+    lp_ds = generate_learning_path(
+        ["deep learning", "machine learning", "numpy", "python"]
+    )
     tags_ds = [t["tag"] for p in lp_ds["phases"] for t in p["tags"]]
     assert tags_ds.index("python") < tags_ds.index("numpy")
     assert tags_ds.index("numpy") < tags_ds.index("machine learning")
@@ -275,7 +289,7 @@ def test_normalized_domain_scoring_fullstack_threshold():
     assert lp3["domain"] == "Full-Stack Development"
 
     # 5 BE + 1 FE -> Backend (highly unbalanced, minority 1.0 < 0.3 * majority 5.0)
-    lp4 = generate_learning_path(["node", "express", "nestjs", "fastify", "postgres", "react"])
+    lp4 = generate_learning_path(
+        ["node", "express", "nestjs", "fastify", "postgres", "react"]
+    )
     assert lp4["domain"] == "Backend Development"
-
-

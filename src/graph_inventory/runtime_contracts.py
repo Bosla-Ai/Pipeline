@@ -7,16 +7,20 @@ from typing import Any, Dict
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 GENERATED_DIR = BASE_DIR / "data" / "generated"
 
+
 class ContractUnavailableError(RuntimeError):
     """Exception raised when generated contracts are missing, malformed, or out of sync."""
+
     def __init__(self, public_message: str, internal_message: str | None = None):
         super().__init__(public_message)
         self.public_message = public_message
         self.internal_message = internal_message or public_message
 
+
 # Internal cache variables
 _tag_contract_cache: Dict[str, Any] = None
 _skill_inventory_cache: Dict[str, Any] = None
+
 
 def clear_contract_cache() -> None:
     """Clear in-memory contract caches (useful for tests)."""
@@ -24,9 +28,10 @@ def clear_contract_cache() -> None:
     _tag_contract_cache = None
     _skill_inventory_cache = None
 
+
 def load_tag_contract() -> dict:
     """Load, cache, and return the tag contract payload.
-    
+
     Raises:
         ContractUnavailableError if the file is missing or invalid JSON.
     """
@@ -37,8 +42,7 @@ def load_tag_contract() -> dict:
     path = GENERATED_DIR / "tag_contract.json"
     if not path.exists():
         raise ContractUnavailableError(
-            "Generated tag contract is unavailable",
-            f"File not found: {path.name}"
+            "Generated tag contract is unavailable", f"File not found: {path.name}"
         )
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -50,17 +54,18 @@ def load_tag_contract() -> dict:
     except (json.JSONDecodeError, ValueError) as e:
         raise ContractUnavailableError(
             "Generated tag contract is unavailable",
-            f"Invalid JSON or shape in tag_contract.json: {e}"
+            f"Invalid JSON or shape in tag_contract.json: {e}",
         ) from e
     except Exception as e:
         raise ContractUnavailableError(
             "Generated tag contract is unavailable",
-            f"Failed to read tag_contract.json: {e}"
+            f"Failed to read tag_contract.json: {e}",
         ) from e
+
 
 def load_skill_inventory() -> dict:
     """Load, cache, and return the skill inventory payload.
-    
+
     Raises:
         ContractUnavailableError if the file is missing or invalid JSON.
     """
@@ -71,8 +76,7 @@ def load_skill_inventory() -> dict:
     path = GENERATED_DIR / "skill_inventory.json"
     if not path.exists():
         raise ContractUnavailableError(
-            "Generated skill inventory is unavailable",
-            f"File not found: {path.name}"
+            "Generated skill inventory is unavailable", f"File not found: {path.name}"
         )
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -84,17 +88,18 @@ def load_skill_inventory() -> dict:
     except (json.JSONDecodeError, ValueError) as e:
         raise ContractUnavailableError(
             "Generated skill inventory is unavailable",
-            f"Invalid JSON or shape in skill_inventory.json: {e}"
+            f"Invalid JSON or shape in skill_inventory.json: {e}",
         ) from e
     except Exception as e:
         raise ContractUnavailableError(
             "Generated skill inventory is unavailable",
-            f"Failed to read skill_inventory.json: {e}"
+            f"Failed to read skill_inventory.json: {e}",
         ) from e
+
 
 def get_contract_metadata() -> dict:
     """Calculate and return contract metadata, cross-checking counts between files.
-    
+
     Raises:
         ContractUnavailableError if counts mismatch or files fail to load.
     """
@@ -112,17 +117,19 @@ def get_contract_metadata() -> dict:
     inv_ctx_aliases = skill_inventory.get("contextAliasCount", 0)
     inv_domains = skill_inventory.get("domainMappingCount", 0)
 
-    if (tag_nodes != inv_nodes or
-        tag_aliases != inv_aliases or
-        tag_ctx_aliases != inv_ctx_aliases or
-        tag_domains != inv_domains):
+    if (
+        tag_nodes != inv_nodes
+        or tag_aliases != inv_aliases
+        or tag_ctx_aliases != inv_ctx_aliases
+        or tag_domains != inv_domains
+    ):
         raise ContractUnavailableError(
             "Generated contract metadata is unavailable",
             f"Count mismatch: tag_contract vs skill_inventory "
             f"(nodes: {tag_nodes} vs {inv_nodes}, "
             f"aliases: {tag_aliases} vs {inv_aliases}, "
             f"contextAliases: {tag_ctx_aliases} vs {inv_ctx_aliases}, "
-            f"domains: {tag_domains} vs {inv_domains})"
+            f"domains: {tag_domains} vs {inv_domains})",
         )
 
     return {
@@ -130,5 +137,5 @@ def get_contract_metadata() -> dict:
         "nodeCount": inv_nodes,
         "aliasCount": inv_aliases,
         "contextAliasCount": inv_ctx_aliases,
-        "domainMappingCount": inv_domains
+        "domainMappingCount": inv_domains,
     }

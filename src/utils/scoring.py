@@ -167,6 +167,7 @@ def _parse_float(val) -> float | None:
         return float(val)
     try:
         import re
+
         cleaned = re.sub(r"[^\d.]", "", str(val))
         return float(cleaned) if cleaned else None
     except:
@@ -182,6 +183,7 @@ def _parse_int(val) -> int | None:
         return int(val)
     try:
         import re
+
         cleaned = re.sub(r"[^\d]", "", str(val))
         return int(cleaned) if cleaned else None
     except:
@@ -195,6 +197,7 @@ def _parse_duration_hours(val) -> float | None:
         return float(val)
     try:
         import re
+
         m = re.search(r"([\d.]+)", str(val))
         if m:
             return float(m.group(1))
@@ -203,7 +206,9 @@ def _parse_duration_hours(val) -> float | None:
     return None
 
 
-def calculate_udemy_score(course: dict, tag: str, explain: bool = False) -> float | dict:
+def calculate_udemy_score(
+    course: dict, tag: str, explain: bool = False
+) -> float | dict:
     """Calculate Udemy-specific quality/relevance score."""
     title = str(course.get("title", "")).lower()
     tag_lower = tag.lower()
@@ -298,9 +303,7 @@ def calculate_udemy_score(course: dict, tag: str, explain: bool = False) -> floa
                 "source": "udemy",
                 "reasonCodes": reasonCodes,
                 "scoreBreakdown": scoreBreakdown,
-            }
+            },
         }
 
     return final_score
-
-

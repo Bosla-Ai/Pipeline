@@ -89,3 +89,145 @@ def test_query_planner_build_smart_queries():
         ("software development full course", "software development tutorial"),
         ("software developer full course", "software developer tutorial"),
     ]
+
+
+def test_query_planner_plan_queries_for_tag():
+    from src.engine.stages import PreparedTag, PlannedSource
+    from src.engine.models import TopicScope, SourceName
+
+    # 1. python_generates_full_course_and_tutorial
+    tag_py = PreparedTag(
+        original="python",
+        normalized="python",
+        language="en",
+        scope=TopicScope.TECHNOLOGY,
+    )
+    sources = [
+        PlannedSource(
+            tag=tag_py,
+            source=SourceName.YOUTUBE,
+            enabled=True,
+            reason="ok",
+            estimated_cost="free",
+        )
+    ]
+    queries = QueryPlanner.plan_queries_for_tag(
+        tag_py, sources, max_results=5, query_limit_per_tag=2
+    )
+    assert len(queries) == 2
+    assert queries[0].query == "python full course"
+    assert queries[0].expected_content_type == "playlist"
+    assert queries[1].query == "python tutorial"
+    assert queries[1].expected_content_type == "video"
+
+    # 2. role_generates_roadmap_query
+    tag_role = PreparedTag(
+        original="devops",
+        normalized="devops",
+        language="en",
+        scope=TopicScope.ROLE_ROADMAP,
+    )
+    sources_role = [
+        PlannedSource(
+            tag=tag_role,
+            source=SourceName.YOUTUBE,
+            enabled=True,
+            reason="ok",
+            estimated_cost="free",
+        )
+    ]
+    queries_role = QueryPlanner.plan_queries_for_tag(
+        tag_role, sources_role, max_results=5, query_limit_per_tag=2
+    )
+    assert len(queries_role) == 2
+    assert queries_role[0].query == "devops roadmap"
+    assert queries_role[0].expected_content_type == "playlist"
+    assert queries_role[1].query == "devops full course"
+    assert queries_role[1].expected_content_type == "playlist"
+
+    # 3. free_hf_limits_queries_to_two
+    tag_limits = PreparedTag(
+        original="git", normalized="git", language="en", scope=TopicScope.TECHNOLOGY
+    )
+    sources_limits = [
+        PlannedSource(
+            tag=tag_limits,
+            source=SourceName.YOUTUBE,
+            enabled=True,
+            reason="ok",
+            estimated_cost="free",
+        )
+    ]
+    # Set limit to 1
+    queries_limits = QueryPlanner.plan_queries_for_tag(
+        tag_limits, sources_limits, max_results=5, query_limit_per_tag=1
+    )
+    assert len(queries_limits) == 1
+    assert queries_limits[0].query == "git full course"
+
+    # 4. arabic_query_keeps_arabic_first
+    tag_ar = PreparedTag(
+        original="بايثون للمبتدئين",
+        normalized="بايثون للمبتدئين",
+        language="ar",
+        scope=TopicScope.TECHNOLOGY,
+    )
+    sources_ar = [
+        PlannedSource(
+            tag=tag_ar,
+            source=SourceName.YOUTUBE,
+            enabled=True,
+            reason="ok",
+            estimated_cost="free",
+        )
+    ]
+    queries_ar = QueryPlanner.plan_queries_for_tag(
+        tag_ar, sources_ar, max_results=5, query_limit_per_tag=2
+    )
+    assert len(queries_ar) == 2
+    assert queries_ar[0].query == "بايثون للمبتدئين full course"
+    assert queries_ar[1].query == "بايثون للمبتدئين tutorial"
+
+    # With English fallback
+    tag_ar_fallback = PreparedTag(
+        original="أساسيات Unity",
+        normalized="أساسيات Unity",
+        language="ar",
+        scope=TopicScope.TECHNOLOGY,
+    )
+    sources_ar_fallback = [
+        PlannedSource(
+            tag=tag_ar_fallback,
+            source=SourceName.YOUTUBE,
+            enabled=True,
+            reason="ok",
+            estimated_cost="free",
+        )
+    ]
+    queries_ar_fallback = QueryPlanner.plan_queries_for_tag(
+        tag_ar_fallback, sources_ar_fallback, max_results=5, query_limit_per_tag=2
+    )
+    assert len(queries_ar_fallback) == 2
+    assert queries_ar_fallback[0].query == "أساسيات Unity full course"
+    assert queries_ar_fallback[1].query == "unity full course"
+
+    # 5. query_dedup_preserves_order
+    tag_dup = PreparedTag(
+        original="python",
+        normalized="python",
+        language="en",
+        scope=TopicScope.TECHNOLOGY,
+    )
+    sources_dup = [
+        PlannedSource(
+            tag=tag_dup,
+            source=SourceName.YOUTUBE,
+            enabled=True,
+            reason="ok",
+            estimated_cost="free",
+        )
+    ]
+    queries_dup = QueryPlanner.plan_queries_for_tag(
+        tag_dup, sources_dup, max_results=5, query_limit_per_tag=3
+    )
+    assert len(queries_dup) == 2

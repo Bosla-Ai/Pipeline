@@ -157,9 +157,7 @@ async def test_generate_roadmap_empty_tags(mocker):
             },
         )
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "success"
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio

@@ -253,7 +253,7 @@ def test_coursera_scoring_explanation():
     )
     assert isinstance(res, dict)
     assert res["score"] == 98.0
-    
+
     explanation = res["explanation"]
     assert explanation["finalScore"] == 98.0
     assert explanation["source"] == "coursera"
@@ -278,7 +278,7 @@ def test_cheap_rank_candidate_explanation():
         "score": 10.0,
     }
     candidate = Candidate.from_dict(raw, SourceName.YOUTUBE, "react")
-    
+
     # explain=False
     score_normal = cheap_rank_candidate(candidate, "react", explain=False)
     # pre-penalty = 10.0 (base) + 15.0 (relevance: overlap + exact match) + 10.0 (rating) = 35.0
@@ -290,7 +290,7 @@ def test_cheap_rank_candidate_explanation():
     res = cheap_rank_candidate(candidate, "react", explain=True)
     assert isinstance(res, dict)
     assert res["score"] == 6.3
-    
+
     explanation = res["explanation"]
     assert explanation["finalScore"] == 6.3
     assert explanation["source"] == "youtube"
@@ -301,7 +301,7 @@ def test_cheap_rank_candidate_explanation():
     assert "high_rating_boost" in explanation["reasonCodes"]
 
     assert explanation["penaltyMultiplier"] == 0.18
-    
+
     # Verify breakdown sums to final score
     breakdown = explanation["scoreBreakdown"]
     assert breakdown["penaltyAdjustment"] == pytest.approx(6.3 - 35.0)
@@ -320,7 +320,7 @@ def test_ranking_debug_flag_behavior(monkeypatch):
     monkeypatch.delenv("ENABLE_RANKING_DEBUG", raising=False)
     ranked = cheap_rank([candidate], "react")
     assert ranked[0].ranking_explanation is None
-    
+
     serialized = ranked[0].to_dict()
     assert "_debug" not in serialized
     assert "rankingExplanation" not in serialized
@@ -329,7 +329,7 @@ def test_ranking_debug_flag_behavior(monkeypatch):
     monkeypatch.setenv("ENABLE_RANKING_DEBUG", "TrUe")
     ranked_debug = cheap_rank([candidate], "react")
     assert ranked_debug[0].ranking_explanation is not None
-    
+
     serialized_debug = ranked_debug[0].to_dict()
     assert "_debug" in serialized_debug
     assert "rankingExplanation" in serialized_debug["_debug"]
@@ -347,10 +347,7 @@ def test_fallback_negative_score_regression():
     )
 
     assert cheap_rank_candidate(candidate, "python", explain=False) == -10.0
-    
+
     res = cheap_rank_candidate(candidate, "python", explain=True)
     assert res["score"] == -10.0
     assert sum(res["explanation"]["scoreBreakdown"].values()) == pytest.approx(-10.0)
-
-
-

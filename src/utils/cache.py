@@ -127,12 +127,13 @@ class RedisCache:
                         "source": source,
                         "tag": tag,
                         "language": language,
-                    }
+                    },
                 )
             return cached
 
         # 2. Setup lock
         import uuid
+
         token = str(uuid.uuid4())
 
         # Acquire lock
@@ -148,7 +149,7 @@ class RedisCache:
                         "source": source,
                         "tag": tag,
                         "language": language,
-                    }
+                    },
                 )
             try:
                 value = await factory()
@@ -162,7 +163,9 @@ class RedisCache:
 
         # 3. Someone else is computing it. Wait and check cache.
         if source and tag and language:
-            print(f"    [Cache Stampede Protection] Waiting for {source} lock on '{tag}' ({language})...")
+            print(
+                f"    [Cache Stampede Protection] Waiting for {source} lock on '{tag}' ({language})..."
+            )
 
         for _ in range(15):  # 15 iterations * 0.5s = 7.5 seconds max wait
             await asyncio.sleep(0.5)
@@ -183,7 +186,7 @@ class RedisCache:
                             "source": source,
                             "tag": tag,
                             "language": language,
-                        }
+                        },
                     )
                 return cached
 
@@ -199,7 +202,7 @@ class RedisCache:
                     "tag": tag,
                     "language": language,
                     "reason": "lock_wait_timeout",
-                }
+                },
             )
         return await factory()
 

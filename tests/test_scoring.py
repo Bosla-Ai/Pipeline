@@ -296,13 +296,13 @@ def test_udemy_scoring_explanation():
     res = calculate_udemy_score(course, "python", explain=True)
     assert isinstance(res, dict)
     assert res["score"] == 107.0
-    
+
     explanation = res["explanation"]
     assert explanation["finalScore"] == 107.0
     assert explanation["source"] == "udemy"
     assert "title_exact_tag_match" in explanation["reasonCodes"]
     assert "tag_word_overlap" in explanation["reasonCodes"]
-    
+
     # 3. Verify breakdown sums to final score
     breakdown = explanation["scoreBreakdown"]
     assert sum(breakdown.values()) == 107.0
@@ -318,5 +318,3 @@ def test_udemy_scoring_explanation():
     assert res_bad["score"] == 0.0
     assert "score_floor_applied" in res_bad["explanation"]["reasonCodes"]
     assert sum(res_bad["explanation"]["scoreBreakdown"].values()) == 0.0
-
-

@@ -256,7 +256,10 @@ class TestConnectDisconnect:
 
 class TestSemaphore:
     def test_max_concurrent_jobs_value(self):
-        assert ss.MAX_CONCURRENT_JOBS == 3
+        from src.config.settings import FREE_HF_MODE
+
+        expected = 1 if FREE_HF_MODE else 3
+        assert ss.MAX_CONCURRENT_JOBS == expected
 
     @pytest.mark.asyncio
     async def test_semaphore_limits_concurrency(self):

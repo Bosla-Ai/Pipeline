@@ -5,7 +5,7 @@ from src.evaluation.ranking_quality import (
     load_ranking_quality_cases,
     run_evaluation_case,
     cand_dict_to_obj,
-    validate_evaluation_case
+    validate_evaluation_case,
 )
 from scripts.evaluate_ranking_quality import main as cli_main
 
@@ -16,7 +16,7 @@ def test_dataset_exists_and_loads():
     assert os.path.exists(filepath)
     cases = load_ranking_quality_cases(filepath)
     assert len(cases) >= 6
-    
+
     # Verify unique IDs
     case_ids = [c["id"] for c in cases]
     assert len(case_ids) == len(set(case_ids))
@@ -28,7 +28,7 @@ def test_schema_checks_reject_invalid_cases():
     invalid_case_1 = {
         "id": "test_invalid",
         "candidates": [{"title": "A", "url": "url", "source": "youtube"}],
-        "expectations": {"top_source_any_of": ["youtube"]}
+        "expectations": {"top_source_any_of": ["youtube"]},
     }
     with pytest.raises(ValueError, match="missing tag"):
         validate_evaluation_case(invalid_case_1)
@@ -38,7 +38,7 @@ def test_schema_checks_reject_invalid_cases():
         "id": "test_invalid",
         "tag": "python",
         "candidates": [],
-        "expectations": {"top_source_any_of": ["youtube"]}
+        "expectations": {"top_source_any_of": ["youtube"]},
     }
     with pytest.raises(ValueError, match="non-empty candidates"):
         validate_evaluation_case(invalid_case_2)
@@ -48,7 +48,7 @@ def test_schema_checks_reject_invalid_cases():
         "id": "test_invalid",
         "tag": "python",
         "candidates": [{"title": "A", "url": "url", "source": "unknown_source"}],
-        "expectations": {"top_source_any_of": ["youtube"]}
+        "expectations": {"top_source_any_of": ["youtube"]},
     }
     with pytest.raises(ValueError, match="unknown/invalid source"):
         validate_evaluation_case(invalid_case_3)
@@ -59,11 +59,9 @@ def test_schema_checks_reject_invalid_cases():
         "tag": "python",
         "candidates": [
             {"title": "A", "url": "url", "source": "youtube"},
-            {"title": "B", "url": "url", "source": "youtube"}
+            {"title": "B", "url": "url", "source": "youtube"},
         ],
-        "expectations": {
-            "must_beat": [{"higher": "A", "lower": "C"}]
-        }
+        "expectations": {"must_beat": [{"higher": "A", "lower": "C"}]},
     }
     with pytest.raises(ValueError, match="specifies missing 'lower' title"):
         validate_evaluation_case(invalid_case_4)
@@ -77,9 +75,11 @@ def test_schema_checks_reject_invalid_cases():
             "required_reason_codes_by_title": {
                 "Nonexistent Title": ["title_exact_tag_match"]
             }
-        }
+        },
     }
-    with pytest.raises(ValueError, match="required_reason_codes_by_title specifies missing title"):
+    with pytest.raises(
+        ValueError, match="required_reason_codes_by_title specifies missing title"
+    ):
         validate_evaluation_case(invalid_case_5)
 
 
@@ -89,10 +89,7 @@ def test_candidate_conversion():
         "source": "udemy",
         "title": "FastAPI Course",
         "url": "https://udemy.com/fastapi",
-        "metadata": {
-            "rating": 4.5,
-            "lectures": 20
-        }
+        "metadata": {"rating": 4.5, "lectures": 20},
     }
     obj = cand_dict_to_obj(cand_data, "fastapi")
     assert obj.source == SourceName.UDEMY
@@ -117,10 +114,10 @@ def test_env_var_restored(monkeypatch):
     filepath = "data/evaluation/ranking_quality_cases.yaml"
     cases = load_ranking_quality_cases(filepath)
     case = cases[0]
-    
+
     # Run evaluation
     run_evaluation_case(case)
-    
+
     # Environment variable should remain "TrUe" after evaluation runs
     assert os.environ.get("ENABLE_RANKING_DEBUG") == "TrUe"
 
@@ -162,9 +159,9 @@ def test_duplicate_candidate_titles_rejected():
         "tag": "python",
         "candidates": [
             {"title": "A", "url": "url", "source": "youtube"},
-            {"title": "A", "url": "url2", "source": "youtube"}
+            {"title": "A", "url": "url2", "source": "youtube"},
         ],
-        "expectations": {"top_source_any_of": ["youtube"]}
+        "expectations": {"top_source_any_of": ["youtube"]},
     }
     with pytest.raises(ValueError, match="duplicate candidate title: A"):
         validate_evaluation_case(case)
@@ -176,11 +173,11 @@ def test_invalid_top_source_any_of_rejected():
         "id": "invalid_top",
         "tag": "python",
         "candidates": [{"title": "A", "url": "url", "source": "youtube"}],
-        "expectations": {
-            "top_source_any_of": ["invalid_source"]
-        }
+        "expectations": {"top_source_any_of": ["invalid_source"]},
     }
-    with pytest.raises(ValueError, match="expectation 'top_source_any_of' contains invalid source"):
+    with pytest.raises(
+        ValueError, match="expectation 'top_source_any_of' contains invalid source"
+    ):
         validate_evaluation_case(case)
 
 
@@ -191,11 +188,9 @@ def test_missing_must_beat_higher_rejected():
         "tag": "python",
         "candidates": [
             {"title": "A", "url": "url", "source": "youtube"},
-            {"title": "B", "url": "url", "source": "youtube"}
+            {"title": "B", "url": "url", "source": "youtube"},
         ],
-        "expectations": {
-            "must_beat": [{"higher": "C", "lower": "B"}]
-        }
+        "expectations": {"must_beat": [{"higher": "C", "lower": "B"}]},
     }
     with pytest.raises(ValueError, match="specifies missing 'higher' title"):
         validate_evaluation_case(case)
@@ -205,6 +200,7 @@ def test_debug_serialization_shape(monkeypatch):
     """Verify that serialized candidates contain debug explanation under _debug only."""
     monkeypatch.setenv("ENABLE_RANKING_DEBUG", "true")
     from src.ranking.cheap_ranker import cheap_rank
+
     candidate = Candidate(
         source=SourceName.YOUTUBE,
         tag="python",
@@ -221,12 +217,12 @@ def test_debug_serialization_shape(monkeypatch):
 def test_cli_script_exits_failure_code(monkeypatch):
     """Verify that the CLI evaluation script exits with code 1 if a case fails."""
     import scripts.evaluate_ranking_quality
+
     monkeypatch.setattr(
         scripts.evaluate_ranking_quality,
         "run_evaluation_case",
-        lambda case: (False, ["Dummy failure for testing"])
+        lambda case: (False, ["Dummy failure for testing"]),
     )
     with pytest.raises(SystemExit) as exc:
         cli_main()
     assert exc.value.code == 1
-

@@ -144,3 +144,31 @@ async def test_event_log_redis_scan_window(clean_log):
     logs = await clean_log.get_logs(level="error", limit=1)
     assert len(logs) == 1
     assert logs[0]["id"] == "log_target"
+
+
+@pytest.mark.anyio
+async def test_event_log_sanitization(clean_log, monkeypatch):
+    monkeypatch.setattr(
+        "src.config.settings.PIPELINE_SHARED_SECRET",
+        "super-secret-pipeline-shared-key-1234",
+    )
+
+    entry = clean_log.log(
+        "info",
+        "system",
+        "Using secret super-secret-pipeline-shared-key-1234 for signing",
+        details={
+            "secret": "my-secret",
+            "someToken": "abc-token",
+            "password": "123",
+            "normal_field": "hello",
+        },
+    )
+    assert "super-secret-pipeline-shared-key-1234" not in entry["message"]
+    assert "[MASKED]" in entry["message"]
+
+    details = entry["details"]
+    assert details["secret"] == "[MASKED]"
+    assert details["someToken"] == "[MASKED]"
+    assert details["password"] == "[MASKED]"
+    assert details["normal_field"] == "hello"

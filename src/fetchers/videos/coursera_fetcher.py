@@ -37,7 +37,7 @@ async def fetch_coursera(
                     "source": "coursera",
                     "tag": tag,
                     "language": language,
-                }
+                },
             )
             final_roadmap[tag] = cached_result
         else:
@@ -50,7 +50,7 @@ async def fetch_coursera(
                     "source": "coursera",
                     "tag": tag,
                     "language": language,
-                }
+                },
             )
             tags_to_fetch.append(tag)
 
@@ -88,7 +88,7 @@ async def fetch_coursera(
                 "tag": tag,
                 "candidate_pool_size": len(candidates),
                 "ranked_count": len(ranked_dicts),
-            }
+            },
         )
 
         if not ranked_dicts:
@@ -100,7 +100,9 @@ async def fetch_coursera(
         )
 
         # Apply AI Classification using the job-scoped socket_id
-        valid_items = await classify_via_frontend(sio, socket_id, tag, ranked_dicts, job_id=job_id)
+        valid_items = await classify_via_frontend(
+            sio, socket_id, tag, ranked_dicts, job_id=job_id
+        )
 
         if valid_items:
             # Sort by Native Arabic first if needed
@@ -159,7 +161,9 @@ async def fetch_coursera(
                 await cache.release_lock(cache_key, token)
 
     if tags_to_wait:
-        print(f"    [Cache Stampede Protection] Waiting for Coursera locks on: {tags_to_wait}...")
+        print(
+            f"    [Cache Stampede Protection] Waiting for Coursera locks on: {tags_to_wait}..."
+        )
         for tag in tags_to_wait:
             cache_key = generate_cache_key("coursera", tag, language)
             resolved = False
@@ -168,7 +172,9 @@ async def fetch_coursera(
                 try:
                     cached = await cache.get(cache_key)
                 except Exception as ce:
-                    print(f"    [Cache Wait] Error reading cached result for {tag}: {ce}")
+                    print(
+                        f"    [Cache Wait] Error reading cached result for {tag}: {ce}"
+                    )
                     cached = None
                 if cached is not None:
                     print(f"    [Cache Hit via Lock] Coursera: {tag} ({language})")
@@ -182,13 +188,15 @@ async def fetch_coursera(
                             "tag": tag,
                             "language": language,
                             "stampede_protection": True,
-                        }
+                        },
                     )
                     final_roadmap[tag] = cached
                     resolved = True
                     break
             if not resolved:
-                print(f"    [Cache Wait Timeout] Falling back to scrape Coursera for '{tag}' individually...")
+                print(
+                    f"    [Cache Wait Timeout] Falling back to scrape Coursera for '{tag}' individually..."
+                )
                 event_log.log(
                     "info",
                     "cache",
@@ -199,7 +207,7 @@ async def fetch_coursera(
                         "tag": tag,
                         "language": language,
                         "reason": "lock_wait_timeout",
-                    }
+                    },
                 )
                 single_map = await asyncio.to_thread(
                     scrape_coursera_sync, sio, [tag], language, max_results, driver
@@ -295,10 +303,22 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                         detected_provider = "Coursera"
                         try:
                             link_text = link.text or ""
-                            lines = [line.strip() for line in link_text.split("\n") if line.strip()]
+                            lines = [
+                                line.strip()
+                                for line in link_text.split("\n")
+                                if line.strip()
+                            ]
                             for line in lines:
                                 if (
-                                    line.lower() not in {"course", "specialization", "professional certificate", "guided project", "degree", "unknown"}
+                                    line.lower()
+                                    not in {
+                                        "course",
+                                        "specialization",
+                                        "professional certificate",
+                                        "guided project",
+                                        "degree",
+                                        "unknown",
+                                    }
                                     and line != title
                                 ):
                                     detected_provider = line
@@ -307,7 +327,10 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                             pass
 
                         # Default metadata for scoring
-                        from src.ranking.cheap_ranker import calculate_coursera_score, detect_coursera_type
+                        from src.ranking.cheap_ranker import (
+                            calculate_coursera_score,
+                            detect_coursera_type,
+                        )
 
                         data = {
                             "contentType": "Course",
@@ -334,7 +357,6 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                         candidates.append(data)
                         seen_urls.add(href)
                         count += 1
-
 
                     except Exception as inner_e:
                         continue

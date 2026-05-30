@@ -94,7 +94,9 @@ class Candidate:
             elif source_enum == SourceName.UDEMY:
                 channel_or_provider = raw.get("instructor")
             elif source_enum == SourceName.COURSERA:
-                channel_or_provider = raw.get("provider") or raw.get("platform", "Coursera")
+                channel_or_provider = raw.get("provider") or raw.get(
+                    "platform", "Coursera"
+                )
 
         language = raw.get("language") or raw.get("defaultLanguage")
 
@@ -140,9 +142,7 @@ class Candidate:
                 review_count = None
 
         lecture_count = (
-            raw.get("lecture_count")
-            or raw.get("lectureCount")
-            or raw.get("videoCount")
+            raw.get("lecture_count") or raw.get("lectureCount") or raw.get("videoCount")
         )
         if lecture_count is not None:
             try:
@@ -195,7 +195,11 @@ class Candidate:
             res["publishedAt"] = self.published_at
 
         import os
-        if os.environ.get("ENABLE_RANKING_DEBUG", "").lower() == "true" and getattr(self, "ranking_explanation", None) is not None:
+
+        if (
+            os.environ.get("ENABLE_RANKING_DEBUG", "").lower() == "true"
+            and getattr(self, "ranking_explanation", None) is not None
+        ):
             if "_debug" not in res or not isinstance(res["_debug"], dict):
                 res["_debug"] = {}
             res["_debug"]["rankingExplanation"] = self.ranking_explanation

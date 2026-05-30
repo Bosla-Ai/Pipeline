@@ -24,6 +24,7 @@ import asyncio
 import pytest
 from src.utils.cache import cache
 
+
 @pytest.mark.asyncio
 async def test_cache_stampede_protection():
     # Simple fake Redis client in memory
@@ -112,6 +113,7 @@ async def test_cache_stampede_client_unavailable():
     cache._client = None
 
     factory_called = 0
+
     async def factory():
         nonlocal factory_called
         factory_called += 1
@@ -140,12 +142,15 @@ async def test_cache_stampede_lock_raises():
     # Mock client.get to return None (cache miss)
     mock_client.get = mock.AsyncMock(return_value=None)
     # Mock client.set to raise exception for locking
-    mock_client.set = mock.AsyncMock(side_effect=Exception("Redis connection lost during set"))
+    mock_client.set = mock.AsyncMock(
+        side_effect=Exception("Redis connection lost during set")
+    )
 
     original_client = cache._client
     cache._client = mock_client
 
     factory_called = 0
+
     async def factory():
         nonlocal factory_called
         factory_called += 1
@@ -165,4 +170,3 @@ async def test_cache_stampede_lock_raises():
         assert factory_called == 1
     finally:
         cache._client = original_client
-

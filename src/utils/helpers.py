@@ -302,7 +302,7 @@ async def analyze_topic_scope(sio, socket_id, tag, job_id=None):
                 "tag": tag,
                 "task": "scope_analysis",
                 "reason": "no_socket",
-            }
+            },
         )
         return "Broad"
 
@@ -319,7 +319,7 @@ async def analyze_topic_scope(sio, socket_id, tag, job_id=None):
         metadata={
             "tag": tag,
             "task": "scope_analysis",
-        }
+        },
     )
     start_time = asyncio.get_running_loop().time()
 
@@ -346,7 +346,7 @@ async def analyze_topic_scope(sio, socket_id, tag, job_id=None):
                     "tag": tag,
                     "task": "scope_analysis",
                     "reason": "empty_response",
-                }
+                },
             )
             return "Broad"
 
@@ -374,7 +374,7 @@ async def analyze_topic_scope(sio, socket_id, tag, job_id=None):
                 "task": "scope_analysis",
                 "duration_ms": duration_ms,
                 "scope": scope,
-            }
+            },
         )
         return scope
 
@@ -391,7 +391,7 @@ async def analyze_topic_scope(sio, socket_id, tag, job_id=None):
                     "tag": tag,
                     "task": "scope_analysis",
                     "duration_ms": duration_ms,
-                }
+                },
             )
         else:
             event_log.log(
@@ -404,7 +404,7 @@ async def analyze_topic_scope(sio, socket_id, tag, job_id=None):
                     "task": "scope_analysis",
                     "reason": "error",
                     "error": str(e),
-                }
+                },
             )
         import traceback
 
@@ -430,7 +430,7 @@ async def classify_via_frontend(sio, socket_id, tag, candidates, job_id=None):
                 "tag": tag,
                 "task": "candidate_classification",
                 "reason": "no_socket",
-            }
+            },
         )
         return candidates
 
@@ -470,7 +470,7 @@ async def classify_via_frontend(sio, socket_id, tag, candidates, job_id=None):
             "tag": tag,
             "task": "candidate_classification",
             "candidate_count": len(formatted_candidates),
-        }
+        },
     )
     start_time = asyncio.get_running_loop().time()
 
@@ -569,7 +569,7 @@ async def classify_via_frontend(sio, socket_id, tag, candidates, job_id=None):
                 "task": "candidate_classification",
                 "duration_ms": duration_ms,
                 "valid_count": len(valid_items),
-            }
+            },
         )
 
         return valid_items
@@ -587,7 +587,7 @@ async def classify_via_frontend(sio, socket_id, tag, candidates, job_id=None):
                     "tag": tag,
                     "task": "candidate_classification",
                     "duration_ms": duration_ms,
-                }
+                },
             )
         else:
             event_log.log(
@@ -600,7 +600,7 @@ async def classify_via_frontend(sio, socket_id, tag, candidates, job_id=None):
                     "task": "candidate_classification",
                     "reason": "error",
                     "error": str(e),
-                }
+                },
             )
         print(f"    [AI] Error during classification: {e}")
         return []

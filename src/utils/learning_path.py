@@ -361,8 +361,9 @@ else:
 CONTEXT_ALIASES = _context_aliases_data
 
 
-
-def _resolve_context_alias(clean_key: str, context_tags: set | None = None) -> str | None:
+def _resolve_context_alias(
+    clean_key: str, context_tags: set | None = None
+) -> str | None:
     """Resolve an ambiguous alias using sibling tags as context.
 
     Returns the resolved target string, or None if the key is not a
@@ -478,7 +479,9 @@ def _topological_sort(tags: list[str], context_tags: set | None = None) -> list[
     return [original_map.get(t, t) for t in sorted_tags]
 
 
-def _estimate_hours(tag: str, resource_data: dict = None, context_tags: set | None = None) -> float:
+def _estimate_hours(
+    tag: str, resource_data: dict = None, context_tags: set | None = None
+) -> float:
     if resource_data and isinstance(resource_data, dict):
         duration = resource_data.get("duration_mins", 0)
         video_count = resource_data.get("videoCount", 0)
@@ -524,7 +527,6 @@ def _get_difficulty(tag: str, context_tags: set | None = None) -> str:
     return DIFFICULTY_MAP.get(min(depth, 5), "Advanced")
 
 
-
 def _detect_domain(tags: list[str], context_tags: set | None = None) -> str:
     if context_tags is None:
         context_tags = {t.lower().replace("-", " ").strip() for t in tags}
@@ -549,7 +551,11 @@ def _detect_domain(tags: list[str], context_tags: set | None = None) -> str:
                 domain = "Frontend Development"
             elif source_file in ("devops.yaml", "cloud_native.yaml", "security.yaml"):
                 domain = "DevOps & Cloud"
-            elif source_file in ("data_ai.yaml", "ai_agents.yaml", "data_engineering.yaml"):
+            elif source_file in (
+                "data_ai.yaml",
+                "ai_agents.yaml",
+                "data_engineering.yaml",
+            ):
                 domain = "Data Science & AI"
             elif source_file == "software_engineering.yaml":
                 domain = DOMAIN_MAPPINGS.get(tag)
@@ -558,15 +564,85 @@ def _detect_domain(tags: list[str], context_tags: set | None = None) -> str:
         if not domain:
             if tag in DOMAIN_MAPPINGS:
                 domain = DOMAIN_MAPPINGS[tag]
-            elif any(kw in tag for kw in ("react", "angular", "vue", "svelte", "css", "html", "next.js", "tailwind", "bootstrap", "sass", "nextjs", "nuxt", "gatsby")):
+            elif any(
+                kw in tag
+                for kw in (
+                    "react",
+                    "angular",
+                    "vue",
+                    "svelte",
+                    "css",
+                    "html",
+                    "next.js",
+                    "tailwind",
+                    "bootstrap",
+                    "sass",
+                    "nextjs",
+                    "nuxt",
+                    "gatsby",
+                )
+            ):
                 domain = "Frontend Development"
-            elif any(kw in tag for kw in ("node", "express", "django", "flask", "fastapi", "spring", "laravel", "asp.net", "nestjs", "rails")):
+            elif any(
+                kw in tag
+                for kw in (
+                    "node",
+                    "express",
+                    "django",
+                    "flask",
+                    "fastapi",
+                    "spring",
+                    "laravel",
+                    "asp.net",
+                    "nestjs",
+                    "rails",
+                )
+            ):
                 domain = "Backend Development"
-            elif any(kw in tag for kw in ("machine learning", "deep learning", "data science", "pandas", "tensorflow", "pytorch", "ai", "nlp", "computer vision", "generative ai", "llms", "rag")):
+            elif any(
+                kw in tag
+                for kw in (
+                    "machine learning",
+                    "deep learning",
+                    "data science",
+                    "pandas",
+                    "tensorflow",
+                    "pytorch",
+                    "ai",
+                    "nlp",
+                    "computer vision",
+                    "generative ai",
+                    "llms",
+                    "rag",
+                )
+            ):
                 domain = "Data Science & AI"
-            elif any(kw in tag for kw in ("docker", "kubernetes", "ci/cd", "terraform", "aws", "azure", "gcp", "jenkins", "ansible")):
+            elif any(
+                kw in tag
+                for kw in (
+                    "docker",
+                    "kubernetes",
+                    "ci/cd",
+                    "terraform",
+                    "aws",
+                    "azure",
+                    "gcp",
+                    "jenkins",
+                    "ansible",
+                )
+            ):
                 domain = "DevOps & Cloud"
-            elif any(kw in tag for kw in ("flutter", "react native", "android", "ios", "swiftui", "jetpack compose")):
+            elif any(
+                kw in tag
+                for kw in (
+                    "flutter",
+                    "react native",
+                    "android",
+                    "ios",
+                    "swiftui",
+                    "jetpack compose",
+                )
+            ):
                 domain = "Mobile Development"
 
         if domain:
@@ -586,7 +662,6 @@ def _detect_domain(tags: list[str], context_tags: set | None = None) -> str:
     if scores[best] == 0:
         return "Software Engineering"
     return best
-
 
 
 def generate_learning_path(
@@ -738,7 +813,9 @@ def _build_phase(
     }
 
 
-def _find_resource(tag: str, roadmap_data: dict = None, context_tags: set | None = None) -> dict | None:
+def _find_resource(
+    tag: str, roadmap_data: dict = None, context_tags: set | None = None
+) -> dict | None:
     """Find a resource for *tag* across all sources using progressively
     looser matching so that minor casing / punctuation differences don't
     cause a miss.
@@ -764,7 +841,9 @@ def _find_resource(tag: str, roadmap_data: dict = None, context_tags: set | None
         for key, resource in source_data.items():
             if not resource:
                 continue
-            key_alnum = "".join(ch for ch in _normalize_tag(key, context_tags) if ch.isalnum())
+            key_alnum = "".join(
+                ch for ch in _normalize_tag(key, context_tags) if ch.isalnum()
+            )
             if key_alnum == tag_alnum:
                 return resource
 
