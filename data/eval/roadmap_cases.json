@@ -1,0 +1,51 @@
+[
+  {
+    "name": "python_free_youtube",
+    "request": {
+      "tags": ["Python"],
+      "prefer_paid": false,
+      "language": "en"
+    },
+    "expect": {
+      "sources": ["youtube"],
+      "must_have_url": true,
+      "title_or_description_contains_any": ["python", "programming"]
+    }
+  },
+  {
+    "name": "docker_atomic_debugging",
+    "request": {
+      "tags": ["fix docker permission denied error"],
+      "prefer_paid": false,
+      "language": "en"
+    },
+    "expect": {
+      "sources": ["youtube"],
+      "must_have_url": true
+    }
+  },
+  {
+    "name": "arabic_python",
+    "request": {
+      "tags": ["بايثون للمبتدئين"],
+      "prefer_paid": false,
+      "language": "ar"
+    },
+    "expect": {
+      "sources": ["youtube"],
+      "must_have_url": true
+    }
+  },
+  {
+    "name": "backend_paid_free_hf_degrades",
+    "request": {
+      "tags": ["Backend Developer Roadmap"],
+      "prefer_paid": true,
+      "language": "en"
+    },
+    "expect": {
+      "sources": ["youtube"],
+      "paid_disabled_ok": true
+    }
+  }
+]

@@ -24,14 +24,25 @@ def _scraper_circuit_open() -> bool:
 def _trip_scraper_circuit(message: str) -> None:
     global _scraper_disabled_until
     lowered = message.lower()
-    if "ssl" not in lowered and "eof occurred in violation of protocol" not in lowered:
-        return
-
-    _scraper_disabled_until = time.monotonic() + _SCRAPER_COOLDOWN_SECONDS
-    print(
-        "    [Scraper] Temporarily disabled after repeated SSL/network failures. "
-        f"Cooldown: {_SCRAPER_COOLDOWN_SECONDS}s"
-    )
+    trigger_words = [
+        "ssl",
+        "eof occurred in violation of protocol",
+        "429",
+        "too many requests",
+        "captcha",
+        "sign in to confirm",
+        "http error 403",
+        "http error 429",
+        "blocked",
+        "bot detection",
+        "timeout",
+    ]
+    if any(w in lowered for w in trigger_words):
+        _scraper_disabled_until = time.monotonic() + _SCRAPER_COOLDOWN_SECONDS
+        print(
+            "    [Scraper] Temporarily disabled after repeated failures/blocks/timeouts. "
+            f"Cooldown: {_SCRAPER_COOLDOWN_SECONDS}s"
+        )
 
 
 async def scrape_youtube_search(
@@ -230,3 +241,34 @@ def _extract_core_topic(tag: str) -> str:
                 clean = max(candidates, key=len)
                 break
     return clean
+
+
+async def scrape_youtube_query_candidates(
+    query: str, tag: str, language: str = "en", max_results: int = 10
+) -> list[dict]:
+    if _scraper_circuit_open():
+        print("    [Scraper] Circuit open. Skipping yt-dlp search.")
+        return []
+
+    import yt_dlp
+
+    yt_query = f"ytsearch{max_results}:{query}"
+    raw_entries = await asyncio.to_thread(_extract_search_results, yt_query, language)
+
+    seen_ids = set()
+    unique = []
+    for e in raw_entries:
+        if not e:
+            continue
+        vid_id = e.get("id") or e.get("url", "")
+        if vid_id not in seen_ids:
+            seen_ids.add(vid_id)
+            unique.append(e)
+
+    candidates = []
+    for entry in unique:
+        parsed = _parse_entry(entry, tag, language)
+        if parsed:
+            candidates.append(parsed)
+
+    return candidates[:max_results]
