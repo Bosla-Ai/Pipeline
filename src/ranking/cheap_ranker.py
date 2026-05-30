@@ -160,8 +160,7 @@ def cheap_rank_candidate(candidate: Candidate, tag: str, explain: bool = False) 
             penalty *= 0.7
 
     pre_penalty_score = base_score + relevance_boost + duration_boost + rating_boost
-    final_score_uncapped = pre_penalty_score * penalty
-    final_score = max(final_score_uncapped, 0.0)
+    final_score = pre_penalty_score * penalty
 
     if explain:
         scoreBreakdown = {
@@ -199,10 +198,6 @@ def cheap_rank_candidate(candidate: Candidate, tag: str, explain: bool = False) 
 
             penalty_adjustment = final_score - pre_penalty_score
             scoreBreakdown["penaltyAdjustment"] = float(penalty_adjustment)
-
-        if final_score_uncapped < 0.0:
-            reasonCodes.append("score_floor_applied")
-            scoreBreakdown["capAdjustment"] = -final_score_uncapped
 
         explanation = {
             "finalScore": final_score,

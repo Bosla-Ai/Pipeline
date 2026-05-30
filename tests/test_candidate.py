@@ -337,3 +337,20 @@ def test_ranking_debug_flag_behavior(monkeypatch):
     assert "rankingExplanation" not in serialized_debug
 
 
+def test_fallback_negative_score_regression():
+    candidate = Candidate(
+        source=SourceName.YOUTUBE,
+        tag="python",
+        title="unrelated",
+        url="https://youtube.com/watch?v=x",
+        raw_score=-10.0,
+    )
+
+    assert cheap_rank_candidate(candidate, "python", explain=False) == -10.0
+    
+    res = cheap_rank_candidate(candidate, "python", explain=True)
+    assert res["score"] == -10.0
+    assert sum(res["explanation"]["scoreBreakdown"].values()) == pytest.approx(-10.0)
+
+
+
