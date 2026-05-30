@@ -1,0 +1,175 @@
+cases:
+  - id: python_beginner_mixed_sources
+    tag: python
+    description: Rank structured beginner Python courses above noisy videos.
+    candidates:
+      - source: coursera
+        title: Python for Everybody Specialization
+        url: https://www.coursera.org/specializations/python
+        metadata:
+          sourceType: specialization
+          searchPosition: 1
+          provider: University of Michigan
+
+      - source: udemy
+        title: Python Programming Masterclass
+        url: https://www.udemy.com/course/python-programming-masterclass/
+        metadata:
+          rating: "4.8"
+          lectures: "120 lectures"
+          hours: "20 total hours"
+
+      - source: youtube
+        title: Python Tutorial Scam Review
+        url: https://youtube.com/watch?v=noisy
+        raw_score: 10.0
+        duration_minutes: 5.0
+        rating: 4.8
+
+    expectations:
+      top_source_any_of: [coursera, udemy]
+      must_beat:
+        - higher: "Python for Everybody Specialization"
+          lower: "Python Tutorial Scam Review"
+        - higher: "Python Programming Masterclass"
+          lower: "Python Tutorial Scam Review"
+      required_reason_codes_by_title:
+        "Python for Everybody Specialization":
+          - title_exact_tag_match
+          - tag_word_overlap
+          - type_bonus
+        "Python Tutorial Scam Review":
+          - negative_keyword_penalty
+          - short_duration_penalty
+
+  - id: machine_learning_coursera_certificate
+    tag: "machine learning"
+    description: Coursera Professional Certificate should beat a Guided Project.
+    candidates:
+      - source: coursera
+        title: "IBM Machine Learning Professional Certificate"
+        url: "https://www.coursera.org/professional-certificates/ibm-machine-learning"
+        metadata:
+          sourceType: professional_certificate
+          searchPosition: 0
+          provider: IBM
+      - source: coursera
+        title: "Intro to Machine Learning Guided Project"
+        url: "https://www.coursera.org/projects/intro-machine-learning"
+        metadata:
+          sourceType: project
+          searchPosition: 0
+          provider: Coursera
+    expectations:
+      top_source_any_of: [coursera]
+      must_beat:
+        - higher: "IBM Machine Learning Professional Certificate"
+          lower: "Intro to Machine Learning Guided Project"
+      required_reason_codes_by_title:
+        "IBM Machine Learning Professional Certificate":
+          - type_bonus
+        "Intro to Machine Learning Guided Project":
+          - type_bonus
+
+  - id: react_frontend_youtube_penalty
+    tag: react
+    description: YouTube tutorial without negative keywords beats one with reaction/clickbait in title.
+    candidates:
+      - source: youtube
+        title: "React JS Full Course for Beginners"
+        url: "https://youtube.com/watch?v=clean"
+        raw_score: 20.0
+        duration_minutes: 180.0
+        rating: 4.9
+      - source: youtube
+        title: "React JS Reaction and Clickbait Review"
+        url: "https://youtube.com/watch?v=noisy"
+        raw_score: 20.0
+        duration_minutes: 180.0
+        rating: 4.9
+    expectations:
+      top_source_any_of: [youtube]
+      must_beat:
+        - higher: "React JS Full Course for Beginners"
+          lower: "React JS Reaction and Clickbait Review"
+      required_reason_codes_by_title:
+        "React JS Reaction and Clickbait Review":
+          - negative_keyword_penalty
+
+  - id: udemy_quality_rating_duration
+    tag: fastapi
+    description: High rating and sufficient duration Udemy course beats short low-rated course.
+    candidates:
+      - source: udemy
+        title: "FastAPI Bootcamp: Build Modern APIs"
+        url: "https://www.udemy.com/course/fastapi-bootcamp/"
+        metadata:
+          rating: "4.8"
+          lectures: "90 lectures"
+          hours: "15 total hours"
+      - source: udemy
+        title: "FastAPI Quick Intro"
+        url: "https://www.udemy.com/course/fastapi-quick/"
+        metadata:
+          rating: "3.5"
+          lectures: "5 lectures"
+          hours: "0.5 hours"
+    expectations:
+      top_source_any_of: [udemy]
+      must_beat:
+        - higher: "FastAPI Bootcamp: Build Modern APIs"
+          lower: "FastAPI Quick Intro"
+      required_reason_codes_by_title:
+        "FastAPI Bootcamp: Build Modern APIs":
+          - title_exact_tag_match
+          - tag_word_overlap
+          - high_rating
+          - sufficient_lecture_count
+          - good_duration_range
+        "FastAPI Quick Intro":
+          - poor_rating
+          - low_lecture_count
+          - short_duration
+
+  - id: arabic_native_bonus
+    tag: javascript
+    description: Arabic title gets a +15 bonus and should rank higher than equivalent English course if other signals are equal.
+    candidates:
+      - source: coursera
+        title: "كورس جافا سكريبت كامل للمبتدئين JavaScript"
+        url: "https://www.coursera.org/learn/javascript-ar"
+        metadata:
+          sourceType: course
+          searchPosition: 0
+          provider: Coursera
+      - source: coursera
+        title: "JavaScript Course for Beginners"
+        url: "https://www.coursera.org/learn/javascript-en"
+        metadata:
+          sourceType: course
+          searchPosition: 0
+          provider: Coursera
+    expectations:
+      must_beat:
+        - higher: "كورس جافا سكريبت كامل للمبتدئين JavaScript"
+          lower: "JavaScript Course for Beginners"
+      required_reason_codes_by_title:
+        "كورس جافا سكريبت كامل للمبتدئين JavaScript":
+          - arabic_title_bonus
+
+  - id: negative_fallback_score_preserved
+    tag: docker
+    description: A negative raw score on a fallback YouTube candidate is preserved and remains negative.
+    candidates:
+      - source: youtube
+        title: "Docker Tutorial"
+        url: "https://youtube.com/watch?v=pos"
+        raw_score: 10.0
+      - source: youtube
+        title: "Unrelated Unused Video"
+        url: "https://youtube.com/watch?v=neg"
+        raw_score: -15.0
+    expectations:
+      must_beat:
+        - higher: "Docker Tutorial"
+          lower: "Unrelated Unused Video"

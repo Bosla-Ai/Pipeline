@@ -91,6 +91,7 @@ src/.cookies/
 # Scripts with secrets
 scripts/*
 !scripts/validate_graph.py
+!scripts/evaluate_ranking_quality.py
 
 # Pipeline output files
 result.txt
