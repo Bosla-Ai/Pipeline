@@ -1,3 +1,4 @@
+import pytest
 from src.engine.models import Candidate, SourceName
 from src.ranking.dedupe import dedupe_candidates, normalize_url
 from src.ranking.cheap_ranker import (
@@ -224,4 +225,115 @@ def test_udemy_fetcher_no_fake_youtube_fields():
     assert "hours" in course_data
     assert "lectures" in course_data
     assert "lectureCount" in course_data
+
+
+def test_coursera_scoring_explanation():
+    # 1. Verify score is unchanged when explain=False
+    score_normal = calculate_coursera_score(
+        title="Python specialization course",
+        tag="python",
+        url="https://coursera.org/specializations/python",
+        search_position=2,
+        explain=False,
+    )
+    # tag exact match: 50
+    # tag word overlap: 30
+    # type specialization: 10
+    # search position (10 - 2): 8
+    # Total: 98
+    assert score_normal == 98.0
+
+    # 2. Verify explain=True structure and sourceType
+    res = calculate_coursera_score(
+        title="Python specialization course",
+        tag="python",
+        url="https://coursera.org/specializations/python",
+        search_position=2,
+        explain=True,
+    )
+    assert isinstance(res, dict)
+    assert res["score"] == 98.0
+    
+    explanation = res["explanation"]
+    assert explanation["finalScore"] == 98.0
+    assert explanation["source"] == "coursera"
+    assert explanation["sourceType"] == "specialization"
+    assert "title_exact_tag_match" in explanation["reasonCodes"]
+    assert "tag_word_overlap" in explanation["reasonCodes"]
+    assert "type_bonus" in explanation["reasonCodes"]
+    assert "search_position_bonus" in explanation["reasonCodes"]
+
+    # 3. Verify breakdown sums to final score
+    breakdown = explanation["scoreBreakdown"]
+    assert sum(breakdown.values()) == 98.0
+
+
+def test_cheap_rank_candidate_explanation():
+    # YouTube candidate with penalty
+    raw = {
+        "title": "React Tutorial Scam Review",
+        "url": "https://youtube.com/watch?v=123",
+        "duration_minutes": 5.0,  # short duration penalty: *0.5
+        "rating": 4.8,  # rating boost: +10.0
+        "score": 10.0,
+    }
+    candidate = Candidate.from_dict(raw, SourceName.YOUTUBE, "react")
+    
+    # explain=False
+    score_normal = cheap_rank_candidate(candidate, "react", explain=False)
+    # pre-penalty = 10.0 (base) + 15.0 (relevance: overlap + exact match) + 10.0 (rating) = 35.0
+    # penalty: scam (*0.6), review (*0.6), short duration (*0.5) -> 0.18
+    # final = 35.0 * 0.18 = 6.3
+    assert score_normal == 6.3
+
+    # explain=True
+    res = cheap_rank_candidate(candidate, "react", explain=True)
+    assert isinstance(res, dict)
+    assert res["score"] == 6.3
+    
+    explanation = res["explanation"]
+    assert explanation["finalScore"] == 6.3
+    assert explanation["source"] == "youtube"
+    assert "tag_word_overlap" in explanation["reasonCodes"]
+    assert "title_exact_tag_match" in explanation["reasonCodes"]
+    assert "negative_keyword_penalty" in explanation["reasonCodes"]
+    assert "short_duration_penalty" in explanation["reasonCodes"]
+    assert "high_rating_boost" in explanation["reasonCodes"]
+
+    assert explanation["penaltyMultiplier"] == 0.18
+    
+    # Verify breakdown sums to final score
+    breakdown = explanation["scoreBreakdown"]
+    assert breakdown["penaltyAdjustment"] == pytest.approx(6.3 - 35.0)
+    assert sum(breakdown.values()) == pytest.approx(6.3)
+
+
+def test_ranking_debug_flag_behavior(monkeypatch):
+    raw = {
+        "title": "React Course",
+        "url": "https://youtube.com/watch?v=123",
+        "score": 10.0,
+    }
+    candidate = Candidate.from_dict(raw, SourceName.YOUTUBE, "react")
+
+    # 1. By default, debug output is absent and ranking_explanation is None
+    monkeypatch.delenv("ENABLE_RANKING_DEBUG", raising=False)
+    ranked = cheap_rank([candidate], "react")
+    assert ranked[0].ranking_explanation is None
+    
+    serialized = ranked[0].to_dict()
+    assert "_debug" not in serialized
+    assert "rankingExplanation" not in serialized
+
+    # 2. Enabled case: ENABLE_RANKING_DEBUG=true (case-insensitive checking)
+    monkeypatch.setenv("ENABLE_RANKING_DEBUG", "TrUe")
+    ranked_debug = cheap_rank([candidate], "react")
+    assert ranked_debug[0].ranking_explanation is not None
+    
+    serialized_debug = ranked_debug[0].to_dict()
+    assert "_debug" in serialized_debug
+    assert "rankingExplanation" in serialized_debug["_debug"]
+    # Verify that top-level rankingExplanation is NOT present
+    assert "rankingExplanation" not in serialized_debug
+
 

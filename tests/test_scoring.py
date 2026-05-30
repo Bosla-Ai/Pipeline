@@ -277,3 +277,46 @@ def test_udemy_scoring():
     score_bad = calculate_udemy_score(course_bad, "python")
     assert score_bad == 0.0
 
+
+def test_udemy_scoring_explanation():
+    from src.utils.scoring import calculate_udemy_score
+
+    course = {
+        "title": "Python Programming Masterclass",
+        "rating": "4.8",
+        "lectures": "120 lectures",
+        "hours": "20 total hours",
+    }
+
+    # 1. Verify score is unchanged when explain=False
+    score_normal = calculate_udemy_score(course, "python", explain=False)
+    assert score_normal == 107.0
+
+    # 2. Verify structure when explain=True
+    res = calculate_udemy_score(course, "python", explain=True)
+    assert isinstance(res, dict)
+    assert res["score"] == 107.0
+    
+    explanation = res["explanation"]
+    assert explanation["finalScore"] == 107.0
+    assert explanation["source"] == "udemy"
+    assert "title_exact_tag_match" in explanation["reasonCodes"]
+    assert "tag_word_overlap" in explanation["reasonCodes"]
+    
+    # 3. Verify breakdown sums to final score
+    breakdown = explanation["scoreBreakdown"]
+    assert sum(breakdown.values()) == 107.0
+
+    # 4. Verify negative floored score explanation
+    course_bad = {
+        "title": "Learn Java",
+        "rating": "3.5",
+        "lectures": "5 lectures",
+        "hours": "0.5 hours",
+    }
+    res_bad = calculate_udemy_score(course_bad, "python", explain=True)
+    assert res_bad["score"] == 0.0
+    assert "score_floor_applied" in res_bad["explanation"]["reasonCodes"]
+    assert sum(res_bad["explanation"]["scoreBreakdown"].values()) == 0.0
+
+

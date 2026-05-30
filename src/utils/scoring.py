@@ -203,31 +203,47 @@ def _parse_duration_hours(val) -> float | None:
     return None
 
 
-def calculate_udemy_score(course: dict, tag: str) -> float:
+def calculate_udemy_score(course: dict, tag: str, explain: bool = False) -> float | dict:
     """Calculate Udemy-specific quality/relevance score."""
     title = str(course.get("title", "")).lower()
     tag_lower = tag.lower()
 
     score = 0.0
+    scoreBreakdown = {}
+    reasonCodes = []
 
     if tag_lower in title:
         score += 40
+        scoreBreakdown["titleMatch"] = 40.0
+        reasonCodes.append("title_exact_tag_match")
 
     tag_words = [word for word in tag_lower.split() if len(word) > 2]
     if tag_words:
         matched = sum(1 for word in tag_words if word in title)
-        score += 25 * (matched / len(tag_words))
+        overlap_score = 25.0 * (matched / len(tag_words))
+        score += overlap_score
+        if overlap_score > 0:
+            scoreBreakdown["wordOverlap"] = overlap_score
+            reasonCodes.append("tag_word_overlap")
 
     rating = _parse_float(course.get("rating"))
     if rating:
         if rating >= 4.7:
             score += 20
+            scoreBreakdown["rating"] = 20.0
+            reasonCodes.append("high_rating")
         elif rating >= 4.5:
             score += 15
+            scoreBreakdown["rating"] = 15.0
+            reasonCodes.append("good_rating")
         elif rating >= 4.2:
             score += 8
+            scoreBreakdown["rating"] = 8.0
+            reasonCodes.append("fair_rating")
         elif rating < 3.8:
             score -= 15
+            scoreBreakdown["rating"] = -15.0
+            reasonCodes.append("poor_rating")
 
     # Check lectures under various keys, prioritizing lectureCount/lecture_count
     lectures_val = (
@@ -240,22 +256,51 @@ def calculate_udemy_score(course: dict, tag: str) -> float:
     if lectures:
         if lectures >= 80:
             score += 12
+            scoreBreakdown["lectures"] = 12.0
+            reasonCodes.append("sufficient_lecture_count")
         elif lectures >= 30:
             score += 8
+            scoreBreakdown["lectures"] = 8.0
+            reasonCodes.append("medium_lecture_count")
         elif lectures < 10:
             score -= 8
+            scoreBreakdown["lectures"] = -8.0
+            reasonCodes.append("low_lecture_count")
 
     hours = _parse_duration_hours(course.get("hours"))
     if hours:
         if 5 <= hours <= 50:
             score += 10
+            scoreBreakdown["duration"] = 10.0
+            reasonCodes.append("good_duration_range")
         elif hours < 1:
             score -= 10
+            scoreBreakdown["duration"] = -10.0
+            reasonCodes.append("short_duration")
 
     # Native Arabic bonus
     has_arabic_char = any(ord(char) >= 0x0600 and ord(char) <= 0x06FF for char in title)
     if has_arabic_char:
         score += 15.0
+        scoreBreakdown["arabicBonus"] = 15.0
+        reasonCodes.append("arabic_title_bonus")
 
-    return max(score, 0.0)
+    final_score = max(score, 0.0)
+    if score < 0.0:
+        reasonCodes.append("score_floor_applied")
+        scoreBreakdown["capAdjustment"] = -score
+
+    if explain:
+        return {
+            "score": final_score,
+            "explanation": {
+                "finalScore": final_score,
+                "source": "udemy",
+                "reasonCodes": reasonCodes,
+                "scoreBreakdown": scoreBreakdown,
+            }
+        }
+
+    return final_score
+
 

@@ -75,6 +75,7 @@ class Candidate:
 
     raw_score: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
+    ranking_explanation: dict | None = None
 
     @classmethod
     def from_dict(
@@ -174,6 +175,7 @@ class Candidate:
             published_at=published_at,
             raw_score=raw_score,
             metadata=raw,
+            ranking_explanation=None,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -191,6 +193,13 @@ class Candidate:
             res["description"] = self.description
         if self.published_at is not None:
             res["publishedAt"] = self.published_at
+
+        import os
+        if os.environ.get("ENABLE_RANKING_DEBUG", "").lower() == "true" and getattr(self, "ranking_explanation", None) is not None:
+            if "_debug" not in res or not isinstance(res["_debug"], dict):
+                res["_debug"] = {}
+            res["_debug"]["rankingExplanation"] = self.ranking_explanation
+
         return res
 
 
