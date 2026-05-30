@@ -24,8 +24,13 @@ def main():
             sys.exit(1)
     else:
         try:
-            write_inventories()
-            print("Successfully generated and wrote skill_inventory.json and tag_contract.json.")
+            payload = write_inventories()
+            print("Generated data/generated/skill_inventory.json")
+            print("Generated data/generated/tag_contract.json")
+            print(f"Nodes: {payload['nodeCount']}")
+            print(f"Aliases: {payload['aliasCount']}")
+            print(f"Context aliases: {payload['contextAliasCount']}")
+            print(f"Domain mappings: {payload['domainMappingCount']}")
             sys.exit(0)
         except Exception as e:
             print(f"Error generating inventory: {e}", file=sys.stderr)

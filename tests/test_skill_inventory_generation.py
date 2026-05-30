@@ -189,3 +189,20 @@ def test_cli_write_to_temp_dir(tmp_path):
     # Assert they are in sync now
     in_sync, stale = check_inventories(str(tmp_path))
     assert in_sync
+
+def test_cli_normal_mode_output():
+    res = subprocess.run(
+        [sys.executable, "scripts/generate_skill_inventory.py"],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0
+    assert "Generated data/generated/skill_inventory.json" in res.stdout
+    assert "Generated data/generated/tag_contract.json" in res.stdout
+    
+    # Fetch expected values dynamically from generate_inventories_payloads()
+    inv, _ = generate_inventories_payloads()
+    assert f"Nodes: {inv['nodeCount']}" in res.stdout
+    assert f"Aliases: {inv['aliasCount']}" in res.stdout
+    assert f"Context aliases: {inv['contextAliasCount']}" in res.stdout
+    assert f"Domain mappings: {inv['domainMappingCount']}" in res.stdout

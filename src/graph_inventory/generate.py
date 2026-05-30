@@ -200,7 +200,7 @@ def stable_json(payload: dict) -> str:
     return json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
-def write_inventories(output_dir: str | None = None):
+def write_inventories(output_dir: str | None = None) -> dict:
     """Generate and write inventories to files on disk."""
     inventory_payload, contract_payload = generate_inventories_payloads()
     
@@ -215,6 +215,8 @@ def write_inventories(output_dir: str | None = None):
         
     with open(con_file, "w", encoding="utf-8") as f:
         f.write(stable_json(contract_payload))
+
+    return inventory_payload
 
 
 def check_inventories(output_dir: str | None = None) -> tuple[bool, list[str]]:
