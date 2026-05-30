@@ -1,0 +1,3631 @@
+{
+  "aliasCount": 53,
+  "contextAliasCount": 3,
+  "domainMappingCount": 99,
+  "nodeCount": 301,
+  "nodes": [
+    {
+      "aliases": [
+        ".net core"
+      ],
+      "contextAliasKeys": [
+        "net"
+      ],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": ".net",
+      "prerequisites": [
+        "c#",
+        "ef core",
+        "linq"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "agentic workflows",
+      "prerequisites": [
+        "ai agents"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "ai",
+      "prerequisites": [],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "ai agents",
+      "prerequisites": [
+        "llms"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "airflow",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "aks",
+      "prerequisites": [
+        "azure",
+        "kubernetes"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "algorithms",
+      "prerequisites": [
+        "data structures"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Mobile Development",
+      "estimatedHours": null,
+      "id": "android",
+      "prerequisites": [
+        "java"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "angular",
+      "prerequisites": [
+        "typescript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "ansible",
+      "prerequisites": [
+        "linux"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [
+        "anthropic"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "anthropic api",
+      "prerequisites": [
+        "llms"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "api design",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "api gateway",
+      "prerequisites": [
+        "reverse proxy"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "appsec",
+      "prerequisites": [
+        "testing"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "arduino",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "argocd",
+      "prerequisites": [
+        "gitops",
+        "kubernetes"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "artificial intelligence",
+      "prerequisites": [],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [
+        "asp.net core"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "asp.net",
+      "prerequisites": [
+        "c#",
+        "ef core",
+        "linq"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "astro",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [
+        "auth"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "authentication",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "authorization",
+      "prerequisites": [
+        "authentication"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "aws",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "aws lambda",
+      "prerequisites": [
+        "aws",
+        "serverless"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "azure",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "azure functions",
+      "prerequisites": [
+        "azure",
+        "serverless"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "background jobs",
+      "prerequisites": [],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "bash",
+      "prerequisites": [
+        "linux"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "big data",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "blazor",
+      "prerequisites": [
+        "c#"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "blockchain",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "bootstrap",
+      "prerequisites": [
+        "css"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "bullmq",
+      "prerequisites": [
+        "javascript",
+        "redis"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "bun",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "c#",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "caching",
+      "prerequisites": [],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "cassandra",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "celery",
+      "prerequisites": [
+        "message queues",
+        "python"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "ci/cd",
+      "prerequisites": [
+        "git"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "cilium",
+      "prerequisites": [
+        "kubernetes",
+        "networking"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "clean architecture",
+      "prerequisites": [
+        "clean code",
+        "solid principles"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "clean code",
+      "prerequisites": [
+        "oop"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "clickhouse",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [
+        "cloud"
+      ],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "cloud deployment",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [
+        "cloud"
+      ],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "cloud security",
+      "prerequisites": [
+        "cloud deployment",
+        "devsecops"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "cloudflare workers",
+      "prerequisites": [
+        "serverless"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "computer vision",
+      "prerequisites": [
+        "deep learning"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "container security",
+      "prerequisites": [
+        "devsecops",
+        "docker"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "cqrs",
+      "prerequisites": [
+        "system design"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "cron jobs",
+      "prerequisites": [
+        "linux"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "DevOps & Cloud",
+      "estimatedHours": null,
+      "id": "cryptography",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "csrf",
+      "prerequisites": [
+        "owasp top 10"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "css",
+      "prerequisites": [
+        "html"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "DevOps & Cloud",
+      "estimatedHours": null,
+      "id": "cybersecurity",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "cypress",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "dagster",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Mobile Development",
+      "estimatedHours": null,
+      "id": "dart",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "data analysis",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "data engineering",
+      "prerequisites": [
+        "python",
+        "sql"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "data lake",
+      "prerequisites": [],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "data science",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "data structures",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "data warehouse",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "databricks",
+      "prerequisites": [
+        "spark"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "datadog",
+      "prerequisites": [
+        "observability"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "dbt",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "ddd",
+      "prerequisites": [
+        "clean architecture"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "dl"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "deep learning",
+      "prerequisites": [
+        "machine learning"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "deno",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "dependency scanning",
+      "prerequisites": [
+        "devsecops"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "design patterns",
+      "prerequisites": [
+        "oop"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "devsecops",
+      "prerequisites": [
+        "ci/cd"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "diffusion models",
+      "prerequisites": [
+        "deep learning"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "distributed systems",
+      "prerequisites": [
+        "system design"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "django",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "docker compose"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "docker",
+      "prerequisites": [
+        "linux"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "dom",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "domain driven design",
+      "prerequisites": [
+        "clean architecture"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "drizzle orm"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "drizzle",
+      "prerequisites": [
+        "typescript"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "dsa",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "duckdb",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "dynamodb",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "ecs",
+      "prerequisites": [
+        "aws",
+        "docker"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [
+        "entity framework core"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "ef core",
+      "prerequisites": [
+        "c#",
+        "linq"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "eks",
+      "prerequisites": [
+        "aws",
+        "kubernetes"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [
+        "opensearch"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "elasticsearch",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "elixir",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "elt",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "embedded systems",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "embeddings",
+      "prerequisites": [
+        "machine learning"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "emotion",
+      "prerequisites": [
+        "css",
+        "react"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "envoy",
+      "prerequisites": [
+        "reverse proxy"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "DevOps & Cloud",
+      "estimatedHours": null,
+      "id": "ethical hacking",
+      "prerequisites": [
+        "networking"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "etl",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "event driven architecture",
+      "prerequisites": [
+        "system design"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "event sourcing",
+      "prerequisites": [
+        "system design"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [
+        "express.js",
+        "expressjs"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "express",
+      "prerequisites": [
+        "node"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "fastapi",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "fastify",
+      "prerequisites": [
+        "node"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "feature stores",
+      "prerequisites": [
+        "mlops"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "fine tuning",
+      "prerequisites": [
+        "deep learning"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "firebase",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "flask",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "flink",
+      "prerequisites": [
+        "java"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Mobile Development",
+      "estimatedHours": null,
+      "id": "flutter",
+      "prerequisites": [
+        "dart"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "fluxcd",
+      "prerequisites": [
+        "gitops",
+        "kubernetes"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "function calling",
+      "prerequisites": [
+        "ai agents"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "functional programming",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "gatsby",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "gcp",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [
+        "gemini"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "gemini api",
+      "prerequisites": [
+        "llms"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [
+        "gen ai",
+        "genai"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "generative ai",
+      "prerequisites": [],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "git",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "github",
+      "prerequisites": [
+        "git"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "github actions",
+      "prerequisites": [
+        "ci/cd",
+        "git"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "gitlab",
+      "prerequisites": [
+        "git"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "gitops",
+      "prerequisites": [
+        "git"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "gke",
+      "prerequisites": [
+        "gcp",
+        "kubernetes"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [
+        "golang"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "go",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "google cloud",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [
+        "cloud run"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "google cloud run",
+      "prerequisites": [
+        "docker",
+        "gcp"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "grafana",
+      "prerequisites": [
+        "prometheus"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "graphql",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "graphql federation",
+      "prerequisites": [
+        "graphql"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "grpc",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "hadoop",
+      "prerequisites": [],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [
+        "headless"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "headless ui",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "helm",
+      "prerequisites": [
+        "kubernetes"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "heroku",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "hono",
+      "prerequisites": [
+        "typescript"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "html",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "hf",
+        "huggingface"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "hugging face",
+      "prerequisites": [
+        "machine learning"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "iam",
+      "prerequisites": [],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "idor",
+      "prerequisites": [
+        "owasp top 10"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Mobile Development",
+      "estimatedHours": null,
+      "id": "ios",
+      "prerequisites": [
+        "swift"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "iot",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "istio",
+      "prerequisites": [
+        "kubernetes"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "jaeger",
+      "prerequisites": [
+        "observability"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "java",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "javascript",
+      "prerequisites": [
+        "css",
+        "html"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "jenkins",
+      "prerequisites": [
+        "ci/cd"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "jest",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Mobile Development",
+      "estimatedHours": null,
+      "id": "jetpack compose",
+      "prerequisites": [
+        "kotlin"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "jwt",
+      "prerequisites": [
+        "rest api"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "kafka",
+      "prerequisites": [],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "keda",
+      "prerequisites": [
+        "kubernetes"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "keras",
+      "prerequisites": [
+        "deep learning"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "kotlin",
+      "prerequisites": [
+        "java"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "k8s",
+        "kube"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "kubernetes",
+      "prerequisites": [
+        "docker"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "lakehouse",
+      "prerequisites": [
+        "data warehouse"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "langchain",
+      "prerequisites": [
+        "llms",
+        "python"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "langgraph",
+      "prerequisites": [
+        "langchain",
+        "llms"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "laravel",
+      "prerequisites": [
+        "php"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "linkerd",
+      "prerequisites": [
+        "kubernetes"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "linq",
+      "prerequisites": [
+        "c#"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "linux",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "llama.cpp",
+      "prerequisites": [
+        "llms"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "llamaindex",
+      "prerequisites": [
+        "llms",
+        "python"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [
+        "large language model",
+        "large language models",
+        "llm"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "llms",
+      "prerequisites": [
+        "generative ai"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "load balancing",
+      "prerequisites": [
+        "reverse proxy"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "loki",
+      "prerequisites": [
+        "observability"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "lora",
+      "prerequisites": [
+        "fine tuning"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [
+        "ml"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "machine learning",
+      "prerequisites": [
+        "numpy",
+        "python"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "matplotlib",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "mcp",
+      "prerequisites": [
+        "ai agents"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "message queues",
+      "prerequisites": [],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "microservices",
+      "prerequisites": [
+        "docker",
+        "system design"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "mlops",
+      "prerequisites": [
+        "machine learning"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "mobx",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "mocha",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "model context protocol",
+      "prerequisites": [
+        "ai agents"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "model deployment",
+      "prerequisites": [
+        "mlops"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "model monitoring",
+      "prerequisites": [
+        "mlops"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "mongodb",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "monorepo",
+      "prerequisites": [],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "mysql",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "nats",
+      "prerequisites": [
+        "message queues"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "natural language processing",
+      "prerequisites": [
+        "machine learning"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "neo4j",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "nest.js"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "nestjs",
+      "prerequisites": [
+        "node",
+        "typescript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "netlify",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "DevOps & Cloud",
+      "estimatedHours": null,
+      "id": "network security",
+      "prerequisites": [
+        "networking"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [
+        "net"
+      ],
+      "difficulty": null,
+      "domain": "DevOps & Cloud",
+      "estimatedHours": null,
+      "id": "networking",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "new relic",
+      "prerequisites": [
+        "observability"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [
+        "next js",
+        "nextjs"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "next.js",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "nginx",
+      "prerequisites": [
+        "reverse proxy"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "ngrx",
+      "prerequisites": [
+        "angular"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "nlp",
+      "prerequisites": [
+        "machine learning"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [
+        "node js",
+        "node.js",
+        "nodejs"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "node",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "numpy",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [
+        "nuxt.js"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "nuxt",
+      "prerequisites": [
+        "vue"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "oauth",
+      "prerequisites": [
+        "rest api"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "observability",
+      "prerequisites": [],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "ollama",
+      "prerequisites": [
+        "llms"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [
+        "object oriented programming"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "oop",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "openai"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "openai api",
+      "prerequisites": [
+        "llms"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "openapi",
+      "prerequisites": [],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [
+        "open telemetry",
+        "otel"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "opentelemetry",
+      "prerequisites": [
+        "observability"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "owasp top 10",
+      "prerequisites": [
+        "secure coding"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "pandas",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "DevOps & Cloud",
+      "estimatedHours": null,
+      "id": "penetration testing",
+      "prerequisites": [
+        "networking"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "php",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "pinia",
+      "prerequisites": [
+        "vue"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "pnpm",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "podman",
+      "prerequisites": [
+        "linux"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "polars",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "postgres"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "postgresql",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "powershell",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "prisma",
+      "prerequisites": [
+        "typescript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "prom"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "prometheus",
+      "prerequisites": [
+        "observability"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "prompt engineering",
+      "prerequisites": [
+        "llms"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "protobuf",
+      "prerequisites": [],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "pytest",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "python",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "pytorch",
+      "prerequisites": [
+        "deep learning"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "qlora",
+      "prerequisites": [
+        "lora"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "quantization",
+      "prerequisites": [
+        "deep learning"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "rabbitmq",
+      "prerequisites": [
+        "message queues"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [
+        "radix"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "radix ui",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "rag",
+      "prerequisites": [
+        "llms",
+        "vector databases"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [
+        "ruby on rails"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "rails",
+      "prerequisites": [
+        "ruby"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "rate limiting",
+      "prerequisites": [
+        "reverse proxy"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "ray",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "react js"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "react",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Mobile Development",
+      "estimatedHours": null,
+      "id": "react native",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "rsc"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "react server components",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [
+        "valkey"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "redis",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "redux",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "remix",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "rest api",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "reverse proxy",
+      "prerequisites": [],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "rollup",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "ruby",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "rust",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "rxjs",
+      "prerequisites": [
+        "typescript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "sass",
+      "prerequisites": [
+        "css"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "sbom",
+      "prerequisites": [
+        "supply chain security"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "scala",
+      "prerequisites": [
+        "java"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "scikit-learn",
+      "prerequisites": [
+        "machine learning"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "scss",
+      "prerequisites": [
+        "css"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "secrets management",
+      "prerequisites": [],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "secure coding",
+      "prerequisites": [
+        "oop"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "selenium",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "semantic search",
+      "prerequisites": [
+        "embeddings"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "sequelize",
+      "prerequisites": [
+        "node"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "server actions",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "serverless",
+      "prerequisites": [
+        "cloud deployment"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [
+        "shadcn ui"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "shadcn",
+      "prerequisites": [
+        "react",
+        "tailwind"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "shell scripting",
+      "prerequisites": [
+        "linux"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "signalr",
+      "prerequisites": [
+        "asp.net"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "snowflake",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "data_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "solid principles",
+      "prerequisites": [
+        "oop"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "solidity",
+      "prerequisites": [
+        "blockchain"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "sops",
+      "prerequisites": [
+        "git"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "spark",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "splunk",
+      "prerequisites": [
+        "observability"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "spring",
+      "prerequisites": [
+        "java"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "spring boot",
+      "prerequisites": [
+        "java"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "sql",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "sqlalchemy",
+      "prerequisites": [
+        "python"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "sqli",
+      "prerequisites": [
+        "owasp top 10"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "sqlite",
+      "prerequisites": [
+        "sql"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "ssrf",
+      "prerequisites": [
+        "owasp top 10"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "storybook",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "styled-components",
+      "prerequisites": [
+        "css",
+        "react"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "supabase",
+      "prerequisites": [],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "supply chain security",
+      "prerequisites": [
+        "devsecops"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "svelte",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "sveltekit",
+      "prerequisites": [
+        "svelte"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "swagger",
+      "prerequisites": [
+        "openapi"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Mobile Development",
+      "estimatedHours": null,
+      "id": "swift",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Mobile Development",
+      "estimatedHours": null,
+      "id": "swiftui",
+      "prerequisites": [
+        "swift"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "system design",
+      "prerequisites": [
+        "design patterns"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "tailwind css",
+        "tailwind-css",
+        "tw"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "tailwind",
+      "prerequisites": [
+        "css"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [
+        "react query"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "tanstack query",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "tanstack router",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "tempo",
+      "prerequisites": [
+        "observability"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "temporal",
+      "prerequisites": [
+        "distributed systems"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [
+        "tf"
+      ],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "tensorflow",
+      "prerequisites": [
+        "deep learning"
+      ],
+      "sourceFile": "data_ai.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [
+        "tf"
+      ],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "terraform",
+      "prerequisites": [
+        "cloud deployment"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "testing",
+      "prerequisites": [],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "threat modeling",
+      "prerequisites": [
+        "secure coding"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "tool calling",
+      "prerequisites": [
+        "ai agents"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "transformers",
+      "prerequisites": [
+        "deep learning"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "trpc",
+      "prerequisites": [
+        "typescript"
+      ],
+      "sourceFile": "cloud_native.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "turborepo",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "typescript",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "unit testing",
+      "prerequisites": [
+        "testing"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "vault",
+      "prerequisites": [
+        "secrets management"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [
+        "vector database",
+        "vector db",
+        "vector dbs"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "vector databases",
+      "prerequisites": [],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "vercel",
+      "prerequisites": [
+        "next.js"
+      ],
+      "sourceFile": "devops.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "vite",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "vitest",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "vllm",
+      "prerequisites": [
+        "llms"
+      ],
+      "sourceFile": "ai_agents.yaml"
+    },
+    {
+      "aliases": [
+        "vue js",
+        "vue.js"
+      ],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "vue",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "vuex",
+      "prerequisites": [
+        "vue"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "web3",
+      "prerequisites": [
+        "blockchain"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "webpack",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Backend Development",
+      "estimatedHours": null,
+      "id": "websocket",
+      "prerequisites": [
+        "javascript"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "xss",
+      "prerequisites": [
+        "owasp top 10"
+      ],
+      "sourceFile": "security.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": null,
+      "estimatedHours": null,
+      "id": "zod",
+      "prerequisites": [
+        "typescript"
+      ],
+      "sourceFile": "frontend_modern.yaml"
+    },
+    {
+      "aliases": [],
+      "contextAliasKeys": [],
+      "difficulty": null,
+      "domain": "Frontend Development",
+      "estimatedHours": null,
+      "id": "zustand",
+      "prerequisites": [
+        "react"
+      ],
+      "sourceFile": "software_engineering.yaml"
+    }
+  ],
+  "schemaVersion": 1
+}

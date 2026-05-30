@@ -92,6 +92,7 @@ src/.cookies/
 scripts/*
 !scripts/validate_graph.py
 !scripts/evaluate_ranking_quality.py
+!scripts/generate_skill_inventory.py
 
 # Pipeline output files
 result.txt
