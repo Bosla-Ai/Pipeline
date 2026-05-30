@@ -5,6 +5,8 @@ from src.utils.constants import (
     DESCRIPTIVE_TAG_DECOMPOSITION,
     CORE_TECH_KEYWORDS,
 )
+from src.engine.stages import PreparedTag, PlannedSource, PlannedQuery
+from src.engine.models import TopicScope, SourceName
 
 _QUERY_TOKEN_EXPANSIONS = {
     "eng": "engineer",
@@ -166,3 +168,107 @@ class QueryPlanner:
 
         # Default: original behavior
         return [(f"{tag} full course", f"{tag} tutorial")]
+
+    @classmethod
+    def plan_queries_for_tag(
+        cls,
+        tag: PreparedTag,
+        planned_sources: List[PlannedSource],
+        max_results: int,
+        query_limit_per_tag: int,
+    ) -> List[PlannedQuery]:
+        """
+        Generates bounded queries per enabled planned source and tag scope.
+        """
+        planned_queries = []
+
+        # Determine suffixes based on the scope
+        scope = tag.scope
+        if scope == TopicScope.DEBUGGING_QUERY:
+            suffixes = ["fix tutorial", "explained"]
+        elif scope == TopicScope.COMPARISON_QUERY:
+            suffixes = ["explained", "comparison"]
+        elif scope == TopicScope.ATOMIC:
+            suffixes = ["tutorial", "explained"]
+        elif scope in (TopicScope.TECHNOLOGY, TopicScope.SKILL_TOPIC):
+            suffixes = ["full course", "tutorial"]
+        elif scope == TopicScope.ROLE_ROADMAP:
+            suffixes = ["roadmap", "full course"]
+        elif scope == TopicScope.PROJECT_GOAL:
+            suffixes = ["project tutorial", "full project"]
+        else:
+            suffixes = ["full course", "tutorial"]
+
+        for planned_source in planned_sources:
+            if not planned_source.enabled:
+                continue
+
+            source = planned_source.source
+
+            if source == SourceName.YOUTUBE:
+                candidates = []
+
+                # Check for Arabic query
+                has_arabic = bool(re.search(r"[\u0600-\u06FF]", tag.normalized))
+
+                if has_arabic:
+                    # Try Arabic query first, and then English fallback for each suffix
+                    eng_fallback = cls.build_search_tag(tag.normalized, "en")
+                    is_useful = (
+                        eng_fallback
+                        and not re.search(r"[\u0600-\u06FF]", eng_fallback)
+                        and eng_fallback.lower() != tag.normalized.lower()
+                    )
+                    for suffix in suffixes:
+                        candidates.append(
+                            (f"{tag.normalized} {suffix}".strip(), suffix)
+                        )
+                        if is_useful:
+                            candidates.append(
+                                (f"{eng_fallback} {suffix}".strip(), suffix)
+                            )
+                else:
+                    for suffix in suffixes:
+                        candidates.append(
+                            (f"{tag.normalized} {suffix}".strip(), suffix)
+                        )
+
+                seen_queries = set()
+                unique_candidates = []
+                for query_str, suffix in candidates:
+                    clean_query = " ".join(query_str.split()).strip()
+                    if not clean_query:
+                        continue
+                    if clean_query.lower() not in seen_queries:
+                        seen_queries.add(clean_query.lower())
+                        unique_candidates.append((clean_query, suffix))
+
+                selected_candidates = unique_candidates[:query_limit_per_tag]
+
+                for query_str, suffix in selected_candidates:
+                    if suffix in ("full course", "roadmap", "full project"):
+                        content_type = "playlist"
+                    else:
+                        content_type = "video"
+
+                    planned_queries.append(
+                        PlannedQuery(
+                            tag=tag,
+                            source=source,
+                            query=query_str,
+                            expected_content_type=content_type,
+                            max_results=max_results,
+                        )
+                    )
+            else:
+                planned_queries.append(
+                    PlannedQuery(
+                        tag=tag,
+                        source=source,
+                        query=tag.normalized,
+                        expected_content_type="course",
+                        max_results=max_results,
+                    )
+                )
+
+        return planned_queries
