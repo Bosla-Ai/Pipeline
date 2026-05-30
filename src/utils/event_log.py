@@ -80,6 +80,36 @@ class EventLog:
         """Register an async callback to broadcast new log entries (e.g. via Socket.IO)."""
         self._broadcast_fn = fn
 
+    def _sanitize_dict(self, data: dict) -> dict:
+        if not isinstance(data, dict):
+            return data
+        sanitized = {}
+        sensitive_keys = {
+            "token",
+            "sockettoken",
+            "socket_token",
+            "job_access_token",
+            "authorization",
+            "x_pipeline_secret",
+            "secret",
+            "api_key",
+            "password",
+        }
+        for k, v in data.items():
+            k_lower = k.lower()
+            if any(sk in k_lower for sk in sensitive_keys):
+                sanitized[k] = "[MASKED]"
+            elif isinstance(v, dict):
+                sanitized[k] = self._sanitize_dict(v)
+            elif isinstance(v, list):
+                sanitized[k] = [
+                    self._sanitize_dict(item) if isinstance(item, dict) else item
+                    for item in v
+                ]
+            else:
+                sanitized[k] = v
+        return sanitized
+
     # ── Logging ─────────────────────────────────────────────
 
     def log(
@@ -96,11 +126,23 @@ class EventLog:
         level = level if level in LEVELS else "info"
         category = category if category in CATEGORIES else "system"
 
+        # Mask global pipeline secret in the message text if present
+        try:
+            from src.config.settings import PIPELINE_SHARED_SECRET
+
+            if PIPELINE_SHARED_SECRET and isinstance(message, str):
+                message = message.replace(PIPELINE_SHARED_SECRET, "[MASKED]")
+        except Exception:
+            pass
+
         merged_details = {}
         if details:
             merged_details.update(details)
         if metadata:
             merged_details.update(metadata)
+
+        if merged_details:
+            merged_details = self._sanitize_dict(merged_details)
 
         entry = {
             "id": uuid.uuid4().hex[:12],

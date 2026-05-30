@@ -6,6 +6,8 @@ from src.utils.event_log import event_log
 
 import os
 from src.engine.runtime import runtime_limits
+from src.config.settings import FREE_HF_MODE
+from src.security.socket_auth import validate_socket_connection
 
 ALLOWED_SOCKET_ORIGINS = [
     origin.strip()
@@ -67,18 +69,30 @@ def get_stats() -> dict:
     }
 
 
+DISABLE_SOCKET_MONITOR_ROOM = (
+    os.getenv("DISABLE_SOCKET_MONITOR_ROOM", "true").lower() == "true"
+    if FREE_HF_MODE
+    else (os.getenv("DISABLE_SOCKET_MONITOR_ROOM", "false").lower() == "true")
+)
+
+
 @sio.event
 async def connect(sid, environ, auth=None):
     """
-    Clients MUST pass auth: { jobId, userId } when connecting.
-    Connections without a jobId are rejected to prevent idle sockets.
+    Clients MUST pass auth: { jobId, userId, socketToken } when connecting.
+    Connections without valid socket credentials are rejected in production.
     """
     auth = auth or {}
-    job_id = auth.get("jobId") or auth.get("job_id")
     user_id = auth.get("userId") or auth.get("user_id") or "anonymous"
 
-    if not job_id:
-        event_log.log("warn", "socket", f"Rejected connection {sid} — no jobId in auth")
+    is_valid, reason, job_id = validate_socket_connection(auth)
+    if not is_valid:
+        event_log.log(
+            "warn",
+            "socket",
+            f"Rejected connection {sid} — reason: {reason}",
+            details=auth,
+        )
         await sio.disconnect(sid)
         return False
 
@@ -126,6 +140,18 @@ async def disconnect(sid):
 @sio.event
 async def join_monitor(sid, data=None):
     """Admin dashboards join this room to receive real-time log events."""
+    if DISABLE_SOCKET_MONITOR_ROOM:
+        event_log.log(
+            "warn",
+            "socket",
+            f"Rejected monitor join request from {sid} — monitor room disabled",
+        )
+        await sio.emit(
+            "monitor_joined",
+            {"ok": False, "error": "Monitor room is disabled in production"},
+            to=sid,
+        )
+        return
     sio.enter_room(sid, "monitor")
     await sio.emit("monitor_joined", {"ok": True}, to=sid)
     event_log.log("info", "socket", f"Monitor joined by {sid}")
