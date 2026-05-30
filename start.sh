@@ -37,28 +37,44 @@ if [ "$redis_ready" = false ]; then
   exit 1
 fi
 
-# 4. Start Xvfb (Virtual Framebuffer) in the background for Selenium Chrome instances
-echo "[start] Starting Xvfb on display :99..."
-Xvfb :99 -screen 0 1920x1080x24 -ac &
-XVFB_PID=$!
-export DISPLAY=:99
+# Check if browser scraping or Xvfb is disabled.
+# By default, under FREE_HF_MODE=true, ENABLE_BROWSER_SCRAPING is false.
+ENABLE_BROWSER_SCRAPING="${ENABLE_BROWSER_SCRAPING:-}"
+FREE_HF_MODE="${FREE_HF_MODE:-true}"
 
-# 5. Wait for Xvfb to be fully initialized using xdpyinfo
-echo "[start] Waiting for Xvfb to become ready..."
-xvfb_ready=false
-for i in {1..30}; do
-  if xdpyinfo -display :99 >/dev/null 2>&1; then
-    echo "[start] Xvfb is ready on display :99."
-    xvfb_ready=true
-    break
+START_XVFB=true
+if [ "$ENABLE_BROWSER_SCRAPING" = "false" ]; then
+  START_XVFB=false
+elif [ "$FREE_HF_MODE" = "true" ] && [ "$ENABLE_BROWSER_SCRAPING" != "true" ]; then
+  START_XVFB=false
+fi
+
+if [ "$START_XVFB" = "true" ]; then
+  # 4. Start Xvfb (Virtual Framebuffer) in the background for Selenium Chrome instances
+  echo "[start] Starting Xvfb on display :99..."
+  Xvfb :99 -screen 0 1920x1080x24 -ac &
+  XVFB_PID=$!
+  export DISPLAY=:99
+
+  # 5. Wait for Xvfb to be fully initialized using xdpyinfo
+  echo "[start] Waiting for Xvfb to become ready..."
+  xvfb_ready=false
+  for i in {1..30}; do
+    if xdpyinfo -display :99 >/dev/null 2>&1; then
+      echo "[start] Xvfb is ready on display :99."
+      xvfb_ready=true
+      break
+    fi
+    sleep 0.5
+  done
+
+  if [ "$xvfb_ready" = false ]; then
+    echo "[start] ERROR: Xvfb failed to start within timeout." >&2
+    kill -0 $XVFB_PID 2>/dev/null && kill $XVFB_PID
+    exit 1
   fi
-  sleep 0.5
-done
-
-if [ "$xvfb_ready" = false ]; then
-  echo "[start] ERROR: Xvfb failed to start within timeout." >&2
-  kill -0 $XVFB_PID 2>/dev/null && kill $XVFB_PID
-  exit 1
+else
+  echo "[start] Skipping Xvfb daemon setup (browser scraping is disabled)."
 fi
 
 # 6. Start the web application using exec to replace the shell process, ensuring proper PID 1 signal propagation
