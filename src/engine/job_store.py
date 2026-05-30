@@ -28,6 +28,8 @@ class RedisJobStore:
         # Prevent re-initializing the fallback dict if the singleton already exists
         if not hasattr(self, "_in_memory_jobs"):
             self._in_memory_jobs: dict[str, dict] = {}
+        if not hasattr(self, "_in_memory_active_jobs"):
+            self._in_memory_active_jobs = set()
 
     async def connect(self):
         """Initialize Redis client connection."""
@@ -65,9 +67,11 @@ class RedisJobStore:
         if self._client:
             try:
                 await self._client.set(f"job:{job_id}", json.dumps(job), ex=JOB_TTL)
+                await self._client.sadd("jobs:active", job_id)
             except Exception as e:
                 print(f"[JobStore] Set error: {e}")
         self._in_memory_jobs[job_id] = job
+        self._in_memory_active_jobs.add(job_id)
         return job
 
     async def start_job(self, job_id: str) -> Optional[dict]:
@@ -80,9 +84,11 @@ class RedisJobStore:
         if self._client:
             try:
                 await self._client.set(f"job:{job_id}", json.dumps(job), ex=JOB_TTL)
+                await self._client.sadd("jobs:active", job_id)
             except Exception as e:
                 print(f"[JobStore] Set error: {e}")
         self._in_memory_jobs[job_id] = job
+        self._in_memory_active_jobs.add(job_id)
         return job
 
     async def complete_job(self, job_id: str, result: dict) -> Optional[dict]:
@@ -96,9 +102,11 @@ class RedisJobStore:
         if self._client:
             try:
                 await self._client.set(f"job:{job_id}", json.dumps(job), ex=JOB_TTL)
+                await self._client.srem("jobs:active", job_id)
             except Exception as e:
                 print(f"[JobStore] Set error: {e}")
         self._in_memory_jobs[job_id] = job
+        self._in_memory_active_jobs.discard(job_id)
         return job
 
     async def fail_job(self, job_id: str, error: str) -> Optional[dict]:
@@ -112,9 +120,11 @@ class RedisJobStore:
         if self._client:
             try:
                 await self._client.set(f"job:{job_id}", json.dumps(job), ex=JOB_TTL)
+                await self._client.srem("jobs:active", job_id)
             except Exception as e:
                 print(f"[JobStore] Set error: {e}")
         self._in_memory_jobs[job_id] = job
+        self._in_memory_active_jobs.discard(job_id)
         return job
 
     async def get_job(self, job_id: str) -> Optional[dict]:
@@ -127,6 +137,16 @@ class RedisJobStore:
             except Exception as e:
                 print(f"[JobStore] Get error: {e}")
         return self._in_memory_jobs.get(job_id)
+
+    async def get_active_jobs(self) -> list[str]:
+        """Get all active job IDs from Redis or in-memory fallback."""
+        if self._client:
+            try:
+                members = await self._client.smembers("jobs:active")
+                return list(members)
+            except Exception as e:
+                print(f"[JobStore] smembers error: {e}")
+        return list(self._in_memory_active_jobs)
 
 
 job_store = RedisJobStore()

@@ -4,7 +4,7 @@ import csv
 import io
 import uuid
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI, HTTPException, Query, Header, Depends
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Header, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ from src.fetchers.videos.coursera_fetcher import fetch_coursera
 from src.utils.event_log import event_log
 from src.engine.models import CourseSource
 
-from src.config.settings import PIPELINE_SHARED_SECRET
+from src.config.settings import PIPELINE_SHARED_SECRET, DISABLE_YOUTUBE_API
 from src.graph_inventory import runtime_contracts
 from src.graph_inventory.runtime_contracts import ContractUnavailableError
 
@@ -89,7 +89,9 @@ async def get_tag_contract(_auth: None = Depends(verify_pipeline_secret)):
     try:
         return runtime_contracts.load_tag_contract()
     except ContractUnavailableError as exc:
-        event_log.log("error", "contracts", f"Contract load error: {exc.internal_message}")
+        event_log.log(
+            "error", "contracts", f"Contract load error: {exc.internal_message}"
+        )
         raise HTTPException(status_code=500, detail=exc.public_message)
 
 
@@ -99,7 +101,9 @@ async def get_skill_inventory(_auth: None = Depends(verify_pipeline_secret)):
     try:
         return runtime_contracts.load_skill_inventory()
     except ContractUnavailableError as exc:
-        event_log.log("error", "contracts", f"Contract load error: {exc.internal_message}")
+        event_log.log(
+            "error", "contracts", f"Contract load error: {exc.internal_message}"
+        )
         raise HTTPException(status_code=500, detail=exc.public_message)
 
 
@@ -109,7 +113,9 @@ async def get_contracts_metadata(_auth: None = Depends(verify_pipeline_secret)):
     try:
         return runtime_contracts.get_contract_metadata()
     except ContractUnavailableError as exc:
-        event_log.log("error", "contracts", f"Contract load error: {exc.internal_message}")
+        event_log.log(
+            "error", "contracts", f"Contract load error: {exc.internal_message}"
+        )
         raise HTTPException(status_code=500, detail=exc.public_message)
 
 
@@ -212,45 +218,53 @@ async def startup_event():
 
     await job_store.connect()
 
+    # Clean up stale active jobs on startup
+    await cleanup_stale_jobs()
+
     # Start the 24h log cleanup background task
     event_log.start_cleanup_task()
 
+    from src.config import runtime_profile
+
     # ── Udemy dependency readiness check ──
-    udemy_deps = {
-        "scrapling": False,
-        "curl_cffi": False,
-        "playwright": False,
-        "patchright": False,
-        "browserforge": False,
-    }
-    for dep in udemy_deps:
+    if runtime_profile.ENABLE_UDEMY:
+        udemy_deps = {
+            "scrapling": False,
+            "curl_cffi": False,
+            "playwright": False,
+            "patchright": False,
+            "browserforge": False,
+        }
+        for dep in udemy_deps:
+            try:
+                __import__(dep)
+                udemy_deps[dep] = True
+            except ImportError:
+                pass
+
+        # Final validation: try the actual import chain the scraper uses
         try:
-            __import__(dep)
-            udemy_deps[dep] = True
-        except ImportError:
-            pass
+            from scrapling.fetchers import AsyncStealthySession  # noqa: F401
 
-    # Final validation: try the actual import chain the scraper uses
-    try:
-        from scrapling.fetchers import AsyncStealthySession  # noqa: F401
+            udemy_ready = True
+        except Exception:
+            udemy_ready = False
 
-        udemy_ready = True
-    except Exception:
-        udemy_ready = False
-
-    if udemy_ready:
-        event_log.log("success", "system", "Udemy fetcher: Ready (all dependencies OK)")
+        if udemy_ready:
+            event_log.log("success", "system", "Udemy fetcher: Ready (all dependencies OK)")
+        else:
+            missing = [k for k, v in udemy_deps.items() if not v]
+            event_log.log(
+                "error",
+                "system",
+                f"Udemy fetcher: NOT READY — missing modules: {', '.join(missing) if missing else 'import chain broken'}. "
+                f"Try: pip install 'scrapling[fetchers]'",
+            )
     else:
-        missing = [k for k, v in udemy_deps.items() if not v]
-        event_log.log(
-            "error",
-            "system",
-            f"Udemy fetcher: NOT READY — missing modules: {', '.join(missing) if missing else 'import chain broken'}. "
-            f"Try: pip install 'scrapling[fetchers]'",
-        )
+        event_log.log("info", "system", "Udemy fetcher disabled (skipping readiness check)")
 
-    if os.getenv("SKIP_GLOBAL_DRIVER_INIT") == "true":
-        event_log.log("warn", "driver", "Skipping driver init in test mode")
+    if os.getenv("SKIP_GLOBAL_DRIVER_INIT") == "true" or runtime_profile.SKIP_GLOBAL_DRIVER_INIT:
+        event_log.log("warn", "driver", "Skipping driver init")
         return
 
     try:
@@ -320,6 +334,11 @@ async def search_embeddable_video_endpoint(
     """
     Search YouTube for an embeddable video matching the query.
     """
+    if DISABLE_YOUTUBE_API:
+        raise HTTPException(
+            status_code=503,
+            detail="YouTube API endpoints are disabled in production free-HF mode.",
+        )
     from src.fetchers.videos.youtube_fetcher import search_embeddable_video
 
     event_log.log(
@@ -352,6 +371,11 @@ async def youtube_playlist_items(
     """
     Returns the list of videos in a playlist.
     """
+    if DISABLE_YOUTUBE_API:
+        raise HTTPException(
+            status_code=503,
+            detail="YouTube API endpoints are disabled in production free-HF mode.",
+        )
     import aiohttp
     from src.fetchers.videos.youtube_fetcher import fetch_youtube_data
 
@@ -397,10 +421,20 @@ async def youtube_playlist_items(
     return {"status": "ok", "items": items}
 
 
+from src.security.request_guard import validate_roadmap_request_data
+
+
 @app.post("/generate-roadmap")
 async def generate_roadmap(
     request: RoadmapRequest, _auth: None = Depends(verify_pipeline_secret)
 ):
+    normalized_tags = validate_roadmap_request_data(
+        tags=request.tags,
+        language=request.language,
+        sources=[s.value for s in request.sources] if request.sources else None,
+        tag_checkpoints=request.tag_checkpoints,
+        job_id=request.job_id,
+    )
     job_id = request.job_id or uuid.uuid4().hex[:12]
     event_log.log("info", "job", f"Incoming roadmap request", job_id=job_id)
 
@@ -408,7 +442,7 @@ async def generate_roadmap(
 
     await job_store.create_job(
         job_id=job_id,
-        tags=request.tags,
+        tags=normalized_tags,
         language=request.language,
         prefer_paid=request.prefer_paid,
     )
@@ -421,7 +455,7 @@ async def generate_roadmap(
         socket_wait_timeout=SOCKET_WAIT_TIMEOUT,
     )
     return await engine.generate(
-        tags=request.tags,
+        tags=normalized_tags,
         prefer_paid=request.prefer_paid,
         language=request.language,
         sources=request.sources,
@@ -442,3 +476,164 @@ async def get_job_status(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+async def cleanup_stale_jobs():
+    from src.engine.job_store import job_store
+    try:
+        active_job_ids = await job_store.get_active_jobs()
+        for job_id in active_job_ids:
+            job = await job_store.get_job(job_id)
+            if job and job.get("status") in ("running", "pending"):
+                await job_store.fail_job(job_id, "Job expired due to server restart")
+                event_log.log(
+                    "error",
+                    "job",
+                    f"Cleaned up stale running/pending job {job_id} on startup",
+                    job_id=job_id,
+                )
+    except Exception as e:
+        event_log.log(
+            "error",
+            "system",
+            f"Stale job cleanup failed: {e}",
+        )
+
+
+async def verify_job_access(
+    job_id: str,
+    token: Optional[str] = Query(None),
+    x_job_token: Optional[str] = Header(None, alias="X-Job-Token"),
+    authorization: Optional[str] = Header(None),
+    x_pipeline_secret: Optional[str] = Header(None, alias="X-Pipeline-Secret"),
+):
+    # Try pipeline secret authentication first
+    if PIPELINE_SHARED_SECRET:
+        if x_pipeline_secret == PIPELINE_SHARED_SECRET:
+            return
+    else:
+        # In dev mode, allow bypass if the developer explicitly provided the secret header
+        if os.getenv("ENVIRONMENT") != "production" and x_pipeline_secret is not None:
+            return
+
+    # Fallback to job token verification
+    actual_token = token or x_job_token
+    if not actual_token and authorization and authorization.lower().startswith("bearer "):
+        actual_token = authorization[7:]
+
+    if not actual_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing job access token or pipeline secret",
+        )
+
+    from src.security.job_tokens import verify_token
+    payload = verify_token(actual_token)
+    if not payload or payload.get("type") != "job_access" or payload.get("job_id") != job_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid or expired job access token",
+        )
+
+
+async def run_roadmap_job_bg(
+    engine: RoadmapEngine,
+    tags: List[str],
+    prefer_paid: bool,
+    language: str,
+    sources: Optional[List[CourseSource]],
+    tag_checkpoints: Optional[dict],
+    job_id: str,
+):
+    try:
+        await engine.generate(
+            tags=tags,
+            prefer_paid=prefer_paid,
+            language=language,
+            sources=sources,
+            tag_checkpoints=tag_checkpoints,
+            job_id=job_id,
+        )
+    except Exception as e:
+        print(f"[BG Job] Job {job_id} failed: {e}")
+
+
+@app.post("/jobs/roadmap")
+async def post_jobs_roadmap(
+    request: RoadmapRequest,
+    _auth: None = Depends(verify_pipeline_secret),
+):
+    normalized_tags = validate_roadmap_request_data(
+        tags=request.tags,
+        language=request.language,
+        sources=[s.value for s in request.sources] if request.sources else None,
+        tag_checkpoints=request.tag_checkpoints,
+        job_id=request.job_id,
+    )
+    job_id = request.job_id or uuid.uuid4().hex[:12]
+    
+    from src.engine.job_store import job_store
+    from src.security.job_tokens import generate_job_access_token, generate_socket_token
+    
+    await job_store.create_job(
+        job_id=job_id,
+        tags=normalized_tags,
+        language=request.language,
+        prefer_paid=request.prefer_paid,
+    )
+    
+    job_access_token = generate_job_access_token(job_id)
+    socket_token = generate_socket_token(job_id)
+    
+    engine = RoadmapEngine(
+        sio=sio,
+        fetch_youtube=fetch_youtube,
+        fetch_coursera=fetch_coursera,
+        get_global_driver=lambda: GLOBAL_DRIVER,
+        socket_wait_timeout=SOCKET_WAIT_TIMEOUT,
+    )
+    
+    asyncio.create_task(
+        run_roadmap_job_bg(
+            engine=engine,
+            tags=normalized_tags,
+            prefer_paid=request.prefer_paid,
+            language=request.language,
+            sources=request.sources,
+            tag_checkpoints=request.tag_checkpoints,
+            job_id=job_id,
+        )
+    )
+    
+    return {
+        "job_id": job_id,
+        "status": "queued",
+        "job_access_token": job_access_token,
+        "socket_token": socket_token,
+    }
+
+
+@app.get("/jobs/{job_id}")
+async def get_async_job(
+    job_id: str,
+    auth_check: None = Depends(verify_job_access),
+):
+    from src.engine.job_store import job_store
+    job = await job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@app.get("/jobs/{job_id}/result")
+async def get_async_job_result(
+    job_id: str,
+    auth_check: None = Depends(verify_job_access),
+):
+    from src.engine.job_store import job_store
+    job = await job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job["status"] != "completed":
+        raise HTTPException(status_code=400, detail=f"Job is in state '{job['status']}', not completed")
+    return job["result"]
