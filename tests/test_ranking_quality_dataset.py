@@ -129,8 +129,104 @@ def test_env_var_restored(monkeypatch):
     assert os.environ.get("ENABLE_RANKING_DEBUG") is None
 
 
-def test_cli_script_exits_successfully(monkeypatch):
-    """Verify that the CLI evaluation script exits successfully (0) under normal pass."""
-    monkeypatch.setattr(sys_exit_mock := pytest.importorskip("sys"), "exit", lambda code: code)
-    # cli_main should run fine and return or call exit(0)
-    cli_main()
+def test_cli_script_exits_successfully():
+    """Verify that the CLI evaluation script exits with code 0 under normal pass."""
+    with pytest.raises(SystemExit) as exc:
+        cli_main()
+    assert exc.value.code == 0
+
+
+def test_duplicate_case_ids_rejected(tmp_path):
+    """Verify that duplicate case IDs are rejected with ValueError."""
+    dup_content = """
+cases:
+  - id: dup_id
+    tag: python
+    candidates: [{"title": "A", "url": "url", "source": "youtube"}]
+    expectations: {"top_source_any_of": ["youtube"]}
+  - id: dup_id
+    tag: python
+    candidates: [{"title": "B", "url": "url", "source": "youtube"}]
+    expectations: {"top_source_any_of": ["youtube"]}
+"""
+    p = tmp_path / "dup.yaml"
+    p.write_text(dup_content, encoding="utf-8")
+    with pytest.raises(ValueError, match="Duplicate case id found"):
+        load_ranking_quality_cases(str(p))
+
+
+def test_duplicate_candidate_titles_rejected():
+    """Verify that duplicate candidate titles inside a case are rejected."""
+    case = {
+        "id": "dup_title",
+        "tag": "python",
+        "candidates": [
+            {"title": "A", "url": "url", "source": "youtube"},
+            {"title": "A", "url": "url2", "source": "youtube"}
+        ],
+        "expectations": {"top_source_any_of": ["youtube"]}
+    }
+    with pytest.raises(ValueError, match="duplicate candidate title: A"):
+        validate_evaluation_case(case)
+
+
+def test_invalid_top_source_any_of_rejected():
+    """Verify that unknown sources in top_source_any_of are rejected."""
+    case = {
+        "id": "invalid_top",
+        "tag": "python",
+        "candidates": [{"title": "A", "url": "url", "source": "youtube"}],
+        "expectations": {
+            "top_source_any_of": ["invalid_source"]
+        }
+    }
+    with pytest.raises(ValueError, match="expectation 'top_source_any_of' contains invalid source"):
+        validate_evaluation_case(case)
+
+
+def test_missing_must_beat_higher_rejected():
+    """Verify that must_beat entries referencing a missing 'higher' title are rejected."""
+    case = {
+        "id": "missing_higher",
+        "tag": "python",
+        "candidates": [
+            {"title": "A", "url": "url", "source": "youtube"},
+            {"title": "B", "url": "url", "source": "youtube"}
+        ],
+        "expectations": {
+            "must_beat": [{"higher": "C", "lower": "B"}]
+        }
+    }
+    with pytest.raises(ValueError, match="specifies missing 'higher' title"):
+        validate_evaluation_case(case)
+
+
+def test_debug_serialization_shape(monkeypatch):
+    """Verify that serialized candidates contain debug explanation under _debug only."""
+    monkeypatch.setenv("ENABLE_RANKING_DEBUG", "true")
+    from src.ranking.cheap_ranker import cheap_rank
+    candidate = Candidate(
+        source=SourceName.YOUTUBE,
+        tag="python",
+        title="Python Tutorial",
+        url="https://youtube.com/watch?v=x",
+    )
+    ranked = cheap_rank([candidate], "python")
+    serialized = ranked[0].to_dict()
+    assert "_debug" in serialized
+    assert "rankingExplanation" in serialized["_debug"]
+    assert "rankingExplanation" not in serialized
+
+
+def test_cli_script_exits_failure_code(monkeypatch):
+    """Verify that the CLI evaluation script exits with code 1 if a case fails."""
+    import scripts.evaluate_ranking_quality
+    monkeypatch.setattr(
+        scripts.evaluate_ranking_quality,
+        "run_evaluation_case",
+        lambda case: (False, ["Dummy failure for testing"])
+    )
+    with pytest.raises(SystemExit) as exc:
+        cli_main()
+    assert exc.value.code == 1
+
