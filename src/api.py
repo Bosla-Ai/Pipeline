@@ -19,6 +19,8 @@ from src.utils.event_log import event_log
 from src.engine.models import CourseSource
 
 from src.config.settings import PIPELINE_SHARED_SECRET
+from src.graph_inventory import runtime_contracts
+from src.graph_inventory.runtime_contracts import ContractUnavailableError
 
 SOCKET_WAIT_TIMEOUT = int(os.environ.get("SOCKET_WAIT_TIMEOUT", "30"))
 
@@ -79,6 +81,36 @@ async def stats(_auth: None = Depends(verify_pipeline_secret)):
     recent_errors = await event_log.get_logs(since=cutoff, level="error", limit=1000)
     base["error_count_5m"] = len(recent_errors)
     return base
+
+
+@app.get("/contracts/tag-contract")
+async def get_tag_contract(_auth: None = Depends(verify_pipeline_secret)):
+    """Expose the generated tag contract JSON."""
+    try:
+        return runtime_contracts.load_tag_contract()
+    except ContractUnavailableError as exc:
+        event_log.log("error", "contracts", f"Contract load error: {exc.internal_message}")
+        raise HTTPException(status_code=500, detail=exc.public_message)
+
+
+@app.get("/contracts/skill-inventory")
+async def get_skill_inventory(_auth: None = Depends(verify_pipeline_secret)):
+    """Expose the generated skill inventory JSON."""
+    try:
+        return runtime_contracts.load_skill_inventory()
+    except ContractUnavailableError as exc:
+        event_log.log("error", "contracts", f"Contract load error: {exc.internal_message}")
+        raise HTTPException(status_code=500, detail=exc.public_message)
+
+
+@app.get("/contracts/metadata")
+async def get_contracts_metadata(_auth: None = Depends(verify_pipeline_secret)):
+    """Expose lightweight metadata calculated from the generated contracts."""
+    try:
+        return runtime_contracts.get_contract_metadata()
+    except ContractUnavailableError as exc:
+        event_log.log("error", "contracts", f"Contract load error: {exc.internal_message}")
+        raise HTTPException(status_code=500, detail=exc.public_message)
 
 
 @app.get("/logs")
