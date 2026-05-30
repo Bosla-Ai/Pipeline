@@ -50,41 +50,84 @@ class RuntimeLimits:
     udemy_provider_concurrency: int
 
 
+from src.config.runtime_profile import FREE_HF_MODE
+
+
 def load_runtime_limits() -> RuntimeLimits:
     provider_timeout = _positive_int_env("PROVIDER_TIMEOUT", 20)
-    return RuntimeLimits(
-        max_concurrent_jobs=_positive_int_env("MAX_CONCURRENT_JOBS", 3),
-        youtube_api_concurrency=_positive_int_env("YOUTUBE_API_CONCURRENCY", 4),
-        youtube_scraper_concurrency=_positive_int_env("YOUTUBE_SCRAPER_CONCURRENCY", 1),
-        udemy_concurrency=_positive_int_env("UDEMY_CONCURRENCY", 1),
-        coursera_concurrency=_positive_int_env("COURSERA_CONCURRENCY", 1),
-        frontend_ai_concurrency=_positive_int_env("FRONTEND_AI_CONCURRENCY", 2),
-        socket_wait_timeout_seconds=_positive_int_env("SOCKET_WAIT_TIMEOUT", 30),
-        frontend_ai_timeout_seconds=_positive_int_env("FRONTEND_AI_TIMEOUT", 12),
-        provider_timeout_seconds=provider_timeout,
-        full_job_timeout_seconds=_positive_int_env("FULL_JOB_TIMEOUT", 90),
-        candidate_pool_limit_per_tag=_positive_int_env(
-            "CANDIDATE_POOL_LIMIT_PER_TAG", 30
-        ),
-        cheap_rank_limit_per_tag=_positive_int_env("CHEAP_RANK_LIMIT_PER_TAG", 12),
-        final_result_limit_per_tag=_positive_int_env("FINAL_RESULT_LIMIT_PER_TAG", 3),
-        youtube_provider_timeout_seconds=_positive_int_env(
-            "YOUTUBE_PROVIDER_TIMEOUT_SECONDS", provider_timeout
-        ),
-        coursera_provider_timeout_seconds=_positive_int_env(
-            "COURSERA_PROVIDER_TIMEOUT_SECONDS", provider_timeout
-        ),
-        udemy_provider_timeout_seconds=_positive_int_env(
-            "UDEMY_PROVIDER_TIMEOUT_SECONDS", provider_timeout
-        ),
-        youtube_provider_concurrency=_positive_int_env(
-            "YOUTUBE_PROVIDER_CONCURRENCY", 4
-        ),
-        coursera_provider_concurrency=_positive_int_env(
-            "COURSERA_PROVIDER_CONCURRENCY", 1
-        ),
-        udemy_provider_concurrency=_positive_int_env("UDEMY_PROVIDER_CONCURRENCY", 1),
-    )
+
+    if FREE_HF_MODE:
+        return RuntimeLimits(
+            max_concurrent_jobs=1,
+            youtube_api_concurrency=1,
+            youtube_scraper_concurrency=1,
+            udemy_concurrency=1,
+            coursera_concurrency=1,
+            frontend_ai_concurrency=1,
+            socket_wait_timeout_seconds=_positive_int_env("SOCKET_WAIT_TIMEOUT", 3),
+            frontend_ai_timeout_seconds=_positive_int_env("FRONTEND_AI_TIMEOUT", 5),
+            provider_timeout_seconds=_positive_int_env("PROVIDER_TIMEOUT", 15),
+            full_job_timeout_seconds=_positive_int_env("FULL_JOB_TIMEOUT", 60),
+            candidate_pool_limit_per_tag=_positive_int_env(
+                "CANDIDATE_POOL_LIMIT_PER_TAG", 10
+            ),
+            cheap_rank_limit_per_tag=_positive_int_env("CHEAP_RANK_LIMIT_PER_TAG", 5),
+            final_result_limit_per_tag=_positive_int_env(
+                "FINAL_RESULT_LIMIT_PER_TAG", 1
+            ),
+            youtube_provider_timeout_seconds=_positive_int_env(
+                "YOUTUBE_PROVIDER_TIMEOUT_SECONDS", 15
+            ),
+            coursera_provider_timeout_seconds=_positive_int_env(
+                "COURSERA_PROVIDER_TIMEOUT_SECONDS", 15
+            ),
+            udemy_provider_timeout_seconds=_positive_int_env(
+                "UDEMY_PROVIDER_TIMEOUT_SECONDS", 15
+            ),
+            youtube_provider_concurrency=1,
+            coursera_provider_concurrency=1,
+            udemy_provider_concurrency=1,
+        )
+    else:
+        return RuntimeLimits(
+            max_concurrent_jobs=_positive_int_env("MAX_CONCURRENT_JOBS", 3),
+            youtube_api_concurrency=_positive_int_env("YOUTUBE_API_CONCURRENCY", 4),
+            youtube_scraper_concurrency=_positive_int_env(
+                "YOUTUBE_SCRAPER_CONCURRENCY", 1
+            ),
+            udemy_concurrency=_positive_int_env("UDEMY_CONCURRENCY", 1),
+            coursera_concurrency=_positive_int_env("COURSERA_CONCURRENCY", 1),
+            frontend_ai_concurrency=_positive_int_env("FRONTEND_AI_CONCURRENCY", 2),
+            socket_wait_timeout_seconds=_positive_int_env("SOCKET_WAIT_TIMEOUT", 30),
+            frontend_ai_timeout_seconds=_positive_int_env("FRONTEND_AI_TIMEOUT", 12),
+            provider_timeout_seconds=provider_timeout,
+            full_job_timeout_seconds=_positive_int_env("FULL_JOB_TIMEOUT", 90),
+            candidate_pool_limit_per_tag=_positive_int_env(
+                "CANDIDATE_POOL_LIMIT_PER_TAG", 30
+            ),
+            cheap_rank_limit_per_tag=_positive_int_env("CHEAP_RANK_LIMIT_PER_TAG", 12),
+            final_result_limit_per_tag=_positive_int_env(
+                "FINAL_RESULT_LIMIT_PER_TAG", 3
+            ),
+            youtube_provider_timeout_seconds=_positive_int_env(
+                "YOUTUBE_PROVIDER_TIMEOUT_SECONDS", provider_timeout
+            ),
+            coursera_provider_timeout_seconds=_positive_int_env(
+                "COURSERA_PROVIDER_TIMEOUT_SECONDS", provider_timeout
+            ),
+            udemy_provider_timeout_seconds=_positive_int_env(
+                "UDEMY_PROVIDER_TIMEOUT_SECONDS", provider_timeout
+            ),
+            youtube_provider_concurrency=_positive_int_env(
+                "YOUTUBE_PROVIDER_CONCURRENCY", 4
+            ),
+            coursera_provider_concurrency=_positive_int_env(
+                "COURSERA_PROVIDER_CONCURRENCY", 1
+            ),
+            udemy_provider_concurrency=_positive_int_env(
+                "UDEMY_PROVIDER_CONCURRENCY", 1
+            ),
+        )
 
 
 class RuntimeSemaphores:
