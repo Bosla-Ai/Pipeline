@@ -571,7 +571,6 @@ async def verify_job_access(
         )
 
 
-# ── Background task tracking ────────────
 _active_bg_tasks: dict[str, asyncio.Task] = {}
 MAX_PENDING_ASYNC_JOBS = int(os.getenv("MAX_PENDING_ASYNC_JOBS", "10"))
 
