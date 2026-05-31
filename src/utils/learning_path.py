@@ -413,7 +413,12 @@ def _normalize_tag(tag: str, context_tags: set | None = None) -> str:
     return TAG_ALIASES.get(clean, clean)
 
 
-def _get_depth(tag: str, memo: dict = None, context_tags: set | None = None, _visiting: set | None = None) -> int:
+def _get_depth(
+    tag: str,
+    memo: dict = None,
+    context_tags: set | None = None,
+    _visiting: set | None = None,
+) -> int:
     if memo is None:
         memo = {}
     if _visiting is None:

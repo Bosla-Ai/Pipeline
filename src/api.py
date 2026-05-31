@@ -30,6 +30,7 @@ else:
     from src.fetchers.videos.coursera_fetcher import fetch_coursera
 
 from src.engine.runtime import runtime_limits
+
 SOCKET_WAIT_TIMEOUT = runtime_limits.socket_wait_timeout_seconds
 
 

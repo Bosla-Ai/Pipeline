@@ -32,7 +32,9 @@ print("SUCCESS")
         text=True,
         env=env,
     )
-    assert res.returncode == 0, f"Subprocess failed with error: {res.stderr}\nOutput: {res.stdout}"
+    assert (
+        res.returncode == 0
+    ), f"Subprocess failed with error: {res.stderr}\nOutput: {res.stdout}"
     assert "SUCCESS" in res.stdout
 
 

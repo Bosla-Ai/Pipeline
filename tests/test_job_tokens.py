@@ -86,4 +86,3 @@ def test_free_hf_prevent_ephemeral_token_signing(monkeypatch):
     with pytest.raises(ValueError) as exc:
         generate_token({"job_id": "abc123"})
     assert "must be configured in production or Free-HF" in str(exc.value)
-

@@ -224,4 +224,3 @@ async def test_max_pending_async_jobs(mocker):
     finally:
         _active_bg_tasks.clear()
         _active_bg_tasks.update(original_tasks)
-
