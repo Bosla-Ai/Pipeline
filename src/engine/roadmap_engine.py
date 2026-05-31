@@ -192,7 +192,12 @@ class RoadmapEngine:
                 job_id=job_id,
             )
 
-        active_sources = SourcePlanner.plan_sources(sources, prefer_paid)
+        from src.config import runtime_profile
+
+        if runtime_profile.FREE_HF_MODE:
+            active_sources = [CourseSource.YOUTUBE]
+        else:
+            active_sources = SourcePlanner.plan_sources(sources, prefer_paid)
 
         event_log.log("info", "job", f"Active Sources: {active_sources}", job_id=job_id)
 

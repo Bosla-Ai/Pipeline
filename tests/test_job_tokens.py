@@ -60,7 +60,7 @@ def test_dev_ephemeral_fallback(monkeypatch):
 
 def test_prod_fail_fast_on_missing_secret(monkeypatch):
     monkeypatch.setattr("src.security.job_tokens.PIPELINE_SHARED_SECRET", "")
-    monkeypatch.setattr("src.security.job_tokens.FREE_HF_MODE", True)
+    monkeypatch.setenv("ENVIRONMENT", "production")
 
     with pytest.raises(ValueError) as exc:
         get_secret()

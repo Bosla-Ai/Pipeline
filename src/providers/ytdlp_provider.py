@@ -12,12 +12,24 @@ class YtDlpProvider(Provider):
         """
         Fetch candidates from YouTube using yt-dlp.
         """
-        raw_candidates = await scrape_youtube_query_candidates(
-            query=query.query,
-            tag=query.tag.original,
-            language=query.tag.language,
-            max_results=query.max_results,
+        from src.cache.pipeline_cache import (
+            get_raw_ytdlp_candidates,
+            set_raw_ytdlp_candidates,
         )
+
+        cached_raw = await get_raw_ytdlp_candidates(query.query, query.tag.language)
+        if cached_raw is not None:
+            raw_candidates = cached_raw
+        else:
+            raw_candidates = await scrape_youtube_query_candidates(
+                query=query.query,
+                tag=query.tag.original,
+                language=query.tag.language,
+                max_results=query.max_results,
+            )
+            await set_raw_ytdlp_candidates(
+                query.query, query.tag.language, raw_candidates
+            )
 
         candidates = []
         for raw in raw_candidates:

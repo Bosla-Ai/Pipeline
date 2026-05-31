@@ -30,6 +30,8 @@ CATEGORIES = {
     "playlist_proxy",
     "resource_audit",
     "provider",
+    "inference",
+    "contracts",
 }
 
 MAX_ENTRIES = 2000

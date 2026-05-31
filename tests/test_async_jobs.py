@@ -6,13 +6,14 @@ from src.api import app, startup_event
 from src.engine.job_store import job_store
 from src.security.job_tokens import generate_job_access_token
 
+
 @pytest.mark.asyncio
 async def test_post_job_returns_tokens(mocker):
     """Test that POST /jobs/roadmap accepts requests, creates a job, and returns tokens."""
     mocker.patch("src.api.fetch_youtube", return_value={"mock_video": "data"})
     mocker.patch("src.api.fetch_coursera", return_value={})
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
-    
+
     # Mock engine.generate so background task finishes immediately
     mocker.patch("src.api.RoadmapEngine.generate", new_callable=AsyncMock)
 
@@ -96,15 +97,17 @@ async def test_stale_running_job_marked_failed_on_startup():
     j1 = await job_store.create_job("job-stale-1", ["python"], "en", False)
     await job_store.start_job("job-stale-1")  # sets status to running
 
-    j2 = await job_store.create_job("job-stale-2", ["python"], "en", False)  # remains pending
+    j2 = await job_store.create_job(
+        "job-stale-2", ["python"], "en", False
+    )  # remains pending
 
     j3 = await job_store.create_job("job-stale-3", ["python"], "en", False)
     await job_store.complete_job("job-stale-3", {"data": "ok"})  # completed, not stale
 
     # Trigger startup_event
-    with patch("src.utils.event_log.event_log.connect", new_callable=AsyncMock), \
-         patch("src.utils.event_log.event_log.start_cleanup_task"), \
-         patch("src.api.GLOBAL_DRIVER", None):
+    with patch("src.utils.event_log.event_log.connect", new_callable=AsyncMock), patch(
+        "src.utils.event_log.event_log.start_cleanup_task"
+    ), patch("src.api.GLOBAL_DRIVER", None):
         await startup_event()
 
     # Check status of the jobs
@@ -164,7 +167,11 @@ async def test_sync_generate_still_works(mocker):
     mocker.patch("src.api.fetch_youtube", return_value={"video": "data"})
     mocker.patch("src.api.fetch_coursera", return_value={})
     mocker.patch("src.socket_server.sio.call", new_callable=AsyncMock)
-    mocker.patch("src.engine.roadmap_engine.RoadmapEngine.generate", new_callable=AsyncMock, return_value={"sync": "works"})
+    mocker.patch(
+        "src.engine.roadmap_engine.RoadmapEngine.generate",
+        new_callable=AsyncMock,
+        return_value={"sync": "works"},
+    )
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

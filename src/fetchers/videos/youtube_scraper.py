@@ -250,10 +250,32 @@ async def scrape_youtube_query_candidates(
         print("    [Scraper] Circuit open. Skipping yt-dlp search.")
         return []
 
-    import yt_dlp
+    try:
+        import yt_dlp
+    except ImportError:
+        print("    [Scraper] yt-dlp not installed. Scraper candidates unavailable.")
+        return []
+
+    from src.config.settings import YT_DLP_HARD_TIMEOUT_SECONDS
 
     yt_query = f"ytsearch{max_results}:{query}"
-    raw_entries = await asyncio.to_thread(_extract_search_results, yt_query, language)
+    print(
+        f"    [DEBUG] scrape_youtube_query_candidates query={query} _extract_search_results={_extract_search_results}",
+        flush=True,
+    )
+    try:
+        raw_entries = await asyncio.wait_for(
+            asyncio.to_thread(_extract_search_results, yt_query, language),
+            timeout=float(YT_DLP_HARD_TIMEOUT_SECONDS),
+        )
+        print(f"    [DEBUG] Completed wait_for, raw_entries={raw_entries}", flush=True)
+    except asyncio.TimeoutError:
+        print(
+            f"    [Scraper] yt-dlp query extraction timed out after {YT_DLP_HARD_TIMEOUT_SECONDS}s",
+            flush=True,
+        )
+        _trip_scraper_circuit("timeout")
+        raw_entries = []
 
     seen_ids = set()
     unique = []
