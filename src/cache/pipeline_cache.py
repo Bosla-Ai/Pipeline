@@ -15,7 +15,7 @@ async def get_raw_ytdlp_candidates(query: str, lang: str) -> Optional[list[dict]
                 "success",
                 "cache",
                 "cache_hit",
-                details={"type": "raw_ytdlp", "query": query},
+                details={"type": "raw_ytdlp", "query_hash": key},
             )
         return res
     except Exception as e:

@@ -29,19 +29,24 @@ else:
     from src.fetchers.videos.youtube_fetcher import fetch as fetch_youtube
     from src.fetchers.videos.coursera_fetcher import fetch_coursera
 
-SOCKET_WAIT_TIMEOUT = int(os.environ.get("SOCKET_WAIT_TIMEOUT", "30"))
+from src.engine.runtime import runtime_limits
+SOCKET_WAIT_TIMEOUT = runtime_limits.socket_wait_timeout_seconds
 
 
 app = FastAPI(title="Bosla Pipeline API")
 
+ALLOWED_API_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_API_ORIGINS",
+        "https://bosla.me,https://front.bosla.almiraj.xyz,http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://bosla.me",
-        "https://front.bosla.almiraj.xyz",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=ALLOWED_API_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,13 +58,15 @@ async def verify_pipeline_secret(
 ) -> None:
     """Dependency to verify the pipeline shared secret for API authentication."""
     if not PIPELINE_SHARED_SECRET:
-        # If no secret is configured, require auth only in production
-        if os.getenv("ENVIRONMENT") == "production":
+        if (
+            runtime_profile.FREE_HF_MODE
+            or os.getenv("ENVIRONMENT") == "production"
+            or os.getenv("ALLOW_DEV_AUTH_BYPASS") != "true"
+        ):
             raise HTTPException(
                 status_code=500,
-                detail="PIPELINE_SHARED_SECRET must be configured in production",
+                detail="PIPELINE_SHARED_SECRET must be configured",
             )
-        # Allow all requests in development
         return
     if x_pipeline_secret != PIPELINE_SHARED_SECRET:
         raise HTTPException(status_code=401, detail="Invalid pipeline secret")
