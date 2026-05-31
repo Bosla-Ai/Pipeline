@@ -21,6 +21,7 @@ browserforge>=1.2.4
 isodate
 yt-dlp
 pyyaml
+huggingface-hub
 
 # Dev Tools (Formatter & Testing)
 black
