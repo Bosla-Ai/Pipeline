@@ -16,9 +16,9 @@ def get_secret() -> bytes:
         return PIPELINE_SHARED_SECRET.encode()
 
     is_prod = os.getenv("ENVIRONMENT") == "production"
-    if is_prod:
+    if is_prod or FREE_HF_MODE:
         raise ValueError(
-            "PIPELINE_SHARED_SECRET must be configured in production mode."
+            "PIPELINE_SHARED_SECRET must be configured in production or Free-HF mode."
         )
 
     if not _warned_once:

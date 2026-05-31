@@ -86,13 +86,25 @@ class RedisCache:
             return False
         try:
             lock_key = f"lock:{key}"
-            current = await self._client.get(lock_key)
-            if current:
-                val = current.decode() if isinstance(current, bytes) else current
-                if val == token:
-                    await self._client.delete(lock_key)
-                    return True
-            return False
+            script = """
+                if redis.call("get", KEYS[1]) == ARGV[1] then
+                    return redis.call("del", KEYS[1])
+                else
+                    return 0
+                end
+            """
+            if hasattr(self._client, "eval"):
+                result = await self._client.eval(script, 1, lock_key, token)
+                return bool(result)
+            else:
+                # Fallback for simple mock clients in tests
+                current = await self._client.get(lock_key)
+                if current:
+                    val = current.decode() if isinstance(current, bytes) else current
+                    if val == token:
+                        await self._client.delete(lock_key)
+                        return True
+                return False
         except Exception as e:
             print(f"[Cache] Lock release error for {key}: {e}")
             return False

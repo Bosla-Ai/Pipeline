@@ -64,4 +64,26 @@ def test_prod_fail_fast_on_missing_secret(monkeypatch):
 
     with pytest.raises(ValueError) as exc:
         get_secret()
-    assert "must be configured in production" in str(exc.value)
+    assert "must be configured in production or Free-HF" in str(exc.value)
+
+
+def test_free_hf_fail_on_missing_secret(monkeypatch):
+    # Missing secret, FREE_HF_MODE=True
+    monkeypatch.setattr("src.security.job_tokens.PIPELINE_SHARED_SECRET", "")
+    monkeypatch.setattr("src.security.job_tokens.FREE_HF_MODE", True)
+
+    with pytest.raises(ValueError) as exc:
+        get_secret()
+    assert "must be configured in production or Free-HF" in str(exc.value)
+
+
+def test_free_hf_prevent_ephemeral_token_signing(monkeypatch):
+    # Ephemeral signing occurs when secret is missing.
+    # In Free-HF mode, missing secret must prevent token generation.
+    monkeypatch.setattr("src.security.job_tokens.PIPELINE_SHARED_SECRET", "")
+    monkeypatch.setattr("src.security.job_tokens.FREE_HF_MODE", True)
+
+    with pytest.raises(ValueError) as exc:
+        generate_token({"job_id": "abc123"})
+    assert "must be configured in production or Free-HF" in str(exc.value)
+

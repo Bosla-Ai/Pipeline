@@ -288,7 +288,7 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                             title = link.find_element(
                                 By.XPATH, ".//h2 | .//h3"
                             ).text.strip()
-                        except:
+                        except Exception:
                             title = (
                                 link.get_attribute("aria-label")
                                 or link.text.split("\n")[0].strip()
@@ -323,7 +323,7 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                                 ):
                                     detected_provider = line
                                     break
-                        except:
+                        except Exception:
                             pass
 
                         # Default metadata for scoring
@@ -387,7 +387,7 @@ def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None)
                     time.sleep(2)
                     driver.quit()
                     time.sleep(2)  # Extra time for OS to release file handle
-                except:
+                except Exception:
                     pass
 
     return candidates_map

@@ -345,7 +345,7 @@ async def _process_single_tag_impl(
                                     isodate.parse_duration(duration_iso).total_seconds()
                                     / 60
                                 )
-                            except:
+                            except Exception:
                                 d_mins = 0
                             durations_map[item["id"]] = d_mins
 
@@ -434,7 +434,7 @@ async def _process_single_tag_impl(
                                 isodate.parse_duration(duration_iso).total_seconds()
                                 / 60
                             )
-                        except:
+                        except Exception:
                             duration_mins = 0
 
                         data = {

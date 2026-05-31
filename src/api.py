@@ -48,8 +48,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_API_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Pipeline-Secret", "X-Job-Token"],
 )
 
 
@@ -217,7 +217,6 @@ async def wait_for_socket(job_id: str) -> str | None:
 
 
 GLOBAL_DRIVER = None
-import asyncio
 
 DRIVER_LOCK = asyncio.Lock()
 
@@ -342,7 +341,7 @@ def shutdown_event():
         event_log.log("info", "driver", "Shutting down Global Driver...")
         try:
             GLOBAL_DRIVER.quit()
-        except:
+        except Exception:
             pass
 
 
@@ -529,13 +528,18 @@ async def verify_job_access(
     authorization: Optional[str] = Header(None),
     x_pipeline_secret: Optional[str] = Header(None, alias="X-Pipeline-Secret"),
 ):
-    # Try pipeline secret authentication first
+    # Try pipeline secret authentication first (same fail-closed rules as verify_pipeline_secret)
     if PIPELINE_SHARED_SECRET:
         if x_pipeline_secret == PIPELINE_SHARED_SECRET:
             return
     else:
-        # In dev mode, allow bypass if the developer explicitly provided the secret header
-        if os.getenv("ENVIRONMENT") != "production" and x_pipeline_secret is not None:
+        # Fail closed in production / Free-HF / when bypass not explicitly enabled
+        _allow_dev_bypass = (
+            os.getenv("ENVIRONMENT") != "production"
+            and not runtime_profile.FREE_HF_MODE
+            and os.getenv("ALLOW_DEV_AUTH_BYPASS") == "true"
+        )
+        if _allow_dev_bypass and x_pipeline_secret is not None:
             return
 
     # Fallback to job token verification
@@ -567,6 +571,11 @@ async def verify_job_access(
         )
 
 
+# ── Background task tracking ────────────
+_active_bg_tasks: dict[str, asyncio.Task] = {}
+MAX_PENDING_ASYNC_JOBS = int(os.getenv("MAX_PENDING_ASYNC_JOBS", "10"))
+
+
 async def run_roadmap_job_bg(
     engine: RoadmapEngine,
     tags: List[str],
@@ -586,7 +595,7 @@ async def run_roadmap_job_bg(
             job_id=job_id,
         )
     except Exception as e:
-        print(f"[BG Job] Job {job_id} failed: {e}")
+        event_log.log("error", "system", f"Background job {job_id} failed: {e}")
 
 
 @app.post("/jobs/roadmap")
@@ -602,6 +611,13 @@ async def post_jobs_roadmap(
         job_id=request.job_id,
     )
     job_id = request.job_id or uuid.uuid4().hex[:12]
+
+    # Reject early if too many background jobs are pending (before creating stale job)
+    if len(_active_bg_tasks) >= MAX_PENDING_ASYNC_JOBS:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many pending jobs. Please try again later.",
+        )
 
     from src.engine.job_store import job_store
     from src.security.job_tokens import generate_job_access_token, generate_socket_token
@@ -624,7 +640,7 @@ async def post_jobs_roadmap(
         socket_wait_timeout=SOCKET_WAIT_TIMEOUT,
     )
 
-    asyncio.create_task(
+    task = asyncio.create_task(
         run_roadmap_job_bg(
             engine=engine,
             tags=normalized_tags,
@@ -635,6 +651,17 @@ async def post_jobs_roadmap(
             job_id=job_id,
         )
     )
+    _active_bg_tasks[job_id] = task
+
+    def _on_task_done(t: asyncio.Task, _jid=job_id):
+        _active_bg_tasks.pop(_jid, None)
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc:
+            event_log.log("error", "system", f"Background job {_jid} failed: {exc}")
+
+    task.add_done_callback(_on_task_done)
 
     return {
         "job_id": job_id,

@@ -147,7 +147,7 @@ def _parse_entry(entry: dict, tag: str, language: str) -> Optional[dict]:
                 .replace(tzinfo=timezone.utc)
                 .isoformat()
             )
-        except:
+        except Exception:
             pass
 
     is_playlist = entry.get("_type") == "playlist"

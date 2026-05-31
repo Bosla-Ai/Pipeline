@@ -187,3 +187,41 @@ async def test_sync_generate_still_works(mocker):
 
     assert response.status_code == 200
     assert response.json() == {"sync": "works"}
+
+
+@pytest.mark.asyncio
+async def test_max_pending_async_jobs(mocker):
+    """Test that POST /jobs/roadmap returns 429 when MAX_PENDING_ASYNC_JOBS is exceeded."""
+    from src.api import _active_bg_tasks
+
+    # Mock engine.generate so background task doesn't do real work
+    mocker.patch("src.api.RoadmapEngine.generate", new_callable=AsyncMock)
+
+    # Fill up the active background tasks to the max (default is 10)
+    original_tasks = _active_bg_tasks.copy()
+    _active_bg_tasks.clear()
+
+    try:
+        # Mock 10 active tasks in the dictionary
+        for i in range(10):
+            mock_task = MagicMock(spec=asyncio.Task)
+            _active_bg_tasks[f"job-{i}"] = mock_task
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.post(
+                "/jobs/roadmap",
+                json={
+                    "tags": ["python"],
+                    "prefer_paid": False,
+                    "language": "en",
+                    "job_id": "job-rejected",
+                },
+            )
+
+        assert response.status_code == 429
+        assert "Too many pending jobs" in response.json()["detail"]
+    finally:
+        _active_bg_tasks.clear()
+        _active_bg_tasks.update(original_tasks)
+

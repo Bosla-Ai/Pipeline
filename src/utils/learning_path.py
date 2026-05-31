@@ -413,23 +413,31 @@ def _normalize_tag(tag: str, context_tags: set | None = None) -> str:
     return TAG_ALIASES.get(clean, clean)
 
 
-def _get_depth(tag: str, memo: dict = None, context_tags: set | None = None) -> int:
+def _get_depth(tag: str, memo: dict = None, context_tags: set | None = None, _visiting: set | None = None) -> int:
     if memo is None:
         memo = {}
+    if _visiting is None:
+        _visiting = set()
+
     normalized = _normalize_tag(tag, context_tags)
     if normalized in memo:
         return memo[normalized]
+    if normalized in _visiting:
+        return 0  # Break cycle
 
+    _visiting.add(normalized)
     prereqs = PREREQUISITE_GRAPH.get(normalized, [])
     if not prereqs:
+        _visiting.discard(normalized)
         memo[normalized] = 0
         return 0
 
     max_depth = 0
     for prereq in prereqs:
-        d = _get_depth(prereq, memo, context_tags)
+        d = _get_depth(prereq, memo, context_tags, _visiting)
         max_depth = max(max_depth, d + 1)
 
+    _visiting.discard(normalized)
     memo[normalized] = max_depth
     return max_depth
 

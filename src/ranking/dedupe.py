@@ -1,6 +1,6 @@
 import urllib.parse
 import re
-from src.engine.models import Candidate
+from src.engine.models import Candidate, SourceName
 
 # Common title filler words to remove before Jaccard similarity comparison
 FILLER_WORDS = {
@@ -164,7 +164,7 @@ def dedupe_candidates(candidates: list[Candidate]) -> list[Candidate]:
         if norm_url in seen_urls:
             continue
 
-        if c.source == "youtube":
+        if c.source == SourceName.YOUTUBE:
             v_id, pl_id = extract_youtube_id(c.url)
             if v_id and v_id in seen_youtube_video_ids:
                 continue
@@ -198,7 +198,7 @@ def dedupe_candidates(candidates: list[Candidate]) -> list[Candidate]:
 
         # Add candidate
         seen_urls.add(norm_url)
-        if c.source == "youtube":
+        if c.source == SourceName.YOUTUBE:
             v_id, pl_id = extract_youtube_id(c.url)
             if v_id:
                 seen_youtube_video_ids.add(v_id)

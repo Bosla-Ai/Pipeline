@@ -1,7 +1,7 @@
 import json
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 # Resolve paths relative to repository root
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -18,8 +18,8 @@ class ContractUnavailableError(RuntimeError):
 
 
 # Internal cache variables
-_tag_contract_cache: Dict[str, Any] = None
-_skill_inventory_cache: Dict[str, Any] = None
+_tag_contract_cache: Optional[Dict[str, Any]] = None
+_skill_inventory_cache: Optional[Dict[str, Any]] = None
 
 
 def clear_contract_cache() -> None:

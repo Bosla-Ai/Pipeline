@@ -147,7 +147,7 @@ def _calculate_soft_freshness(published_at_str, half_life_years):
 
     try:
         published_date = datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
-    except:
+    except Exception:
         return 0.5
 
     if published_date.tzinfo is None:
@@ -170,7 +170,7 @@ def _parse_float(val) -> float | None:
 
         cleaned = re.sub(r"[^\d.]", "", str(val))
         return float(cleaned) if cleaned else None
-    except:
+    except Exception:
         return None
 
 
@@ -186,7 +186,7 @@ def _parse_int(val) -> int | None:
 
         cleaned = re.sub(r"[^\d]", "", str(val))
         return int(cleaned) if cleaned else None
-    except:
+    except Exception:
         return None
 
 
@@ -201,7 +201,7 @@ def _parse_duration_hours(val) -> float | None:
         m = re.search(r"([\d.]+)", str(val))
         if m:
             return float(m.group(1))
-    except:
+    except Exception:
         pass
     return None
 
