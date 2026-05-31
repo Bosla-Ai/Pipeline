@@ -27,9 +27,10 @@ class YtDlpProvider(Provider):
                 language=query.tag.language,
                 max_results=query.max_results,
             )
-            await set_raw_ytdlp_candidates(
-                query.query, query.tag.language, raw_candidates
-            )
+            if raw_candidates:
+                await set_raw_ytdlp_candidates(
+                    query.query, query.tag.language, raw_candidates
+                )
 
         candidates = []
         for raw in raw_candidates:

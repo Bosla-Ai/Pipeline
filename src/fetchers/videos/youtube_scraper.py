@@ -259,16 +259,11 @@ async def scrape_youtube_query_candidates(
     from src.config.settings import YT_DLP_HARD_TIMEOUT_SECONDS
 
     yt_query = f"ytsearch{max_results}:{query}"
-    print(
-        f"    [DEBUG] scrape_youtube_query_candidates query={query} _extract_search_results={_extract_search_results}",
-        flush=True,
-    )
     try:
         raw_entries = await asyncio.wait_for(
             asyncio.to_thread(_extract_search_results, yt_query, language),
             timeout=float(YT_DLP_HARD_TIMEOUT_SECONDS),
         )
-        print(f"    [DEBUG] Completed wait_for, raw_entries={raw_entries}", flush=True)
     except asyncio.TimeoutError:
         print(
             f"    [Scraper] yt-dlp query extraction timed out after {YT_DLP_HARD_TIMEOUT_SECONDS}s",
