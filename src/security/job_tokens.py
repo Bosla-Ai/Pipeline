@@ -79,7 +79,15 @@ def generate_job_access_token(job_id: str, ttl_seconds: int = 900) -> str:
     return generate_token(payload)
 
 
-def generate_socket_token(job_id: str, ttl_seconds: int = 300) -> str:
+def generate_socket_token(job_id: str, ttl_seconds: int | None = None) -> str:
+    if ttl_seconds is None:
+        from src.engine.runtime import runtime_limits
+
+        ttl_seconds = int(os.getenv(
+            "SOCKET_TOKEN_TTL_SECONDS",
+            str(max(300, runtime_limits.full_job_timeout_seconds + 120)),
+        ))
+
     payload = {
         "type": "socket",
         "job_id": job_id,

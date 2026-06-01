@@ -162,6 +162,7 @@ async def test_event_log_sanitization(clean_log, monkeypatch):
             "someToken": "abc-token",
             "password": "123",
             "normal_field": "hello",
+            "socketToken": "my-socket-token-value",
         },
     )
     assert "super-secret-pipeline-shared-key-1234" not in entry["message"]
@@ -172,3 +173,4 @@ async def test_event_log_sanitization(clean_log, monkeypatch):
     assert details["someToken"] == "[MASKED]"
     assert details["password"] == "[MASKED]"
     assert details["normal_field"] == "hello"
+    assert details["socketToken"] == "[MASKED]"

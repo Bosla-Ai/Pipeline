@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Header, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 import src.socket_server as socket_server
@@ -529,6 +529,12 @@ async def verify_job_access(
     authorization: Optional[str] = Header(None),
     x_pipeline_secret: Optional[str] = Header(None, alias="X-Pipeline-Secret"),
 ):
+    if token and (runtime_profile.FREE_HF_MODE or os.getenv("ENVIRONMENT") == "production"):
+        raise HTTPException(
+            status_code=400,
+            detail="Query-string token propagation is disabled. Use X-Job-Token header.",
+        )
+
     # Try pipeline secret authentication first (same fail-closed rules as verify_pipeline_secret)
     if PIPELINE_SHARED_SECRET:
         if x_pipeline_secret == PIPELINE_SHARED_SECRET:
@@ -596,6 +602,48 @@ async def run_roadmap_job_bg(
         )
     except Exception as e:
         event_log.log("error", "system", f"Background job {job_id} failed: {e}")
+
+
+import re
+
+_JOB_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+class SocketTokenRequest(BaseModel):
+    job_id: str = Field(..., min_length=1, max_length=64)
+    ttl_seconds: Optional[int] = None
+
+
+@app.post("/tokens/socket")
+async def mint_socket_token(
+    request: SocketTokenRequest,
+    _auth: None = Depends(verify_pipeline_secret),
+):
+    if not _JOB_ID_RE.match(request.job_id):
+        raise HTTPException(status_code=422, detail="Invalid job_id format")
+
+    from src.security.job_tokens import generate_socket_token
+    from src.engine.runtime import runtime_limits
+
+    default_ttl = max(300, runtime_limits.full_job_timeout_seconds + 120)
+
+    if request.ttl_seconds is None:
+        ttl = default_ttl
+    else:
+        ttl = request.ttl_seconds
+
+    ttl = min(max(ttl, 60), 900)
+
+    token = generate_socket_token(request.job_id, ttl)
+    
+    event_log.log(
+        "info",
+        "job",
+        "socket_token_minted",
+        job_id=request.job_id,
+        metadata={"ttl_seconds": ttl},
+    )
+    
+    return {"socket_token": token, "expires_in": ttl}
 
 
 @app.post("/jobs/roadmap")
