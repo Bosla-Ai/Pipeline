@@ -4,6 +4,7 @@ import os
 os.environ["FREE_HF_MODE"] = "false"
 os.environ["YOUTUBE_FETCH_MODE"] = "api"
 os.environ["DISABLE_YOUTUBE_API"] = "false"
+os.environ["ENABLE_EXTERNAL_SCRAPERS"] = "true"
 os.environ["ENABLE_UDEMY"] = "true"
 os.environ["ENABLE_COURSERA"] = "true"
 os.environ["ENABLE_BROWSER_SCRAPING"] = "true"

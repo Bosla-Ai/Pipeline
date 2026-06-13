@@ -9,8 +9,8 @@ def test_source_planner_plan_sources():
     # Test case 1: No sources specified, free preferred
     assert SourcePlanner.plan_sources(None, prefer_paid=False) == [CourseSource.YOUTUBE]
 
-    # Test case 2: No sources specified, paid preferred
-    assert SourcePlanner.plan_sources(None, prefer_paid=True) == [CourseSource.UDEMY]
+    # Test case 2: No sources specified, paid preferred (defaults to YouTube under new fallback rules)
+    assert SourcePlanner.plan_sources(None, prefer_paid=True) == [CourseSource.YOUTUBE]
 
     # Test case 3: Sources specified, free preferred
     assert SourcePlanner.plan_sources(

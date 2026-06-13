@@ -1,9 +1,5 @@
 import asyncio
 import re
-import undetected_chromedriver as uc
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from src.utils.cache import cache, generate_cache_key
 
@@ -219,6 +215,17 @@ async def fetch_coursera(
 
 
 def scrape_coursera_sync(sio, tags, language, max_results, existing_driver=None):
+    try:
+        import undetected_chromedriver as uc
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+    except ImportError as e:
+        raise ImportError(
+            "Required Coursera scraping libraries ('undetected-chromedriver', 'selenium') "
+            "are not installed. Please install them or set ENABLE_EXTERNAL_SCRAPERS=false."
+        ) from e
+
     candidates_map = {}
     driver = existing_driver
     local_driver = False

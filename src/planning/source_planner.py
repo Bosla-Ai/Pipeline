@@ -19,8 +19,6 @@ class SourcePlanner:
                 paid_only = [s for s in active_sources if s != CourseSource.YOUTUBE]
                 if paid_only:
                     active_sources = paid_only
-        elif prefer_paid:
-            active_sources = [CourseSource.UDEMY]
         else:
             active_sources = [CourseSource.YOUTUBE]
         return active_sources

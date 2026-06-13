@@ -27,7 +27,11 @@ if runtime_profile.FREE_HF_MODE:
     fetch_coursera = None
 else:
     from src.fetchers.videos.youtube_fetcher import fetch as fetch_youtube
-    from src.fetchers.videos.coursera_fetcher import fetch_coursera
+
+    if runtime_profile.ENABLE_COURSERA:
+        from src.fetchers.videos.coursera_fetcher import fetch_coursera
+    else:
+        fetch_coursera = None
 
 from src.engine.runtime import runtime_limits
 
@@ -445,14 +449,48 @@ async def youtube_playlist_items(
 from src.security.request_guard import validate_roadmap_request_data
 
 
+def resolve_and_check_sources(request: RoadmapRequest):
+    # 1. Default source fallback: if omitted, empty, or None, default to ["youtube"]
+    if not request.sources:
+        request.sources = [CourseSource.YOUTUBE]
+
+    # 2. Strict toggle enforcement / check external scrapers
+    if not runtime_profile.ENABLE_EXTERNAL_SCRAPERS:
+        remaining = [s for s in request.sources if s == CourseSource.YOUTUBE]
+        if not remaining:
+            raise HTTPException(
+                status_code=501,
+                detail="This feature is currently disabled on this instance.",
+            )
+        request.sources = remaining
+    else:
+        # If ENABLE_EXTERNAL_SCRAPERS is True, check if individual scrapers are enabled/missing deps
+        remaining = []
+        for s in request.sources:
+            if s == CourseSource.YOUTUBE:
+                remaining.append(s)
+            elif s == CourseSource.UDEMY and runtime_profile.ENABLE_UDEMY:
+                remaining.append(s)
+            elif s == CourseSource.COURSERA and runtime_profile.ENABLE_COURSERA:
+                remaining.append(s)
+
+        if not remaining:
+            raise HTTPException(
+                status_code=501,
+                detail="This feature is currently disabled on this instance.",
+            )
+        request.sources = remaining
+
+
 @app.post("/generate-roadmap")
 async def generate_roadmap(
     request: RoadmapRequest, _auth: None = Depends(verify_pipeline_secret)
 ):
+    resolve_and_check_sources(request)
     normalized_tags = validate_roadmap_request_data(
         tags=request.tags,
         language=request.language,
-        sources=[s.value for s in request.sources] if request.sources else None,
+        sources=[s.value for s in request.sources],
         tag_checkpoints=request.tag_checkpoints,
         job_id=request.job_id,
     )
@@ -529,7 +567,9 @@ async def verify_job_access(
     authorization: Optional[str] = Header(None),
     x_pipeline_secret: Optional[str] = Header(None, alias="X-Pipeline-Secret"),
 ):
-    if token and (runtime_profile.FREE_HF_MODE or os.getenv("ENVIRONMENT") == "production"):
+    if token and (
+        runtime_profile.FREE_HF_MODE or os.getenv("ENVIRONMENT") == "production"
+    ):
         raise HTTPException(
             status_code=400,
             detail="Query-string token propagation is disabled. Use X-Job-Token header.",
@@ -608,6 +648,7 @@ import re
 
 _JOB_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
+
 class SocketTokenRequest(BaseModel):
     job_id: str = Field(..., min_length=1, max_length=64)
     ttl_seconds: Optional[int] = None
@@ -634,7 +675,7 @@ async def mint_socket_token(
     ttl = min(max(ttl, 60), 900)
 
     token = generate_socket_token(request.job_id, ttl)
-    
+
     event_log.log(
         "info",
         "job",
@@ -642,7 +683,7 @@ async def mint_socket_token(
         job_id=request.job_id,
         metadata={"ttl_seconds": ttl},
     )
-    
+
     return {"socket_token": token, "expires_in": ttl}
 
 
@@ -651,10 +692,11 @@ async def post_jobs_roadmap(
     request: RoadmapRequest,
     _auth: None = Depends(verify_pipeline_secret),
 ):
+    resolve_and_check_sources(request)
     normalized_tags = validate_roadmap_request_data(
         tags=request.tags,
         language=request.language,
-        sources=[s.value for s in request.sources] if request.sources else None,
+        sources=[s.value for s in request.sources],
         tag_checkpoints=request.tag_checkpoints,
         job_id=request.job_id,
     )

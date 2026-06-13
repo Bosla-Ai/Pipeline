@@ -67,7 +67,11 @@ async def test_auth_validation_on_all_endpoints(monkeypatch):
         assert r.status_code == 401
 
         # /tokens/socket with incorrect secret
-        r = await ac.post("/tokens/socket", json={"job_id": "job123"}, headers={"x-pipeline-secret": "wrong"})
+        r = await ac.post(
+            "/tokens/socket",
+            json={"job_id": "job123"},
+            headers={"x-pipeline-secret": "wrong"},
+        )
         assert r.status_code == 401
 
         # /tokens/socket with correct secret and valid payload
@@ -79,17 +83,29 @@ async def test_auth_validation_on_all_endpoints(monkeypatch):
         assert res["expires_in"] == 300
 
         # /tokens/socket with custom ttl
-        r = await ac.post("/tokens/socket", json={"job_id": "job123", "ttl_seconds": 400}, headers=headers)
+        r = await ac.post(
+            "/tokens/socket",
+            json={"job_id": "job123", "ttl_seconds": 400},
+            headers=headers,
+        )
         assert r.status_code == 200
         assert r.json()["expires_in"] == 400
 
         # /tokens/socket with clamped ttl (too high)
-        r = await ac.post("/tokens/socket", json={"job_id": "job123", "ttl_seconds": 1200}, headers=headers)
+        r = await ac.post(
+            "/tokens/socket",
+            json={"job_id": "job123", "ttl_seconds": 1200},
+            headers=headers,
+        )
         assert r.status_code == 200
         assert r.json()["expires_in"] == 900
 
         # /tokens/socket with clamped ttl (too low)
-        r = await ac.post("/tokens/socket", json={"job_id": "job123", "ttl_seconds": 30}, headers=headers)
+        r = await ac.post(
+            "/tokens/socket",
+            json={"job_id": "job123", "ttl_seconds": 30},
+            headers=headers,
+        )
         assert r.status_code == 200
         assert r.json()["expires_in"] == 60
 

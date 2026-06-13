@@ -103,11 +103,11 @@ async def test_prefer_paid_strips_youtube_from_sources(mocker):
 
 @pytest.mark.asyncio
 async def test_prefer_paid_true_default_sources(mocker):
-    """Test default behavior for prefer_paid=True (should be Udemy, then YouTube fallback if empty)."""
+    """Test default behavior for prefer_paid=True (should default to youtube if sources omitted)."""
     mock_youtube = mocker.patch(
         "src.api.fetch_youtube",
         new_callable=AsyncMock,
-        return_value={"python": {"title": "fallback"}},
+        return_value={"python": {"title": "youtube fallback"}},
     )
     mock_coursera = mocker.patch("src.api.fetch_coursera", new_callable=AsyncMock)
     mock_udemy = mocker.patch("src.fetchers.videos.udemy_fetcher.UdemyFetcher.scrape")
@@ -121,14 +121,13 @@ async def test_prefer_paid_true_default_sources(mocker):
         )
 
     assert response.status_code == 200
+    data = response.json()["data"]
 
-    # Coursera should NOT be called by default now
+    # Coursera and Udemy should NOT be called by default when sources are omitted
     mock_coursera.assert_not_called()
+    mock_udemy.assert_not_called()
 
-    # Udemy SHOULD be called
-    mock_udemy.assert_called()
-
-    # YouTube SHOULD be called as fallback when Udemy returns nothing
+    # YouTube SHOULD be called
     mock_youtube.assert_called()
 
 
