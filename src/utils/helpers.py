@@ -8,6 +8,7 @@ from src.utils.constants import (
     UNWANTED_KEYWORDS,
     STOP_WORDS,
 )
+from src.transport.runtime import get_inference_transport
 
 # ── Dynamic Scope Analysis (no static list dependency) ────────────────────
 
@@ -135,8 +136,8 @@ class InferenceBatcher:
 
     async def schedule_inference(
         self,
-        sio,
-        socket_id,
+        transport,
+        job_id,
         group_key,
         candidates,
         labels,
@@ -144,7 +145,7 @@ class InferenceBatcher:
         timeout,
     ):
         loop = asyncio.get_running_loop()
-        key = (socket_id, group_key)
+        key = (job_id, group_key)
 
         futures = [loop.create_future() for _ in candidates]
 
@@ -160,7 +161,7 @@ class InferenceBatcher:
             or self._timers[key].done()
         ):
             self._timers[key] = asyncio.create_task(
-                self._run_batch(sio, socket_id, group_key)
+                self._run_batch(transport, job_id, group_key)
             )
 
         results = await asyncio.gather(*futures, return_exceptions=True)
@@ -172,8 +173,8 @@ class InferenceBatcher:
             real_results.append(r)
         return real_results
 
-    async def _run_batch(self, sio, socket_id, group_key):
-        key = (socket_id, group_key)
+    async def _run_batch(self, transport, job_id, group_key):
+        key = (job_id, group_key)
         items = []
         try:
             # Wait a brief moment to allow other concurrent calls to queue their candidates
@@ -195,14 +196,14 @@ class InferenceBatcher:
 
             try:
                 async with _FRONTEND_AI_SEMAPHORE:
-                    response = await sio.call(
+                    response = await transport.call(
+                        job_id=job_id,
                         event="request_inference",
                         data={
                             "candidates": batch_candidates,
                             "labels": labels,
                             "hypothesis_template": hypothesis_template,
                         },
-                        to=socket_id,
                         timeout=timeout,
                     )
 
@@ -325,8 +326,8 @@ async def analyze_topic_scope(sio, socket_id, tag, job_id=None):
 
     try:
         response = await _inference_batcher.schedule_inference(
-            sio=sio,
-            socket_id=socket_id,
+            transport=get_inference_transport(),
+            job_id=job_id,
             group_key="scope",
             candidates=[{"ai_input_text": f"The technical topic is {tag}."}],
             labels=labels,
@@ -476,8 +477,8 @@ async def classify_via_frontend(sio, socket_id, tag, candidates, job_id=None):
 
     try:
         response = await _inference_batcher.schedule_inference(
-            sio=sio,
-            socket_id=socket_id,
+            transport=get_inference_transport(),
+            job_id=job_id,
             group_key=f"classify_{tag}",
             candidates=formatted_candidates,
             labels=labels,

@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Lightweight image for the on-demand ACI roadmap worker.
+#
+# Runs a single roadmap job (src.worker_entry) and exits. YouTube via yt-dlp
+# only — NO Chrome, Playwright, Scrapling, ODBC, or Xvfb, and no local Redis
+# or uvicorn server. The inference loop is carried over Azure Web PubSub.
+#
+# The production Dockerfile (HF Space, sync_to_hf.yml) is intentionally left
+# UNTOUCHED — this is a separate, additive image used only by ACI.
+#
+# Uses the curated requirements-worker.txt (no Udemy/Coursera scraper stack),
+# the dependency closure verified to boot the pipeline and run the YouTube path.
+# ─────────────────────────────────────────────────────────────────────────
+FROM python:3.11-slim-bullseye
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    LIGHT_MODE=true \
+    FREE_HF_MODE=false \
+    ENABLE_EXTERNAL_SCRAPERS=false \
+    SKIP_GLOBAL_DRIVER_INIT=true \
+    INFERENCE_TRANSPORT=webpubsub
+
+# ffmpeg is the only system dependency yt-dlp needs for post-processing.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
+WORKDIR $HOME/app
+
+COPY --chown=user requirements-worker.txt .
+RUN pip install --no-cache-dir -r requirements-worker.txt
+
+COPY --chown=user . .
+
+# One-shot job: no EXPOSE, no HEALTHCHECK, no server. start.sh honours
+# LIGHT_MODE=true and execs `python -m src.worker_entry`.
+CMD ["./start.sh"]

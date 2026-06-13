@@ -1,0 +1,56 @@
+# Curated dependencies for the on-demand ACI roadmap worker (Dockerfile.worker).
+#
+# YouTube-only (yt-dlp + YouTube API): NO Udemy/Coursera, so NO Chrome,
+# Playwright, Scrapling, undetected-chromedriver, Selenium, or ODBC. This is the
+# closure that was verified to boot the pipeline and run the YouTube path.
+#
+# Keep in sync with the core pins in requirements.txt when they change.
+
+# ── web / async server (engine imports src.api → FastAPI; socket layer) ──
+fastapi==0.136.3
+starlette==1.3.1
+uvicorn==0.49.0
+python-socketio==5.16.2
+python-engineio==4.13.2
+simple-websocket==1.1.0
+wsproto==1.3.2
+websockets==16.0
+h11==0.16.0
+httptools==0.8.0
+watchfiles==1.2.0
+
+# ── http / async ──
+aiohttp==3.14.1
+aiohappyeyeballs==2.6.2
+aiosignal==1.4.0
+frozenlist==1.8.0
+multidict==6.7.1
+propcache==0.5.2
+yarl==1.24.2
+anyio==4.13.0
+
+# ── data / config ──
+pydantic==2.13.4
+pydantic_core==2.46.4
+annotated-types==0.7.0
+typing_extensions==4.15.0
+typing-inspection==0.4.2
+python-dotenv==1.2.2
+PyYAML==6.0.3
+isodate==0.7.2
+
+# ── job store + state ──
+redis==8.0.0
+azure-cosmos==4.9.0
+
+# ── YouTube fetch ──
+yt-dlp==2026.6.9
+
+# ── misc transitive ──
+attrs==26.1.0
+bidict==0.23.1
+certifi==2026.5.20
+click==8.4.1
+colorama==0.4.6
+idna==3.18
+packaging==26.2

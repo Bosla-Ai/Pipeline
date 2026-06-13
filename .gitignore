@@ -65,6 +65,8 @@ coverage.xml
 .env
 .env.*
 *.env
+.venv311/
+.venv/
 
 # SQLAlchemy / DB
 *.db

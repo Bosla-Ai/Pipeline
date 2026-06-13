@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-import src.socket_server as socket_server
+from src.transport.runtime import get_inference_transport
 from src.engine.models import CourseSource
 from src.engine.runtime import runtime_limits, runtime_semaphores
 from src.fetchers.videos.udemy_fetcher import UdemyFetcher
@@ -70,7 +70,7 @@ class FetchCoordinator:
             )
 
             # Refresh sid in case the socket reconnected
-            current_sid = socket_server.get_socket_for_job(job_id) or current_sid
+            current_sid = get_inference_transport().target_for_job(job_id) or current_sid
 
             try:
                 broad_tags, atomic_tags, scope_cache = (
@@ -336,7 +336,7 @@ class FetchCoordinator:
                         f"Fetching YouTube for atomic tags: {atomic_tags}",
                         job_id=job_id,
                     )
-                    sid = socket_server.get_socket_for_job(job_id) or current_sid
+                    sid = get_inference_transport().target_for_job(job_id) or current_sid
                     youtube_data = await self._fetch_youtube_with_limit(
                         tags=atomic_tags,
                         language=language,
@@ -374,7 +374,7 @@ class FetchCoordinator:
                         },
                     )
                     try:
-                        sid = socket_server.get_socket_for_job(job_id) or current_sid
+                        sid = get_inference_transport().target_for_job(job_id) or current_sid
                         youtube_fallback = await self._fetch_youtube_with_limit(
                             tags=unmatched_broad,
                             language=language,
@@ -527,7 +527,7 @@ class FetchCoordinator:
                 )
 
             ai_results = []
-            active_sid = socket_server.get_socket_for_job(job_id) or current_sid
+            active_sid = get_inference_transport().target_for_job(job_id) or current_sid
             if active_sid:
                 try:
                     req = ClassificationRequest(
@@ -912,7 +912,7 @@ class FetchCoordinator:
             if not ranked_dicts:
                 continue
 
-            sid = socket_server.get_socket_for_job(job_id) or current_sid
+            sid = get_inference_transport().target_for_job(job_id) or current_sid
             valid_udemy = await classify_via_frontend(
                 self.sio, sid, tag, ranked_dicts, job_id=job_id
             )

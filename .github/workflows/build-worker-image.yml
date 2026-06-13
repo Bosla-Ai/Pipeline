@@ -1,0 +1,54 @@
+name: Build worker image → ACR
+
+# Builds the lightweight on-demand ACI worker image (Dockerfile.worker) and
+# pushes it to Azure Container Registry. No deploy step — the .NET backend
+# spawns ACI pointing at the :latest tag, which pulls the freshest code.
+#
+# Required repo secrets:
+#   ACR_LOGIN_SERVER   e.g. boslaregistry.azurecr.io
+#   ACR_USERNAME       ACR admin user (or service principal appId)
+#   ACR_PASSWORD       ACR admin password (or SP password)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "requirements-worker.txt"
+      - "Dockerfile.worker"
+      - "start.sh"
+      - ".github/workflows/build-worker-image.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: build-worker-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.worker
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/bosla-worker:latest
+            ${{ secrets.ACR_LOGIN_SERVER }}/bosla-worker:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# 0. LIGHT_MODE (ACI on-demand worker): skip Redis, Xvfb and Uvicorn entirely.
+#    Run a single roadmap job to completion and exit. The inference loop runs
+#    over Azure Web PubSub and results are written to the job sink (Cosmos).
+if [ "${LIGHT_MODE:-false}" = "true" ]; then
+  echo "[start] LIGHT_MODE=true → launching on-demand worker (src.worker_entry)"
+  exec python -m src.worker_entry
+fi
+
 # 1. Clean up any leftover lock files for Xvfb to prevent lock issues on reboot/container restart
 echo "[start] Cleaning up stale locks..."
 rm -f /tmp/.X99-lock || true

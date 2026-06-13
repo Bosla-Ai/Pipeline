@@ -4,7 +4,7 @@ import asyncio
 import uuid
 from typing import Any, List, Optional
 
-import src.socket_server as socket_server
+from src.transport.runtime import get_inference_transport
 
 from src.engine.fetch_coordinator import FetchCoordinator
 from src.utils.learning_path import generate_learning_path
@@ -34,25 +34,23 @@ def preprocess_tags(tags: list[str]) -> list[str]:
 
 
 async def wait_for_socket(job_id: str, timeout: float) -> str | None:
-    """Block until the frontend connects with this job_id, or timeout."""
-    existing = socket_server.get_socket_for_job(job_id)
-    if existing:
-        return existing
+    """Block until the browser client attaches for this job_id, or timeout.
 
-    evt = socket_server.register_job_waiter(job_id)
-    try:
-        await asyncio.wait_for(evt.wait(), timeout=timeout)
-        return socket_server.get_socket_for_job(job_id)
-    except asyncio.TimeoutError:
+    Transport-agnostic: Socket.IO waits on the in-memory job waiter, Web PubSub
+    waits for the browser to join the job's group. Returns an opaque target
+    (sid or group) when attached, else None.
+    """
+    transport = get_inference_transport()
+    ready = await transport.wait_for_client(job_id, timeout)
+    if not ready:
         event_log.log(
             "warn",
             "job",
-            f"No frontend socket connected within {timeout}s. Proceeding without AI.",
+            f"No frontend client connected within {timeout}s. Proceeding without AI.",
             job_id=job_id,
         )
         return None
-    finally:
-        socket_server.cleanup_job_waiter(job_id)
+    return transport.target_for_job(job_id)
 
 
 class RoadmapEngine:

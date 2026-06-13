@@ -75,13 +75,20 @@ async def run_smoke_test():
         print(f"Status: {res.status_code}")
         assert res.status_code == 401
 
-        print("\n--- Testing GET /jobs/{job_id} with invalid token (should fail) ---")
-        res = await client.get(f"/jobs/{job_id}?token=invalid")
+        # Under FREE_HF_MODE, query-string token propagation is disabled (400);
+        # the job token must be supplied via the X-Job-Token header.
+        print("\n--- Testing GET /jobs/{job_id} with query token (disabled on FREE_HF -> 400) ---")
+        res = await client.get(f"/jobs/{job_id}?token={token}")
+        print(f"Status: {res.status_code}")
+        assert res.status_code == 400
+
+        print("\n--- Testing GET /jobs/{job_id} with invalid X-Job-Token (should fail) ---")
+        res = await client.get(f"/jobs/{job_id}", headers={"X-Job-Token": "invalid"})
         print(f"Status: {res.status_code}")
         assert res.status_code == 403
 
-        print("\n--- Testing GET /jobs/{job_id} with valid token (should succeed) ---")
-        res = await client.get(f"/jobs/{job_id}?token={token}")
+        print("\n--- Testing GET /jobs/{job_id} with valid X-Job-Token (should succeed) ---")
+        res = await client.get(f"/jobs/{job_id}", headers={"X-Job-Token": token})
         print(f"Status: {res.status_code}, Body: {res.json()}")
         assert res.status_code == 200
         assert res.json()["job_id"] == job_id
@@ -92,7 +99,7 @@ async def run_smoke_test():
         start_time = time.time()
         job_data = res.json()
         while time.time() - start_time < 30:
-            res = await client.get(f"/jobs/{job_id}?token={token}")
+            res = await client.get(f"/jobs/{job_id}", headers={"X-Job-Token": token})
             assert res.status_code == 200
             job_data = res.json()
             status = job_data.get("status")

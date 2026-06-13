@@ -1,6 +1,5 @@
-import asyncio
 from src.inference.schemas import ClassificationRequest, ClassificationResult
-from src.socket_server import sio, get_socket_for_job
+from src.transport.runtime import get_inference_transport
 
 
 class EdgeInferenceClient:
@@ -22,24 +21,22 @@ class EdgeInferenceClient:
         if not request.candidates:
             return []
 
-        socket_id = get_socket_for_job(request.job_id)
-        if not socket_id:
+        transport = get_inference_transport()
+        if transport.target_for_job(request.job_id) is None:
             return []
 
         candidates_data = [c.to_dict() for c in request.candidates]
 
-        try:
-            response = await sio.call(
-                event="request_inference",
-                data={
-                    "candidates": candidates_data,
-                    "labels": request.labels,
-                },
-                to=socket_id,
-                timeout=timeout,
-            )
-        except Exception:
-            return []
+        # transport.call returns None on timeout / transport error / no client.
+        response = await transport.call(
+            job_id=request.job_id,
+            event="request_inference",
+            data={
+                "candidates": candidates_data,
+                "labels": request.labels,
+            },
+            timeout=timeout,
+        )
 
         if not response or not isinstance(response, list):
             return []
