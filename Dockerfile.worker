@@ -38,6 +38,6 @@ RUN pip install --no-cache-dir -r requirements-worker.txt
 
 COPY --chown=user . .
 
-# One-shot job: no EXPOSE, no HEALTHCHECK, no server. start.sh honours
-# LIGHT_MODE=true and execs `python -m src.worker_entry`.
-CMD ["./start.sh"]
+# One-shot job: run the worker entry directly. No start.sh (avoids needing the
+# executable bit, and the worker needs no Redis/Xvfb/uvicorn orchestration).
+CMD ["python", "-m", "src.worker_entry"]
