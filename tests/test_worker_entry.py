@@ -5,6 +5,7 @@ exit codes, completion broadcast) with fakes — no engine, Web PubSub, or Cosmo
 dependency. Also cover env parsing.
 """
 
+import asyncio
 import json
 
 import pytest
@@ -123,6 +124,63 @@ async def test_failure_with_empty_exception_message_still_reports():
     assert code == 1
     fail_calls = [c for c in sink.calls if c[0] == "fail"]
     assert fail_calls and fail_calls[0][2]  # non-empty error string recorded
+
+
+class FakeLogSink:
+    def __init__(self):
+        self.recorded = []
+        self.flushed = 0
+        self.closed = False
+
+    def record(self, entry):
+        self.recorded.append(entry)
+
+    async def flush(self):
+        self.flushed += 1
+
+    async def aclose(self):
+        self.closed = True
+
+
+async def test_logs_persisted_to_log_sink_and_flushed_on_exit(monkeypatch):
+    """Pipeline logs must be recorded to the log sink and flushed before exit.
+
+    The ephemeral worker's logs would otherwise vanish when the container stops;
+    the sink upserts them to Cosmos for the dashboard. The sink must also be
+    flushed (tail not dropped) and closed on shutdown.
+    """
+    from src.utils.event_log import event_log
+
+    log_sink = FakeLogSink()
+
+    class LoggingEngine:
+        async def generate(self, **kwargs):
+            # Emit a pipeline log the way the real engine does.
+            event_log.log("info", "job", "engine step", job_id=kwargs["job_id"])
+            return {"ok": True}
+
+    transport, sink = FakeTransport(), FakeSink()
+
+    code = await we.run_worker(
+        job_id="job-1",
+        tags=["python"],
+        language="en",
+        prefer_paid=False,
+        sources=None,
+        tag_checkpoints=None,
+        transport=transport,
+        sink=sink,
+        log_sink=log_sink,
+        client_wait_timeout=1.0,
+        engine_factory=lambda _t: LoggingEngine(),
+    )
+    # event_log broadcasts on a background task; let it run.
+    await asyncio.sleep(0.05)
+
+    assert code == 0
+    assert any(e["message"] == "engine step" for e in log_sink.recorded)
+    assert log_sink.flushed >= 1  # tail flushed before the loop closes
+    assert log_sink.closed is True
 
 
 # ── env parsing ───────────────────────────────────────────────────────────

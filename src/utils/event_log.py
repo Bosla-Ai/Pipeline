@@ -32,6 +32,7 @@ CATEGORIES = {
     "provider",
     "inference",
     "contracts",
+    "transport",
 }
 
 MAX_ENTRIES = 2000

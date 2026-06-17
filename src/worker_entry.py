@@ -121,6 +121,7 @@ async def run_worker(
     tag_checkpoints: Any,
     transport: Any,
     sink: JobSink,
+    log_sink: Optional[Any] = None,
     client_wait_timeout: float = 30.0,
     engine_factory: Optional[Callable[[float], Any]] = None,
 ) -> int:
@@ -131,15 +132,23 @@ async def run_worker(
     # Route the inference loop over the injected (Web PubSub) transport.
     set_inference_transport(transport)
 
-    # Stream pipeline logs to the job's group so the frontend sees live progress.
+    # Every pipeline log is fanned out two ways from the worker:
+    #   • transport.publish(...)  → the job's Web PubSub group (live to the browser)
+    #   • log_sink.record(...)    → a TTL'd Cosmos doc the .NET admin API serves,
+    #     so the dashboard's Pipeline Monitor shows this ephemeral worker's logs
+    #     alongside the existing pipeline logs. Both are best-effort.
     async def _broadcast(entry: dict) -> None:
+        if log_sink is not None:
+            try:
+                log_sink.record(entry)
+            except Exception:
+                pass
         try:
             await transport.publish(entry.get("job_id") or job_id, "log", entry)
         except Exception:
             pass
 
-    if hasattr(transport, "publish"):
-        event_log.set_broadcast(_broadcast)
+    event_log.set_broadcast(_broadcast)
 
     await sink.set_running(job_id, tags, language)
     log.info("Job %s started (tags=%s, lang=%s)", job_id, tags, language)
@@ -169,6 +178,14 @@ async def run_worker(
         )
         return 1
     finally:
+        # Flush the buffered logs to Cosmos before the loop closes, otherwise the
+        # tail of this job's logs never lands in the store the dashboard reads.
+        if log_sink is not None:
+            try:
+                await log_sink.flush()
+            except Exception:
+                pass
+        await _safe_aclose(log_sink)
         await _safe_aclose(sink)
         await _safe_aclose(transport)
 
@@ -201,9 +218,11 @@ def main() -> None:
         raise SystemExit("WEBPUBSUB_CLIENT_ACCESS_URL is required for the worker")
 
     from src.transport.inference_transport import WebPubSubTransport
+    from src.worker.log_sink import build_log_sink_from_env
 
     transport = WebPubSubTransport(client_access_url=env["webpubsub_url"])
     sink = build_job_sink_from_env()
+    log_sink = build_log_sink_from_env(env["job_id"])
 
     code = asyncio.run(
         run_worker(
@@ -213,6 +232,7 @@ def main() -> None:
             prefer_paid=env["prefer_paid"],
             sources=env["sources"],
             tag_checkpoints=env["tag_checkpoints"],
+            log_sink=log_sink,
             transport=transport,
             sink=sink,
             client_wait_timeout=env["client_wait_timeout"],

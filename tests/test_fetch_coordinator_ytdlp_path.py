@@ -92,6 +92,46 @@ async def test_api_fetcher_not_called_when_disabled():
 
 
 @pytest.mark.asyncio
+async def test_ytdlp_no_candidates_omits_tag():
+    """A tag with no candidates must be omitted, not inserted as an empty {}.
+
+    An empty placeholder used to survive into result["youtube"], where the
+    resource audit logged it as url=MISSING and the frontend rendered a course
+    with no clickable link. Regression guard for that fix.
+    """
+    fc = FetchCoordinator(
+        sio=None,
+        fetch_youtube=AsyncMock(),
+        fetch_coursera=AsyncMock(),
+        get_global_driver=MagicMock(),
+    )
+
+    with patch(
+        "src.providers.ytdlp_provider.YtDlpProvider.fetch", new_callable=AsyncMock
+    ) as mock_provider_fetch, patch(
+        "src.planning.source_planner.SourcePlanner.plan_tag_scopes",
+        new_callable=AsyncMock,
+    ) as mock_scopes, patch(
+        "src.config.runtime_profile.FREE_HF_MODE", True
+    ):
+
+        mock_scopes.return_value = ([], ["python"], {"python": "atomic"})
+        mock_provider_fetch.return_value = []  # provider finds nothing
+
+        result = await fc.fetch_resources(
+            tags=["python"],
+            language="en",
+            active_sources=[CourseSource.YOUTUBE],
+            current_sid=None,
+            job_id="job-1",
+        )
+
+        # Tag must be absent entirely — no empty {} placeholder.
+        assert "python" not in result["youtube"]
+        assert result["youtube"] == {}
+
+
+@pytest.mark.asyncio
 async def test_free_hf_paid_sources_empty():
     fc = FetchCoordinator(
         sio=None,

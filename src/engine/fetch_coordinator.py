@@ -517,7 +517,18 @@ class FetchCoordinator:
             deduped_candidates = dedupe_candidates(candidates_pool)
 
             if not deduped_candidates:
-                selected_by_tag[tag_str] = {}
+                # Omit the tag entirely rather than inserting an empty {}.
+                # An empty placeholder looks like a YouTube resource downstream
+                # (passes the `is None` guard in the resource audit) but carries
+                # no URL, so it gets logged as url=MISSING and renders as a
+                # course with a dead/absent link. No candidates == no link.
+                event_log.log(
+                    "warn",
+                    "fetcher",
+                    f"No YouTube candidates for '{tag_str}' — omitting from roadmap.",
+                    job_id=job_id,
+                    details={"source": "youtube", "tag": tag_str},
+                )
                 continue
 
             cheap_scores = {}
@@ -556,7 +567,16 @@ class FetchCoordinator:
             if winner:
                 selected_by_tag[tag_str] = winner.to_dict()
             else:
-                selected_by_tag[tag_str] = {}
+                # No winner survived ranking — omit the tag instead of writing
+                # an empty {} placeholder (see note above). The course still
+                # appears in the roadmap via the tag list, just without a link.
+                event_log.log(
+                    "warn",
+                    "fetcher",
+                    f"No YouTube winner after ranking for '{tag_str}' — omitting from roadmap.",
+                    job_id=job_id,
+                    details={"source": "youtube", "tag": tag_str},
+                )
 
         return selected_by_tag
 
