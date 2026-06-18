@@ -9,6 +9,7 @@ from src.transport.runtime import get_inference_transport
 from src.engine.fetch_coordinator import FetchCoordinator
 from src.utils.learning_path import generate_learning_path
 from src.utils.event_log import event_log
+from src.utils.progress import progress
 from src.engine.runtime import runtime_limits, runtime_semaphores
 from src.engine.models import CourseSource
 from src.planning.source_planner import SourcePlanner
@@ -168,6 +169,8 @@ class RoadmapEngine:
         )
         event_log.log("info", "job", "Waiting for frontend socket…", job_id=job_id)
 
+        await progress.phase(job_id, "analyzing", label="Analyzing request")
+
         timeout = (
             self.socket_wait_timeout
             if self.socket_wait_timeout is not None
@@ -199,6 +202,8 @@ class RoadmapEngine:
 
         event_log.log("info", "job", f"Active Sources: {active_sources}", job_id=job_id)
 
+        await progress.phase(job_id, "searching", label="Searching sources")
+
         roadmap_result = await self.fetch_coordinator.fetch_resources(
             tags=tags,
             language=language,
@@ -206,6 +211,8 @@ class RoadmapEngine:
             current_sid=current_sid,
             job_id=job_id,
         )
+
+        await progress.phase(job_id, "finalizing", label="Finalizing roadmap")
 
         event_log.log(
             "info", "job", "Generating Learning DNA Sequence...", job_id=job_id
@@ -231,6 +238,8 @@ class RoadmapEngine:
         )
 
         event_log.log("success", "job", "Roadmap generation complete.", job_id=job_id)
+
+        await progress.phase(job_id, "done")
 
         # ── Resource Audit: log every tag's resource status ───────────────
         _audit_found = 0

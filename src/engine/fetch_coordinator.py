@@ -8,6 +8,7 @@ from src.engine.runtime import runtime_limits, runtime_semaphores
 from src.fetchers.videos.udemy_fetcher import UdemyFetcher
 from src.utils.cache import cache, generate_cache_key
 from src.utils.event_log import event_log
+from src.utils.progress import progress
 from src.planning.source_planner import SourcePlanner
 from src.utils.helpers import classify_via_frontend
 
@@ -467,6 +468,7 @@ class FetchCoordinator:
             )
 
         for tag_str in tags:
+            await progress.item(job_id, tag_str, "searching")
             raw_scope_str = scope_cache.get(tag_str, "unknown")
             scope_val = raw_scope_str.lower().strip()
             if "broad" in scope_val:
@@ -517,6 +519,7 @@ class FetchCoordinator:
             deduped_candidates = dedupe_candidates(candidates_pool)
 
             if not deduped_candidates:
+                await progress.item(job_id, tag_str, "skipped")
                 # Omit the tag entirely rather than inserting an empty {}.
                 # An empty placeholder looks like a YouTube resource downstream
                 # (passes the `is None` guard in the resource audit) but carries
@@ -540,6 +543,29 @@ class FetchCoordinator:
             ai_results = []
             active_sid = get_inference_transport().target_for_job(job_id) or current_sid
             if active_sid:
+                await progress.phase(job_id, "classifying", label="Classifying resources")
+                candidates_list = []
+                for c in deduped_candidates[:5]:
+                    c_dict = {}
+                    if hasattr(c, "to_dict"):
+                        try:
+                            c_dict = c.to_dict()
+                        except Exception:
+                            pass
+                    title = c_dict.get("title") or getattr(c, "title", "Candidate")
+                    url = c_dict.get("url") or getattr(c, "url", "")
+                    candidates_list.append({
+                        "title": title,
+                        "score": cheap_scores.get(url, 0.0) if url else 0.0,
+                        "status": "analyzing",
+                    })
+                await progress.item(
+                    job_id,
+                    tag_str,
+                    "classifying",
+                    candidates=len(deduped_candidates),
+                    candidates_list=candidates_list,
+                )
                 try:
                     req = ClassificationRequest(
                         job_id=job_id,
@@ -565,8 +591,37 @@ class FetchCoordinator:
 
             winner = final_ranked[0] if final_ranked else None
             if winner:
-                selected_by_tag[tag_str] = winner.to_dict()
+                winner_dict = winner.to_dict() if hasattr(winner, "to_dict") else {}
+                selected_by_tag[tag_str] = winner_dict
+                candidates_list = []
+                for idx, c in enumerate(final_ranked[:5]):
+                    c_dict = {}
+                    if hasattr(c, "to_dict"):
+                        try:
+                            c_dict = c.to_dict()
+                        except Exception:
+                            pass
+                    title = c_dict.get("title") or getattr(c, "title", "Candidate")
+                    score = c_dict.get("score") or getattr(c, "raw_score", 0.0)
+                    candidates_list.append({
+                        "title": title,
+                        "score": score,
+                        "status": "winner" if idx == 0 else "rejected",
+                    })
+                await progress.item(
+                    job_id,
+                    tag_str,
+                    "found",
+                    resource={
+                        "title": winner_dict.get("title") or getattr(winner, "title", "Candidate"),
+                        "url": winner_dict.get("url") or getattr(winner, "url", ""),
+                        "source": "youtube",
+                        "score": winner_dict.get("score") or getattr(winner, "raw_score", 0.0),
+                    },
+                    candidates_list=candidates_list,
+                )
             else:
+                await progress.item(job_id, tag_str, "skipped")
                 # No winner survived ranking — omit the tag instead of writing
                 # an empty {} placeholder (see note above). The course still
                 # appears in the roadmap via the tag list, just without a link.
