@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -52,3 +53,10 @@ YT_DLP_HARD_TIMEOUT_SECONDS = int(os.getenv("YT_DLP_HARD_TIMEOUT_SECONDS", "15")
 MAX_TAGS = int(os.getenv("MAX_TAGS", "12"))
 MAX_TAG_LENGTH = int(os.getenv("MAX_TAG_LENGTH", "120"))
 MAX_TOTAL_TAG_CHARS = int(os.getenv("MAX_TOTAL_TAG_CHARS", "1500"))
+
+PIPELINE_CACHE_DIR = Path(
+    os.getenv("PIPELINE_CACHE_DIR", Path(__file__).resolve().parents[2] / "cache")
+)
+YT_DLP_CACHE_DIR = Path(
+    os.getenv("YT_DLP_CACHE_DIR", "D:/BOSLA/.omo/cache/ytdlp")
+)

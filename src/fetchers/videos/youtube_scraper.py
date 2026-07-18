@@ -92,6 +92,9 @@ async def scrape_youtube_search(
 def _extract_search_results(query: str, language: str) -> list[dict]:
     import yt_dlp
 
+    from src.config.settings import YT_DLP_CACHE_DIR
+
+    YT_DLP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     ydl_opts = {
         "quiet": True,
         "no_warnings": True,
@@ -100,6 +103,7 @@ def _extract_search_results(query: str, language: str) -> list[dict]:
         "ignoreerrors": True,
         "geo_bypass": True,
         "extractor_args": {"youtube": {"lang": [language]}},
+        "cachedir": str(YT_DLP_CACHE_DIR),
     }
 
     try:

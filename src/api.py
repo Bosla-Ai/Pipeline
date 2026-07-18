@@ -40,6 +40,10 @@ SOCKET_WAIT_TIMEOUT = runtime_limits.socket_wait_timeout_seconds
 
 app = FastAPI(title="Bosla Pipeline API")
 
+from src.tools.router import router as tools_router
+
+app.include_router(tools_router)
+
 ALLOWED_API_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
