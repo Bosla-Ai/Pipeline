@@ -10,7 +10,7 @@ class SearchResourcesRequest(BaseModel):
 
     source: Literal["youtube", "coursera"]
     query: str = Field(min_length=1, max_length=300)
-    language: str = Field(min_length=2, max_length=16)
+    language: str = Field(default="en", min_length=2, max_length=16)
     limit: int = Field(default=5, ge=1, le=10)
     duration_min_minutes: int | None = Field(default=None, ge=0)
     duration_max_minutes: int | None = Field(default=None, ge=1)

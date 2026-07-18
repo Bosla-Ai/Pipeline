@@ -182,3 +182,25 @@ async def test_search_resources_does_not_apply_legacy_lexical_gate(
     # Then
     assert response.status_code == 200
     assert response.json()["candidates"][0]["id"] == "agent-judges"
+
+
+@pytest.mark.asyncio
+async def test_search_resources_defaults_omitted_language_to_english(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: list[str] = []
+
+    async def fetch_candidates(request: SearchResourcesRequest) -> list[Candidate]:
+        captured.append(request.language)
+        return [_candidate("default-language", duration=60)]
+
+    monkeypatch.setattr("src.tools.search_resources.fetch_candidates", fetch_candidates)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/tools/search_resources",
+            json={"source": "youtube", "query": "docker tutorial"},
+        )
+
+    assert response.status_code == 200
+    assert captured == ["en"]
