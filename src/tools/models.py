@@ -11,7 +11,7 @@ class SearchResourcesRequest(BaseModel):
     source: Literal["youtube", "coursera"]
     query: str = Field(min_length=1, max_length=300)
     language: str = Field(default="en", min_length=2, max_length=16)
-    limit: int = Field(default=5, ge=1, le=10)
+    limit: int = Field(default=15, ge=1, le=15)
     duration_min_minutes: int | None = Field(default=None, ge=0)
     duration_max_minutes: int | None = Field(default=None, ge=1)
     type: Literal["video", "playlist", "course"] | None = None
@@ -39,6 +39,7 @@ class SearchMeta(BaseModel):
     query: str
     rawCount: int
     filteredCount: int
+    shortlistCount: int
 
 
 class SearchResourcesResponse(BaseModel):

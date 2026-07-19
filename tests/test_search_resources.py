@@ -204,3 +204,22 @@ async def test_search_resources_defaults_omitted_language_to_english(
 
     assert response.status_code == 200
     assert captured == ["en"]
+
+
+@pytest.mark.asyncio
+async def test_search_resources_defaults_to_fifteen_and_reserves_unique_arabic_tail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidates = [_candidate(f"rank-{index}", duration=60) for index in range(1, 16)]
+    candidates[-1].language = "ar"
+    async with _client_with_candidates(monkeypatch, candidates) as client:
+        response = await client.post(
+            "/tools/search_resources",
+            json={"source": "youtube", "query": "react"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["candidates"]) == 15
+    assert any(candidate["language"] == "ar" for candidate in payload["candidates"])
+    assert payload["meta"]["shortlistCount"] == 15

@@ -34,7 +34,7 @@ async def search_resources(request: SearchResourcesRequest) -> SearchResourcesRe
     shaped = [candidate for candidate in raw if _matches_shape(candidate, request)]
     ranked = cheap_rank(shaped, request.query, TopicScope.UNKNOWN)
     deduped = dedupe_candidates(ranked)
-    selected = deduped[: request.limit]
+    selected = _select_with_diversity(deduped, request.limit)
     cheap_scores = {candidate.url: float(candidate.raw_score) for candidate in selected}
     prepared = PreparedTag(
         original=request.query,
@@ -54,8 +54,33 @@ async def search_resources(request: SearchResourcesRequest) -> SearchResourcesRe
             query=request.query,
             rawCount=len(raw),
             filteredCount=len(deduped),
+            shortlistCount=len(selected),
         ),
     )
+
+
+def _select_with_diversity(candidates: list[Candidate], limit: int) -> list[Candidate]:
+    """Keep cheap-rank order while reserving one present language/duration bucket.
+
+    Language bucket: normalized candidate language. Duration buckets: short (<30m),
+    medium (30-120m), long (>120m). Content type supplies the depth/type bucket.
+    """
+    if len(candidates) <= limit:
+        return list(candidates)
+    selected = list(candidates[:limit])
+    buckets: dict[tuple[str, str, str], Candidate] = {}
+    for candidate in candidates:
+        duration = candidate.duration_minutes or 0
+        duration_bucket = "short" if duration < 30 else "medium" if duration <= 120 else "long"
+        content_bucket = str(candidate.metadata.get("contentType", "video")).lower()
+        bucket = ((candidate.language or "unknown").lower(), content_bucket, duration_bucket)
+        buckets.setdefault(bucket, candidate)
+    for reserve in buckets.values():
+        if reserve in selected:
+            continue
+        selected[-1] = reserve
+    order = {candidate.url: index for index, candidate in enumerate(candidates)}
+    return sorted(dict.fromkeys(selected), key=lambda candidate: order[candidate.url])[:limit]
 
 
 def _matches_shape(candidate: Candidate, request: SearchResourcesRequest) -> bool:
