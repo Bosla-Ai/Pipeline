@@ -80,7 +80,8 @@ def _select_with_diversity(candidates: list[Candidate], limit: int) -> list[Cand
             continue
         selected[-1] = reserve
     order = {candidate.url: index for index, candidate in enumerate(candidates)}
-    return sorted(dict.fromkeys(selected), key=lambda candidate: order[candidate.url])[:limit]
+    unique = {candidate.url: candidate for candidate in selected}
+    return sorted(unique.values(), key=lambda candidate: order[candidate.url])[:limit]
 
 
 def _matches_shape(candidate: Candidate, request: SearchResourcesRequest) -> bool:
