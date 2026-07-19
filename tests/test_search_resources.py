@@ -82,6 +82,7 @@ async def test_search_resources_filters_duration_and_returns_compact_dto(
         "query": "docker tutorial",
         "rawCount": 2,
         "filteredCount": 1,
+        "shortlistCount": 1,
     }
     assert [item["id"] for item in payload["candidates"]] == ["short"]
     assert set(payload["candidates"][0]) == {
@@ -134,7 +135,7 @@ async def test_search_resources_dedupes_before_applying_limit(
 
 
 @pytest.mark.asyncio
-async def test_search_resources_rejects_limit_above_ten() -> None:
+async def test_search_resources_rejects_limit_above_fifteen() -> None:
     # Given
     transport = ASGITransport(app=app)
 
@@ -146,7 +147,7 @@ async def test_search_resources_rejects_limit_above_ten() -> None:
                 "source": "youtube",
                 "query": "docker tutorial",
                 "language": "en",
-                "limit": 11,
+                "limit": 16,
             },
         )
 
