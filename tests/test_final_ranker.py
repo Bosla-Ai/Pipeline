@@ -1,8 +1,11 @@
 import os
 from src.engine.models import Candidate, SourceName, TopicScope
 from src.engine.stages import PreparedTag
-from src.inference.schemas import ClassificationResult
-from src.ranking.final_ranker import final_rank, calculate_final_score
+from src.ranking.final_ranker import (
+    ClassificationResult,
+    calculate_final_score,
+    final_rank,
+)
 
 
 def test_invalid_url_rejected():
