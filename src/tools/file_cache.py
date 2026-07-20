@@ -14,7 +14,9 @@ JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 
 def cache_directory() -> Path:
     configured = Path(os.getenv("PIPELINE_CACHE_DIR", str(PIPELINE_CACHE_DIR))).resolve()
-    if configured.drive.upper() != "D:":
+    # The D:-only rule is a Windows dev-machine directive (keep C: clean).
+    # On POSIX hosts Path.drive is always "" so the guard must not apply.
+    if os.name == "nt" and configured.drive.upper() != "D:":
         raise OSError("PIPELINE_CACHE_DIR must be located on D:")
     configured.mkdir(parents=True, exist_ok=True)
     return configured
