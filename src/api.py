@@ -1,41 +1,20 @@
-import asyncio
 import os
 import csv
 import io
-import uuid
+import asyncio
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Header, Depends
+from fastapi import FastAPI, HTTPException, Query, Header, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import List, Optional
-
-import src.socket_server as socket_server
-from src.socket_server import sio
+from typing import Optional
 
 from src.utils.event_log import event_log
-from src.engine.models import CourseSource
 
 from src.config.settings import PIPELINE_SHARED_SECRET, DISABLE_YOUTUBE_API
 from src.graph_inventory import runtime_contracts
 from src.graph_inventory.runtime_contracts import ContractUnavailableError
 
 from src.config import runtime_profile
-
-if runtime_profile.FREE_HF_MODE:
-    fetch_youtube = None
-    fetch_coursera = None
-else:
-    from src.fetchers.videos.youtube_fetcher import fetch as fetch_youtube
-
-    if runtime_profile.ENABLE_COURSERA:
-        from src.fetchers.videos.coursera_fetcher import fetch_coursera
-    else:
-        fetch_coursera = None
-
-from src.engine.runtime import runtime_limits
-
-SOCKET_WAIT_TIMEOUT = runtime_limits.socket_wait_timeout_seconds
 
 
 app = FastAPI(title="Bosla Pipeline API")
@@ -81,15 +60,6 @@ async def verify_pipeline_secret(
         raise HTTPException(status_code=401, detail="Invalid pipeline secret")
 
 
-class RoadmapRequest(BaseModel):
-    tags: List[str]
-    prefer_paid: bool = False
-    language: str = "en"
-    sources: Optional[List[CourseSource]] = None
-    tag_checkpoints: Optional[dict] = None
-    job_id: Optional[str] = None
-
-
 @app.get("/health")
 async def health():
     """Public healthcheck endpoint returning simple status and service availability."""
@@ -98,12 +68,10 @@ async def health():
 
 @app.get("/stats")
 async def stats(_auth: None = Depends(verify_pipeline_secret)):
-    """Return connected sockets, active jobs, connection details, and recent error count."""
-    base = socket_server.get_stats()
+    """Return service liveness and recent error count."""
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     recent_errors = await event_log.get_logs(since=cutoff, level="error", limit=1000)
-    base["error_count_5m"] = len(recent_errors)
-    return base
+    return {"status": "healthy", "error_count_5m": len(recent_errors)}
 
 
 @app.get("/contracts/tag-contract")
@@ -216,15 +184,6 @@ async def export_logs(
     )
 
 
-from src.engine.roadmap_engine import RoadmapEngine
-
-
-async def wait_for_socket(job_id: str) -> str | None:
-    from src.engine.roadmap_engine import wait_for_socket as _wait_for_socket
-
-    return await _wait_for_socket(job_id, timeout=SOCKET_WAIT_TIMEOUT)
-
-
 GLOBAL_DRIVER = None
 
 DRIVER_LOCK = asyncio.Lock()
@@ -234,14 +193,7 @@ DRIVER_LOCK = asyncio.Lock()
 async def startup_event():
     global GLOBAL_DRIVER
 
-    # Connect event_log and job_store to Redis
     await event_log.connect()
-    from src.engine.job_store import job_store
-
-    await job_store.connect()
-
-    # Clean up stale active jobs on startup
-    await cleanup_stale_jobs()
 
     # Start the 24h log cleanup background task
     event_log.start_cleanup_task()
@@ -448,348 +400,3 @@ async def youtube_playlist_items(
         f"Returned {len(items)} items for playlist: '{playlistId}'",
     )
     return {"status": "ok", "items": items}
-
-
-from src.security.request_guard import validate_roadmap_request_data
-
-
-def resolve_and_check_sources(request: RoadmapRequest):
-    # 1. Default source fallback: if omitted, empty, or None, default to ["youtube"]
-    if not request.sources:
-        request.sources = [CourseSource.YOUTUBE]
-
-    # 2. Strict toggle enforcement / check external scrapers
-    if not runtime_profile.ENABLE_EXTERNAL_SCRAPERS:
-        remaining = [s for s in request.sources if s == CourseSource.YOUTUBE]
-        if not remaining:
-            raise HTTPException(
-                status_code=501,
-                detail="This feature is currently disabled on this instance.",
-            )
-        request.sources = remaining
-    else:
-        # If ENABLE_EXTERNAL_SCRAPERS is True, check if individual scrapers are enabled/missing deps
-        remaining = []
-        for s in request.sources:
-            if s == CourseSource.YOUTUBE:
-                remaining.append(s)
-            elif s == CourseSource.UDEMY and runtime_profile.ENABLE_UDEMY:
-                remaining.append(s)
-            elif s == CourseSource.COURSERA and runtime_profile.ENABLE_COURSERA:
-                remaining.append(s)
-
-        if not remaining:
-            raise HTTPException(
-                status_code=501,
-                detail="This feature is currently disabled on this instance.",
-            )
-        request.sources = remaining
-
-
-@app.post("/generate-roadmap")
-async def generate_roadmap(
-    request: RoadmapRequest, _auth: None = Depends(verify_pipeline_secret)
-):
-    resolve_and_check_sources(request)
-    normalized_tags = validate_roadmap_request_data(
-        tags=request.tags,
-        language=request.language,
-        sources=[s.value for s in request.sources],
-        tag_checkpoints=request.tag_checkpoints,
-        job_id=request.job_id,
-    )
-    job_id = request.job_id or uuid.uuid4().hex[:12]
-    event_log.log("info", "job", f"Incoming roadmap request", job_id=job_id)
-
-    from src.engine.job_store import job_store
-
-    await job_store.create_job(
-        job_id=job_id,
-        tags=normalized_tags,
-        language=request.language,
-        prefer_paid=request.prefer_paid,
-    )
-
-    engine = RoadmapEngine(
-        sio=sio,
-        fetch_youtube=fetch_youtube,
-        fetch_coursera=fetch_coursera,
-        get_global_driver=lambda: GLOBAL_DRIVER,
-        socket_wait_timeout=SOCKET_WAIT_TIMEOUT,
-    )
-    return await engine.generate(
-        tags=normalized_tags,
-        prefer_paid=request.prefer_paid,
-        language=request.language,
-        sources=request.sources,
-        tag_checkpoints=request.tag_checkpoints,
-        job_id=job_id,
-    )
-
-
-@app.get("/job/{job_id}")
-async def get_job_status(
-    job_id: str,
-    _auth: None = Depends(verify_pipeline_secret),
-):
-    """Retrieve the status and result/error of a specific job."""
-    from src.engine.job_store import job_store
-
-    job = await job_store.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
-
-
-async def cleanup_stale_jobs():
-    from src.engine.job_store import job_store
-
-    try:
-        active_job_ids = await job_store.get_active_jobs()
-        for job_id in active_job_ids:
-            job = await job_store.get_job(job_id)
-            if job and job.get("status") in ("running", "pending"):
-                await job_store.fail_job(job_id, "Job expired due to server restart")
-                event_log.log(
-                    "error",
-                    "job",
-                    f"Cleaned up stale running/pending job {job_id} on startup",
-                    job_id=job_id,
-                )
-    except Exception as e:
-        event_log.log(
-            "error",
-            "system",
-            f"Stale job cleanup failed: {e}",
-        )
-
-
-async def verify_job_access(
-    job_id: str,
-    token: Optional[str] = Query(None),
-    x_job_token: Optional[str] = Header(None, alias="X-Job-Token"),
-    authorization: Optional[str] = Header(None),
-    x_pipeline_secret: Optional[str] = Header(None, alias="X-Pipeline-Secret"),
-):
-    if token and (
-        runtime_profile.FREE_HF_MODE or os.getenv("ENVIRONMENT") == "production"
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="Query-string token propagation is disabled. Use X-Job-Token header.",
-        )
-
-    # Try pipeline secret authentication first (same fail-closed rules as verify_pipeline_secret)
-    if PIPELINE_SHARED_SECRET:
-        if x_pipeline_secret == PIPELINE_SHARED_SECRET:
-            return
-    else:
-        # Fail closed in production / Free-HF / when bypass not explicitly enabled
-        _allow_dev_bypass = (
-            os.getenv("ENVIRONMENT") != "production"
-            and not runtime_profile.FREE_HF_MODE
-            and os.getenv("ALLOW_DEV_AUTH_BYPASS") == "true"
-        )
-        if _allow_dev_bypass and x_pipeline_secret is not None:
-            return
-
-    # Fallback to job token verification
-    actual_token = token or x_job_token
-    if (
-        not actual_token
-        and authorization
-        and authorization.lower().startswith("bearer ")
-    ):
-        actual_token = authorization[7:]
-
-    if not actual_token:
-        raise HTTPException(
-            status_code=401,
-            detail="Missing job access token or pipeline secret",
-        )
-
-    from src.security.job_tokens import verify_token
-
-    payload = verify_token(actual_token)
-    if (
-        not payload
-        or payload.get("type") != "job_access"
-        or payload.get("job_id") != job_id
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid or expired job access token",
-        )
-
-
-_active_bg_tasks: dict[str, asyncio.Task] = {}
-MAX_PENDING_ASYNC_JOBS = int(os.getenv("MAX_PENDING_ASYNC_JOBS", "10"))
-
-
-async def run_roadmap_job_bg(
-    engine: RoadmapEngine,
-    tags: List[str],
-    prefer_paid: bool,
-    language: str,
-    sources: Optional[List[CourseSource]],
-    tag_checkpoints: Optional[dict],
-    job_id: str,
-):
-    try:
-        await engine.generate(
-            tags=tags,
-            prefer_paid=prefer_paid,
-            language=language,
-            sources=sources,
-            tag_checkpoints=tag_checkpoints,
-            job_id=job_id,
-        )
-    except Exception as e:
-        event_log.log("error", "system", f"Background job {job_id} failed: {e}")
-
-
-import re
-
-_JOB_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
-
-
-class SocketTokenRequest(BaseModel):
-    job_id: str = Field(..., min_length=1, max_length=64)
-    ttl_seconds: Optional[int] = None
-
-
-@app.post("/tokens/socket")
-async def mint_socket_token(
-    request: SocketTokenRequest,
-    _auth: None = Depends(verify_pipeline_secret),
-):
-    if not _JOB_ID_RE.match(request.job_id):
-        raise HTTPException(status_code=422, detail="Invalid job_id format")
-
-    from src.security.job_tokens import generate_socket_token
-    from src.engine.runtime import runtime_limits
-
-    default_ttl = max(300, runtime_limits.full_job_timeout_seconds + 120)
-
-    if request.ttl_seconds is None:
-        ttl = default_ttl
-    else:
-        ttl = request.ttl_seconds
-
-    ttl = min(max(ttl, 60), 900)
-
-    token = generate_socket_token(request.job_id, ttl)
-
-    event_log.log(
-        "info",
-        "job",
-        "socket_token_minted",
-        job_id=request.job_id,
-        metadata={"ttl_seconds": ttl},
-    )
-
-    return {"socket_token": token, "expires_in": ttl}
-
-
-@app.post("/jobs/roadmap")
-async def post_jobs_roadmap(
-    request: RoadmapRequest,
-    _auth: None = Depends(verify_pipeline_secret),
-):
-    resolve_and_check_sources(request)
-    normalized_tags = validate_roadmap_request_data(
-        tags=request.tags,
-        language=request.language,
-        sources=[s.value for s in request.sources],
-        tag_checkpoints=request.tag_checkpoints,
-        job_id=request.job_id,
-    )
-    job_id = request.job_id or uuid.uuid4().hex[:12]
-
-    # Reject early if too many background jobs are pending (before creating stale job)
-    if len(_active_bg_tasks) >= MAX_PENDING_ASYNC_JOBS:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many pending jobs. Please try again later.",
-        )
-
-    from src.engine.job_store import job_store
-    from src.security.job_tokens import generate_job_access_token, generate_socket_token
-
-    await job_store.create_job(
-        job_id=job_id,
-        tags=normalized_tags,
-        language=request.language,
-        prefer_paid=request.prefer_paid,
-    )
-
-    job_access_token = generate_job_access_token(job_id)
-    socket_token = generate_socket_token(job_id)
-
-    engine = RoadmapEngine(
-        sio=sio,
-        fetch_youtube=fetch_youtube,
-        fetch_coursera=fetch_coursera,
-        get_global_driver=lambda: GLOBAL_DRIVER,
-        socket_wait_timeout=SOCKET_WAIT_TIMEOUT,
-    )
-
-    task = asyncio.create_task(
-        run_roadmap_job_bg(
-            engine=engine,
-            tags=normalized_tags,
-            prefer_paid=request.prefer_paid,
-            language=request.language,
-            sources=request.sources,
-            tag_checkpoints=request.tag_checkpoints,
-            job_id=job_id,
-        )
-    )
-    _active_bg_tasks[job_id] = task
-
-    def _on_task_done(t: asyncio.Task, _jid=job_id):
-        _active_bg_tasks.pop(_jid, None)
-        if t.cancelled():
-            return
-        exc = t.exception()
-        if exc:
-            event_log.log("error", "system", f"Background job {_jid} failed: {exc}")
-
-    task.add_done_callback(_on_task_done)
-
-    return {
-        "job_id": job_id,
-        "status": "queued",
-        "job_access_token": job_access_token,
-        "socket_token": socket_token,
-    }
-
-
-@app.get("/jobs/{job_id}")
-async def get_async_job(
-    job_id: str,
-    auth_check: None = Depends(verify_job_access),
-):
-    from src.engine.job_store import job_store
-
-    job = await job_store.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
-
-
-@app.get("/jobs/{job_id}/result")
-async def get_async_job_result(
-    job_id: str,
-    auth_check: None = Depends(verify_job_access),
-):
-    from src.engine.job_store import job_store
-
-    job = await job_store.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if job["status"] != "completed":
-        raise HTTPException(
-            status_code=400, detail=f"Job is in state '{job['status']}', not completed"
-        )
-    return job["result"]

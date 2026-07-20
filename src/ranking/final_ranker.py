@@ -1,10 +1,25 @@
 import os
 import urllib.parse
+from dataclasses import dataclass, field
 from src.engine.models import Candidate, SourceName, TopicScope
 from src.engine.stages import PreparedTag
-from src.inference.schemas import ClassificationResult
 from src.security.url_policy import is_valid_url
 from src.ranking.dedupe import token_set_jaccard
+
+
+@dataclass(frozen=True)
+class ClassificationResult:
+    """Frontend classification verdict for a single candidate.
+
+    Retained as a plain value type after the edge-inference machinery was
+    retired (Wave 4). ``final_rank`` still accepts these when a caller supplies
+    pre-computed AI results; the live edge-inference producer no longer exists.
+    """
+
+    candidate_key: str
+    label: str
+    confidence: float
+    raw: dict = field(default_factory=dict)
 
 
 def calculate_final_score(

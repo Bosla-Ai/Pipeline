@@ -8,7 +8,14 @@ from src.utils.constants import (
     UNWANTED_KEYWORDS,
     STOP_WORDS,
 )
-from src.transport.runtime import get_inference_transport
+
+
+class _RetiredInferenceTransport(RuntimeError):
+    pass
+
+
+def get_inference_transport():
+    raise _RetiredInferenceTransport("edge inference transport retired")
 
 # ── Dynamic Scope Analysis (no static list dependency) ────────────────────
 
