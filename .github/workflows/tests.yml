@@ -34,3 +34,16 @@ jobs:
       - name: Run Tests
         run: |
           pytest -n auto
+  devdiag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: DevDiag scan
+        uses: meedoomostafa/devdiag@v0.4.0
+        with:
+          ci: 'true'
+          save-report: 'true'
+          fail-severity: high
