@@ -68,6 +68,8 @@ class EventLog:
                     host=REDIS_HOST,
                     port=REDIS_PORT,
                     decode_responses=True,
+                    socket_connect_timeout=1,
+                    socket_timeout=1,
                 )
                 await self._redis_client.ping()
                 self._use_redis = True
