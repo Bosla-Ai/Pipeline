@@ -56,11 +56,12 @@ async def test_market_data_is_schema_complete_for_multiple_tags(
 
 
 @pytest.mark.asyncio
-async def test_market_data_second_call_uses_d_drive_file_cache(
+async def test_market_data_second_call_uses_configured_file_cache(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     # Given
-    d_cache = Path("D:/BOSLA/.omo/cache/pytest") / uuid4().hex
+    d_cache = tmp_path / "pipeline-cache" / uuid4().hex
     monkeypatch.setenv("PIPELINE_CACHE_DIR", str(d_cache))
     calls = 0
 
@@ -87,7 +88,6 @@ async def test_market_data_second_call_uses_d_drive_file_cache(
     assert second.status_code == 200
     assert calls == 1
     assert list(d_cache.rglob("*.json"))
-    assert d_cache.resolve().drive == "D:"
 
 
 @pytest.mark.asyncio
