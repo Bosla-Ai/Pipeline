@@ -43,10 +43,19 @@ jobs:
           ./venv/bin/python -m pip install -q -r requirements.txt
           export XDG_RUNTIME_DIR="/run/user/$(id -u)"
           systemctl --user restart bosla-pipeline
-          sleep 6
-          curl -fsS -m 5 http://127.0.0.1:7860/health
-          echo
-          echo "deployed: $(systemctl --user is-active bosla-pipeline)"
+          # Startup takes ~7s (Redis connect timeout included); poll instead of
+          # a fixed sleep so a slow boot doesn't fail an otherwise-good deploy.
+          for i in $(seq 1 15); do
+            sleep 3
+            if curl -fsS -m 5 http://127.0.0.1:7860/health; then
+              echo
+              echo "deployed: $(systemctl --user is-active bosla-pipeline) (after $((i*3))s)"
+              exit 0
+            fi
+          done
+          echo "pipeline did not become healthy within 45s" >&2
+          systemctl --user status bosla-pipeline --no-pager || true
+          exit 1
 
       - name: Smoke tools endpoint
         run: |
