@@ -1,28 +1,20 @@
-name: Deploy pipeline → server
+name: Deploy pipeline (almiraj, self-hosted)
 
-# Deploys the pipeline to the always-on server (Socket.IO mode) over SSH:
-# rsync the code, install deps into the existing venv, restart the user
-# systemd service. Pairs with build-worker-image.yml (which builds the ACI
-# worker image for the serverless path).
-#
-# Required repo secrets:
-#   DEPLOY_SSH_KEY   private key authorized on the server (~/.ssh/github_deploy_key)
-#   DEPLOY_HOST      e.g. 4.232.82.86
-#   DEPLOY_USER      e.g. medo
+# Deploys the stateless tools pipeline to the almiraj production server.
+# Runs ON the self-hosted runner that lives on the same box, so deployment
+# is a local copy + venv sync + user systemd restart - no SSH secrets needed.
 #
 # Server prerequisites (one-time, already set up):
-#   - ~/BoslaPipeline/venv  (python venv)
-#   - ~/BoslaPipeline/pipeline.env  (env + secrets; NOT overwritten by deploy)
-#   - user systemd unit bosla-pipeline + `loginctl enable-linger`
-#   - redis-server system service
+#   - ~/BoslaPipeline/venv        (python3.11 venv)
+#   - ~/BoslaPipeline/.env        (env + secrets; NOT overwritten by deploy)
+#   - user systemd unit bosla-pipeline + `loginctl enable-linger moha`
 
 on:
   push:
     branches: [main]
     paths:
       - "src/**"
-      - "requirements-worker.txt"
-      - "start.sh"
+      - "requirements.txt"
       - ".github/workflows/deploy-pipeline.yml"
   workflow_dispatch:
 
@@ -32,38 +24,36 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up SSH
+      - name: Sync code to service directory
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Rsync code to server
-        run: |
-          rsync -az --delete \
+          rsync -a --delete \
             --exclude 'venv' --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' \
-            --exclude '.pytest_cache' --exclude 'pipeline.env' --exclude 'pipeline.log' \
-            --exclude 'run_pipeline.env' \
-            -e "ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no" \
-            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:~/BoslaPipeline/"
+            --exclude '.pytest_cache' --exclude '.env' --exclude 'cache' \
+            ./ ~/BoslaPipeline/
 
       - name: Install deps + restart service
         run: |
-          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no \
-            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'bash -s' <<'REMOTE'
           set -e
           cd ~/BoslaPipeline
-          ./venv/bin/python -m pip install -q -r requirements-worker.txt
+          ./venv/bin/python -m pip install -q -r requirements.txt
           export XDG_RUNTIME_DIR="/run/user/$(id -u)"
           systemctl --user restart bosla-pipeline
           sleep 6
           curl -fsS -m 5 http://127.0.0.1:7860/health
           echo
           echo "deployed: $(systemctl --user is-active bosla-pipeline)"
-          REMOTE
+
+      - name: Smoke tools endpoint
+        run: |
+          curl -fsS -m 90 -X POST http://127.0.0.1:7860/tools/search_resources \
+            -H 'Content-Type: application/json' \
+            -d '{"source":"youtube","query":"docker basics","language":"en","limit":1}' \
+            | head -c 200
+          echo
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 http://127.0.0.1:7860/generate-roadmap)
+          test "$code" = "404" && echo "legacy route 404 OK"

@@ -16,3 +16,16 @@ os.environ["SOCKET_WAIT_TIMEOUT"] = "0"
 os.environ["SKIP_GLOBAL_DRIVER_INIT"] = "true"
 os.environ["ALLOW_DEV_AUTH_BYPASS"] = "true"
 os.environ["PIPELINE_SHARED_SECRET"] = ""
+
+from unittest.mock import AsyncMock
+import src.utils.cache
+import src.utils.event_log
+
+# Mock connect to prevent network calls and timeouts when Redis is not running
+src.utils.cache.cache.connect = AsyncMock()
+src.utils.cache.cache._client = None
+
+src.utils.event_log.event_log.connect = AsyncMock()
+src.utils.event_log.event_log._redis_client = None
+src.utils.event_log.event_log._use_redis = False
+

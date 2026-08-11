@@ -11,7 +11,6 @@ from src.utils.helpers import (
     analyze_topic_scope,
     strict_relevance_score,
 )
-from src.planning.query_planner import QueryPlanner
 from src.utils.scoring import calculate_video_score, calculate_playlist_score
 from src.utils.cache import cache, generate_cache_key
 from src.fetchers.videos.youtube_scraper import emergency_fetch
@@ -117,7 +116,7 @@ async def _process_single_tag_impl(
     precomputed_scope=None,
     job_id=None,
 ):
-    search_plans = QueryPlanner.build_search_plans(tag, language)
+    search_plans = [{"query": tag}]
     primary_search_tag = search_plans[0]["query"] if search_plans else tag
 
     # ── Try yt-dlp scraper first (no API quota cost) ──
@@ -143,7 +142,7 @@ async def _process_single_tag_impl(
             f"\n--- Processing: {tag} (Attempt {attempt_index}/{len(search_plans)}: {plan_label}, query: {search_tag}) ---"
         )
 
-        queries_to_try = QueryPlanner.build_smart_queries(search_tag)
+        queries_to_try = [(search_tag, search_tag)]
 
         for q_playlist, q_video in queries_to_try:
             if len(candidates) >= 10:
@@ -703,7 +702,7 @@ async def fetch(
     original_tags = []  # Keep original for scope_cache lookup
     for t in tags:
         original_tags.append(t)
-        normalized_tags.append(QueryPlanner.normalize_search_tag(t))
+        normalized_tags.append(t)
 
     async with aiohttp.ClientSession() as session:
         tasks = []
