@@ -39,6 +39,8 @@ class RedisCache:
                     host=REDIS_HOST,
                     port=REDIS_PORT,
                     decode_responses=True,
+                    socket_connect_timeout=1,
+                    socket_timeout=1,
                 )
                 await self._client.ping()
                 print(f"[Cache] Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
