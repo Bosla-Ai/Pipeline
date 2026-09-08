@@ -1,0 +1,75 @@
+--- a/modules/server/bosla-deploy.sh
++++ b/modules/server/bosla-deploy.sh
+@@ -14,7 +14,7 @@
+   exit 1
+ }
+
+-[[ "$#" -eq 2 ]] || fail 'usage: bosla-deploy <api|frontend|typst-worker> <full-commit-sha>'
++[[ "$#" -eq 2 ]] || fail 'usage: bosla-deploy <api|frontend|typst-worker|pipeline> <full-commit-sha>'
+ [[ "$(id -u)" == 0 ]] || fail 'must run as root'
+ [[ "$2" =~ ^[0-9a-f]{40}$ ]] || fail 'commit must be exactly 40 lowercase hexadecimal characters'
+ unset DOCKER_HOST DOCKER_CONTEXT DOCKER_CONFIG DOCKER_TLS DOCKER_TLS_VERIFY DOCKER_CERT_PATH DOCKER_API_VERSION
+@@ -34,9 +34,14 @@
+     repository=bosla26/typst-worker
+     container=typst-worker
+     ;;
++  pipeline)
++    repository=bosla26/bosla-pipeline
++    container=bosla-pipeline
++    ;;
+   *) fail 'unsupported service' ;;
+ esac
+ unit="docker-${container}.service"
++if [[ "$service" == pipeline ]]; then unit="bosla-pipeline.service"; fi
+ image_ref="${repository}:${commit}"
+ latest_ref="${repository}:latest"
+ rollback_needed=0
+@@ -63,6 +68,10 @@
+     frontend)
+       docker_local 10s exec "$container" \
+         wget --quiet --spider --timeout=5 http://127.0.0.1/
++      ;;
++    pipeline)
++      docker_local 10s exec "$container" \
++        curl --fail --silent --show-error --max-time 5 http://127.0.0.1:7860/health
+       ;;
+     typst-worker)
+       docker_local 10s exec "$container" \
+--- a/modules/server/runner.nix
++++ b/modules/server/runner.nix
+@@ -47,6 +47,7 @@
+       gnutar
+       gzip
+       unzip
++      python3
+     ];
+
+     serviceOverrides = {
+@@ -86,7 +87,7 @@
+       ];
+     };
+   };
+-  runnerNames = ["bosla-api" "bosla-frontend"];
++  runnerNames = ["bosla-api" "bosla-frontend" "bosla-pipeline"];
+ in {
+   config = lib.mkIf config.my.server.runner.enable {
+     # These are deployment runners for trusted main-branch workflows only.
+@@ -112,6 +113,7 @@
+     services.github-runners = {
+       bosla-api = runnerFor "bosla-api" "API";
+       bosla-frontend = runnerFor "bosla-frontend" "Frontend";
++      bosla-pipeline = runnerFor "bosla-pipeline" "Pipeline";
+     };
+
+     systemd.services = lib.genAttrs (map (name: "github-runner-${name}") runnerNames) (_: {
+--- a/modules/server/pipeline.nix
++++ b/modules/server/pipeline.nix
+@@ -8,7 +8,7 @@
+     # Keep the local ARM64 image and existing systemd unit name. pull=never
+     # lets oci-containers manage this image without contacting a registry.
+     virtualisation.oci-containers.containers.bosla-pipeline = {
+-      image = "bosla-pipeline:almiraj";
++      image = "bosla26/bosla-pipeline:latest";
+       serviceName = "bosla-pipeline";
+       pull = "never";
+       networks = ["bosla-internal"];

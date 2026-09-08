@@ -23,9 +23,10 @@ EXPECTED_FIELDS = {
 @pytest.mark.asyncio
 async def test_market_data_is_schema_complete_for_multiple_tags(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     # Given
-    d_cache = Path("D:/BOSLA/.omo/cache/pytest") / uuid4().hex
+    d_cache = tmp_path / "pipeline-cache" / uuid4().hex
     monkeypatch.setenv("PIPELINE_CACHE_DIR", str(d_cache))
 
     async def fetch_tag(tag: str) -> dict[str, JsonValue]:
@@ -93,9 +94,10 @@ async def test_market_data_second_call_uses_configured_file_cache(
 @pytest.mark.asyncio
 async def test_market_data_source_failure_returns_empty_partial_response(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     # Given
-    d_cache = Path("D:/BOSLA/.omo/cache/pytest") / uuid4().hex
+    d_cache = tmp_path / "pipeline-cache" / uuid4().hex
     monkeypatch.setenv("PIPELINE_CACHE_DIR", str(d_cache))
 
     async def fetch_tag(_tag: str) -> dict[str, JsonValue]:

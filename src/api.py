@@ -63,7 +63,11 @@ async def verify_pipeline_secret(
 @app.get("/health")
 async def health():
     """Public healthcheck endpoint returning simple status and service availability."""
-    return {"status": "healthy"}
+    result = {"status": "healthy"}
+    revision = os.getenv("BOSLA_PIPELINE_REVISION")
+    if revision:
+        result["revision"] = revision
+    return result
 
 
 @app.get("/stats")

@@ -1,0 +1,46 @@
+FROM python:3.11-slim-bookworm
+
+# Almiraj runs the stateless HTTP tools; yt-dlp metadata needs no Chrome.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    ENVIRONMENT=production \
+    ALLOW_DEV_AUTH_BYPASS=false \
+    FREE_HF_MODE=false \
+    DISABLE_YOUTUBE_API=true \
+    YOUTUBE_FETCH_MODE=yt_dlp \
+    ENABLE_EXTERNAL_SCRAPERS=false \
+    ENABLE_BROWSER_SCRAPING=false \
+    SKIP_GLOBAL_DRIVER_INIT=true \
+    LIGHT_MODE=false \
+    PIPELINE_CACHE_DIR=/app/cache \
+    YT_DLP_CACHE_DIR=/app/cache/ytdlp \
+    REDIS_DATA_DIR=/app/cache/redis
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl redis-server libgomp1 libodbc2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1000 app
+
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Explicit copies prevent a runtime .env or local cache entering a layer.
+COPY --chown=app:app src ./src
+COPY --chown=app:app data ./data
+COPY --chown=app:app start.sh ./start.sh
+RUN chmod 0755 start.sh \
+    && mkdir -p /app/cache/redis /app/cache/ytdlp \
+    && chown -R app:app /app/cache
+
+ARG VCS_REF
+ENV BOSLA_PIPELINE_REVISION=${VCS_REF}
+LABEL org.opencontainers.image.source="https://github.com/Bosla-Ai/Pipeline" \
+      org.opencontainers.image.revision="${VCS_REF}"
+
+USER app
+RUN python -c "from src.cache.pipeline_cache import get_raw_ytdlp_candidates, set_raw_ytdlp_candidates; from src.graph_inventory.runtime_contracts import load_tag_contract; load_tag_contract()"
+EXPOSE 7860
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/health', timeout=4)"
+CMD ["./start.sh"]

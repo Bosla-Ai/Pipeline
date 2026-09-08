@@ -1,68 +1,47 @@
-name: Deploy pipeline (almiraj, self-hosted)
-
-# Deploys the stateless tools pipeline to the almiraj production server.
-# Runs ON the self-hosted runner that lives on the same box, so deployment
-# is a local copy + venv sync + user systemd restart - no SSH secrets needed.
-#
-# Server prerequisites (one-time, already set up):
-#   - ~/BoslaPipeline/venv        (python3.11 venv)
-#   - ~/BoslaPipeline/.env        (env + secrets; NOT overwritten by deploy)
-#   - user systemd unit bosla-pipeline + `loginctl enable-linger moha`
+name: Deploy pipeline to Almiraj
 
 on:
-  push:
+  workflow_run:
+    workflows: [Build pipeline image]
     branches: [main]
-    paths:
-      - "src/**"
-      - "requirements.txt"
-      - ".github/workflows/deploy-pipeline.yml"
+    types: [completed]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
 
 concurrency:
   group: deploy-pipeline
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'pull_request' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: [self-hosted, Linux, ARM64, almiraj, bosla]
+    timeout-minutes: 30
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Sync code to service directory
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          persist-credentials: false
+      - name: Deploy the verified commit
         run: |
-          rsync -a --delete \
-            --exclude 'venv' --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' \
-            --exclude '.pytest_cache' --exclude '.env' --exclude '/cache/' \
-            ./ ~/BoslaPipeline/
-
-      - name: Install deps + restart service
-        run: |
-          set -e
-          cd ~/BoslaPipeline
-          ./venv/bin/python -m pip install -q -r requirements.txt
-          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-          systemctl --user restart bosla-pipeline
-          # Startup takes ~7s (Redis connect timeout included); poll instead of
-          # a fixed sleep so a slow boot doesn't fail an otherwise-good deploy.
-          for i in $(seq 1 15); do
-            sleep 3
-            if curl -fsS -m 5 http://127.0.0.1:7860/health; then
-              echo
-              echo "deployed: $(systemctl --user is-active bosla-pipeline) (after $((i*3))s)"
-              exit 0
-            fi
-          done
-          echo "pipeline did not become healthy within 45s" >&2
-          systemctl --user status bosla-pipeline --no-pager || true
-          exit 1
-
-      - name: Smoke tools endpoint
-        run: |
-          curl -fsS -m 90 -X POST http://127.0.0.1:7860/tools/search_resources \
-            -H 'Content-Type: application/json' \
-            -d '{"source":"youtube","query":"docker basics","language":"en","limit":1}' \
-            | head -c 200
-          echo
-          code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 http://127.0.0.1:7860/generate-roadmap)
-          test "$code" = "404" && echo "legacy route 404 OK"
+          set -euo pipefail
+          sudo -n /run/current-system/sw/bin/bosla-deploy pipeline "$DEPLOY_SHA"
+      - name: Verify production HTTPS and authenticated search
+        env:
+          PIPELINE_BASE_URL: https://pipeline.almiraj.xyz
+          PIPELINE_SHARED_SECRET: ${{ secrets.PIPELINE_SHARED_SECRET }}
+          EXPECTED_REVISION: ${{ env.DEPLOY_SHA }}
+        run: python3 scripts/check_pipeline.py
