@@ -23,3 +23,15 @@ coverage.xml
 tests/
 test/
 docs/
+
+# Runtime credentials and generated caches are not application source.
+.env
+.env.*
+**/.env
+**/.env.*
+.venv*/
+.cookies/
+**/.cookies/
+/cache/
+!src/cache/
+!src/cache/**

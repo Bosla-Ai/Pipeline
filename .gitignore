@@ -95,6 +95,7 @@ scripts/*
 !scripts/validate_graph.py
 !scripts/evaluate_ranking_quality.py
 !scripts/generate_skill_inventory.py
+!scripts/check_pipeline.py
 
 # Pipeline output files
 result.txt
