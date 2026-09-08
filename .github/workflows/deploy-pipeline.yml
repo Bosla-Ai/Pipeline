@@ -33,7 +33,7 @@ jobs:
         run: |
           rsync -a --delete \
             --exclude 'venv' --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' \
-            --exclude '.pytest_cache' --exclude '.env' --exclude 'cache' \
+            --exclude '.pytest_cache' --exclude '.env' --exclude '/cache/' \
             ./ ~/BoslaPipeline/
 
       - name: Install deps + restart service
