@@ -57,7 +57,8 @@ jobs:
           docker run --rm --network none -e ENVIRONMENT=test \
             -v "$GITHUB_WORKSPACE/tests:/app/tests:ro" \
             -v "$GITHUB_WORKSPACE/scripts:/app/scripts:ro" \
-            "$IMAGE" python -m pytest -n auto tests
+            -v "$GITHUB_WORKSPACE/pytest.ini:/app/pytest.ini:ro" \
+            "$IMAGE" python -m pytest -n auto -o cache_dir=/tmp/pytest-cache tests
       - name: Verify image and authenticated HTTP tools
         env:
           PIPELINE_SHARED_SECRET: ci-only-pipeline-secret

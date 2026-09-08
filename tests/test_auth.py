@@ -1,4 +1,5 @@
 import importlib
+import os
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -55,4 +56,7 @@ async def test_auth_validation_on_all_endpoints(auth_setup):
         # Public /health check should return 200 without authentication headers
         r = await ac.get("/health")
         assert r.status_code == 200
-        assert r.json() == {"status": "healthy"}
+        expected = {"status": "healthy"}
+        if os.getenv("BOSLA_PIPELINE_REVISION"):
+            expected["revision"] = os.environ["BOSLA_PIPELINE_REVISION"]
+        assert r.json() == expected
