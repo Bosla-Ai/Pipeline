@@ -33,5 +33,3 @@ docs/
 .cookies/
 **/.cookies/
 /cache/
-!src/cache/
-!src/cache/**

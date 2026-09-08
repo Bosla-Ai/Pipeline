@@ -3,7 +3,7 @@
 @@ -14,7 +14,7 @@
    exit 1
  }
- 
+
 -[[ "$#" -eq 2 ]] || fail 'usage: bosla-deploy <api|frontend|typst-worker> <full-commit-sha>'
 +[[ "$#" -eq 2 ]] || fail 'usage: bosla-deploy <api|frontend|typst-worker|pipeline> <full-commit-sha>'
  [[ "$(id -u)" == 0 ]] || fail 'must run as root'
@@ -43,7 +43,7 @@
        unzip
 +      python3
      ];
- 
+
      serviceOverrides = {
 @@ -86,7 +87,7 @@
        ];
@@ -60,7 +60,7 @@
        bosla-frontend = runnerFor "bosla-frontend" "Frontend";
 +      bosla-pipeline = runnerFor "bosla-pipeline" "Pipeline";
      };
- 
+
      systemd.services = lib.genAttrs (map (name: "github-runner-${name}") runnerNames) (_: {
 --- a/modules/server/pipeline.nix
 +++ b/modules/server/pipeline.nix

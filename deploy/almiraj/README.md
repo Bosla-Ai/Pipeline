@@ -1,6 +1,6 @@
 # Pipeline deployment on Almiraj
 
-`Build pipeline image` builds Linux ARM64 on a GitHub-hosted runner. It verifies cache imports and generated contracts, starts the image, and exercises revision reporting, rejected unauthenticated requests and authenticated resource search with a synthetic cache fixture. The fixture lives only in the test container, not in the published image. Only main-branch images are published to `bosla26/bosla-pipeline:<full commit SHA>` and `:latest`.
+`Build pipeline image` builds Linux ARM64 on a GitHub-hosted runner. It verifies cache imports, generated contracts and synthetic credential-file exclusions, then runs the full test suite inside the image before publishing. It also starts the image and exercises revision reporting, rejected unauthenticated requests and authenticated resource search with a synthetic cache fixture. The fixture lives only in the test container, not in the published image. Only main-branch images are published to `bosla26/bosla-pipeline:<full commit SHA>` and `:latest`.
 
 `Deploy pipeline to Almiraj` runs only after a successful main-branch image build or an explicit dispatch of main. It uses a repository-scoped Almiraj runner, calls `bosla-deploy pipeline <SHA>`, and verifies the exact revision plus authenticated search over **https://pipeline.almiraj.xyz**. The existing shared secret is stored as the Pipeline repository's `PIPELINE_SHARED_SECRET` Actions secret. It is separate from the one-hour runner registration token.
 
