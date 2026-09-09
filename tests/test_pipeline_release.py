@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import json
 from pathlib import Path
 from unittest.mock import Mock
+from urllib.error import HTTPError
 from urllib.request import Request
 
 import pytest
@@ -14,6 +17,33 @@ checker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(checker)
 REVISION = "a" * 40
 URL = "https://pipeline.almiraj.xyz"
+
+
+def test_real_transport_identifies_checker_and_limits_secret_to_authenticated_search(monkeypatch):
+    authenticated_requests = []
+
+    def open_request(request, timeout):
+        if request.get_header("User-agent") != "Bosla-Deployment-Check/1.0":
+            raise HTTPError(request.full_url, 403, "Forbidden", {}, io.BytesIO(b"error code: 1010"))
+        secret = request.get_header("X-pipeline-secret")
+        authenticated_requests.append(secret)
+        if request.full_url == URL + "/health":
+            body = {"revision": REVISION}
+        elif secret is None:
+            raise HTTPError(request.full_url, 401, "Unauthorized", {}, io.BytesIO())
+        else:
+            assert secret == "test-secret"
+            body = {"candidates": [{"id": "test"}]}
+        response = io.BytesIO(json.dumps(body).encode())
+        response.status = 200
+        return response
+
+    opener = Mock()
+    opener.open.side_effect = open_request
+    monkeypatch.setattr(checker.urllib.request, "build_opener", lambda handler: opener)
+    result = checker.verify(URL, "test-secret", REVISION, pause=Mock())
+    assert result == {"revision": REVISION, "authenticated_search": 200, "candidates": 1}
+    assert authenticated_requests == [None, None, "test-secret"]
 
 
 def test_checks_identity_and_both_sides_of_authentication():

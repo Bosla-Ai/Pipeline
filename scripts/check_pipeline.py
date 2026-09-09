@@ -26,7 +26,9 @@ def verify(base_url: str, secret: str, revision: str, request=None, pause=time.s
     opener = urllib.request.build_opener(NoRedirect())
 
     def send(path, payload=None, authenticated=False):
-        headers = {"Content-Type": "application/json"}
+        # Cloudflare rejects urllib's default identity (error 1010). Identify
+        # our checker explicitly while retaining HTTPS and all auth checks.
+        headers = {"Content-Type": "application/json", "User-Agent": "Bosla-Deployment-Check/1.0"}
         if authenticated:
             headers["X-Pipeline-Secret"] = secret
         req = urllib.request.Request(base_url + path, headers=headers,
